@@ -1,0 +1,21 @@
+Navbar            DONE
+Footer            DONE
+Home Page         DONE <==
+About us          DONE
+Contact us        DONE
+Lab Services      DONE
+Find Doctor       DONE
+Login : 
+   Laboratory     DONE
+   Doctor         DONE
+   Patient        DONE
+Register : 
+   Patient        DONE
+Dashboard: 
+   Laboratory     DONE
+   Doctor         DONE
+   Patient        DONE
+ ==> Admin
+==> Dark Mode     DONE
+==> Translation
+
