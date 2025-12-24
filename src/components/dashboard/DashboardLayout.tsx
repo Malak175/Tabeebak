@@ -18,7 +18,7 @@ import {
 import { NavLink } from "@/components/NavLink";
 import { Bell, LogOut, User, LucideIcon } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
-import logo from "@/assets/logo.jpg";
+import logo from "@/assets/logo.png";
 
 interface NavItem {
   title: string;
