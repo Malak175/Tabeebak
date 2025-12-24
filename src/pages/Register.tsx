@@ -228,9 +228,9 @@ const Register = () => {
                   </div>
                 </div>
 
-                <div className="flex items-start gap-2">
-                  <input type="checkbox" id="terms" className="mt-1 rounded border-border" required />
-                  <label htmlFor="terms" className="text-sm text-muted-foreground">
+                <label htmlFor="terms" className="flex items-start gap-3 cursor-pointer bg-muted/50 border border-input rounded-md px-3 py-3 hover:bg-muted transition-colors">
+                  <input type="checkbox" id="terms" className="h-4 w-4 mt-0.5 rounded-none border-2 border-primary accent-primary" required />
+                  <span className="text-sm text-foreground">
                     I agree to the{" "}
                     <Link to="/terms" className="text-primary hover:underline">
                       Terms of Service
@@ -239,8 +239,8 @@ const Register = () => {
                     <Link to="/privacy" className="text-primary hover:underline">
                       Privacy Policy
                     </Link>
-                  </label>
-                </div>
+                  </span>
+                </label>
 
                 <Button type="submit" variant="hero" className="w-full" size="lg" disabled={isLoading}>
                   {isLoading ? "Creating Account..." : "Create Account"}

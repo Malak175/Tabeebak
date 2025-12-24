@@ -58,7 +58,7 @@ const About = () => {
       {/* Hero Section */}
       <section className="pt-32 pb-20 bg-gradient-to-br from-medical-light via-background to-teal-light">
         <div className="container mx-auto px-4">
-          <div className="max-w-3xl mx-auto text-center">
+          <div className="max-w-3xl mx-auto text-center animate-fade-in">
             <span className="text-primary font-semibold text-sm uppercase tracking-wider">About Us</span>
             <h1 className="text-4xl md:text-5xl font-bold mt-4 mb-6">
               Transforming Healthcare
@@ -77,8 +77,12 @@ const About = () => {
       <section className="py-16 bg-card">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {stats.map((stat) => (
-              <div key={stat.label} className="text-center">
+            {stats.map((stat, index) => (
+              <div 
+                key={stat.label} 
+                className="text-center animate-fade-in"
+                style={{ animationDelay: `${index * 100}ms` }}
+              >
                 <div className="text-4xl md:text-5xl font-bold text-primary mb-2">{stat.value}</div>
                 <div className="text-muted-foreground">{stat.label}</div>
               </div>
@@ -104,8 +108,12 @@ const About = () => {
           </div>
 
           <div className="grid md:grid-cols-3 gap-8 mb-12">
-            {heartFacts.map((fact) => (
-              <div key={fact.title} className="bg-card p-8 rounded-2xl border border-border hover:shadow-lg transition-shadow">
+            {heartFacts.map((fact, index) => (
+              <div 
+                key={fact.title} 
+                className="bg-card p-8 rounded-2xl border border-border hover:shadow-lg hover:-translate-y-1 transition-all duration-300 animate-fade-in"
+                style={{ animationDelay: `${index * 150}ms` }}
+              >
                 <div className="w-14 h-14 bg-primary/10 rounded-xl flex items-center justify-center mb-6">
                   <fact.icon className="h-7 w-7 text-primary" />
                 </div>
@@ -131,7 +139,7 @@ const About = () => {
       <section className="py-20">
         <div className="container mx-auto px-4">
           <div className="grid md:grid-cols-2 gap-12">
-            <div className="bg-primary/5 rounded-3xl p-8 md:p-12">
+            <div className="bg-primary/5 rounded-3xl p-8 md:p-12 animate-fade-in hover:scale-[1.02] transition-transform duration-300">
               <div className="w-14 h-14 bg-primary/10 rounded-xl flex items-center justify-center mb-6">
                 <Target className="h-7 w-7 text-primary" />
               </div>
@@ -143,7 +151,7 @@ const About = () => {
                 control of their health journey.
               </p>
             </div>
-            <div className="bg-secondary/10 rounded-3xl p-8 md:p-12">
+            <div className="bg-secondary/10 rounded-3xl p-8 md:p-12 animate-fade-in hover:scale-[1.02] transition-transform duration-300" style={{ animationDelay: '150ms' }}>
               <div className="w-14 h-14 bg-secondary/20 rounded-xl flex items-center justify-center mb-6">
                 <Eye className="h-7 w-7 text-secondary" />
               </div>
@@ -168,8 +176,12 @@ const About = () => {
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {values.map((value) => (
-              <div key={value.title} className="bg-card p-8 rounded-2xl text-center hover:shadow-lg transition-shadow">
+            {values.map((value, index) => (
+              <div 
+                key={value.title} 
+                className="bg-card p-8 rounded-2xl text-center hover:shadow-lg hover:-translate-y-2 transition-all duration-300 animate-fade-in"
+                style={{ animationDelay: `${index * 100}ms` }}
+              >
                 <div className="w-14 h-14 bg-primary/10 rounded-xl flex items-center justify-center mx-auto mb-6">
                   <value.icon className="h-7 w-7 text-primary" />
                 </div>
