@@ -51,10 +51,10 @@ const ServicesSection = () => {
           {services.map((service, index) => (
             <div
               key={service.title}
-              className="group bg-card border border-border p-6 rounded-xl hover:border-primary/30 hover:shadow-md transition-all duration-300"
-              style={{ animationDelay: `${index * 50}ms` }}
+              className="group bg-card border border-border p-6 rounded-xl hover:border-primary/30 hover:shadow-md hover:-translate-y-1 transition-all duration-300 animate-fade-in"
+              style={{ animationDelay: `${index * 100}ms` }}
             >
-              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
+              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 group-hover:scale-110 transition-all duration-300">
                 <service.icon className="h-6 w-6 text-primary" />
               </div>
               <h3 className="text-lg font-semibold mb-2 text-foreground">{service.title}</h3>

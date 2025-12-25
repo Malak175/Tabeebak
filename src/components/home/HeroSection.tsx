@@ -41,11 +41,11 @@ const HeroSection = () => {
           </div>
 
           {/* Stats Card - Simple and Clean */}
-          <div className="hidden lg:block">
-            <div className="bg-card rounded-2xl shadow-lg p-8 max-w-md ml-auto">
+          <div className="hidden lg:block animate-fade-in" style={{ animationDelay: '200ms' }}>
+            <div className="bg-card rounded-2xl shadow-lg p-8 max-w-md ml-auto hover:shadow-xl transition-shadow duration-300">
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
-                  <Heart className="h-6 w-6 text-primary" />
+                  <Heart className="h-6 w-6 text-primary animate-pulse" />
                 </div>
                 <div>
                   <h3 className="font-semibold text-foreground">TABEEBAK</h3>
@@ -58,8 +58,12 @@ const HeroSection = () => {
                   { value: "500+", label: "Expert Doctors" },
                   { value: "50+", label: "Lab Partners" },
                   { value: "10K+", label: "Happy Patients" },
-                ].map((stat) => (
-                  <div key={stat.label} className="flex items-center justify-between py-3 border-b border-border last:border-0">
+                ].map((stat, index) => (
+                  <div 
+                    key={stat.label} 
+                    className="flex items-center justify-between py-3 border-b border-border last:border-0 animate-fade-in"
+                    style={{ animationDelay: `${300 + index * 100}ms` }}
+                  >
                     <span className="text-muted-foreground">{stat.label}</span>
                     <span className="text-xl font-bold text-primary">{stat.value}</span>
                   </div>
@@ -75,8 +79,12 @@ const HeroSection = () => {
             { value: "500+", label: "Doctors" },
             { value: "50+", label: "Labs" },
             { value: "10K+", label: "Patients" },
-          ].map((stat) => (
-            <div key={stat.label} className="text-center bg-primary-foreground/10 backdrop-blur-sm rounded-xl p-4">
+          ].map((stat, index) => (
+            <div 
+              key={stat.label} 
+              className="text-center bg-primary-foreground/10 backdrop-blur-sm rounded-xl p-4 animate-fade-in"
+              style={{ animationDelay: `${index * 100}ms` }}
+            >
               <div className="text-2xl font-bold text-primary-foreground">{stat.value}</div>
               <div className="text-sm text-primary-foreground/80">{stat.label}</div>
             </div>
