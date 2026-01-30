@@ -115,10 +115,6 @@ const DashboardLayout = ({
             
             <div className="flex items-center gap-4">
               <ThemeToggle />
-              <button className="relative p-2 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-colors">
-                <Bell className="h-5 w-5" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full" />
-              </button>
               <Link to="/">
                 <Button variant="ghost" size="sm" className="gap-2">
                   <LogOut className="h-4 w-4" />
