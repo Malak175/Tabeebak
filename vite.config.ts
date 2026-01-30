@@ -4,14 +4,20 @@ import path from "path";
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  plugins: [react()],
   server: {
     host: "::",
     port: 8080,
   },
-  plugins: [react()],
+  build: {
+    chunkSizeWarningLimit: 1000,
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
   },
 });
+
+ 
+
