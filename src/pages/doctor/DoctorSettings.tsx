@@ -3,8 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import {
@@ -18,10 +16,8 @@ import {
   FileText,
   MessageSquare,
   Video,
-  Bell,
   Lock,
   User,
-  CreditCard,
 } from "lucide-react";
 
 const navItems = [
@@ -42,13 +38,6 @@ const DoctorSettings = () => {
     specialty: "Cardiologist",
     email: "sarah.johnson@tabeebak.com",
     phone: "+1 234 567 8900",
-  });
-
-  const [notifications, setNotifications] = useState({
-    newAppointments: true,
-    appointmentReminders: true,
-    patientMessages: true,
-    labResults: true,
   });
 
   return (
@@ -102,93 +91,7 @@ const DoctorSettings = () => {
             </div>
             <Button>Save Changes</Button>
           </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Bell className="h-5 w-5" />
-              Notification Preferences
-            </CardTitle>
-            <CardDescription>Choose what notifications you receive</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>New Appointment Requests</Label>
-                <p className="text-sm text-muted-foreground">Get notified when patients request appointments</p>
-              </div>
-              <Switch
-                checked={notifications.newAppointments}
-                onCheckedChange={(checked) =>
-                  setNotifications({ ...notifications, newAppointments: checked })
-                }
-              />
-            </div>
-            <Separator />
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Appointment Reminders</Label>
-                <p className="text-sm text-muted-foreground">Receive reminders before scheduled appointments</p>
-              </div>
-              <Switch
-                checked={notifications.appointmentReminders}
-                onCheckedChange={(checked) =>
-                  setNotifications({ ...notifications, appointmentReminders: checked })
-                }
-              />
-            </div>
-            <Separator />
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Patient Messages</Label>
-                <p className="text-sm text-muted-foreground">Get notified when patients send messages</p>
-              </div>
-              <Switch
-                checked={notifications.patientMessages}
-                onCheckedChange={(checked) =>
-                  setNotifications({ ...notifications, patientMessages: checked })
-                }
-              />
-            </div>
-            <Separator />
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Lab Results</Label>
-                <p className="text-sm text-muted-foreground">Receive alerts when patient lab results are ready</p>
-              </div>
-              <Switch
-                checked={notifications.labResults}
-                onCheckedChange={(checked) =>
-                  setNotifications({ ...notifications, labResults: checked })
-                }
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5" />
-              Availability Settings
-            </CardTitle>
-            <CardDescription>Configure your working hours and appointment slots</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Slot Duration</Label>
-                <Input defaultValue="30 minutes" />
-              </div>
-              <div className="space-y-2">
-                <Label>Break Between Slots</Label>
-                <Input defaultValue="5 minutes" />
-              </div>
-            </div>
-            <Button variant="outline">Manage Schedule</Button>
-          </CardContent>
-        </Card>
+        </Card>     
 
         <Card>
           <CardHeader>
@@ -199,14 +102,6 @@ const DoctorSettings = () => {
             <CardDescription>Manage your account security</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Two-Factor Authentication</Label>
-                <p className="text-sm text-muted-foreground">Add an extra layer of security</p>
-              </div>
-              <Button variant="outline">Enable</Button>
-            </div>
-            <Separator />
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label>Change Password</Label>

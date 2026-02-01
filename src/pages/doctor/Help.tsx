@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -12,9 +11,6 @@ import {
   Home,
   Settings,
   HelpCircle,
-  FileText,
-  MessageSquare,
-  Video,
   Search,
   Phone,
   Mail,
@@ -27,9 +23,6 @@ const navItems = [
   { title: "Appointments", url: "/doctor/appointments", icon: Calendar },
   { title: "Patients", url: "/doctor/patients", icon: Users },
   { title: "Schedule", url: "/doctor/schedule", icon: Clock },
-  { title: "Messages", url: "/doctor/messages", icon: MessageSquare },
-  { title: "Video Consult", url: "/doctor/video", icon: Video },
-  { title: "Reports", url: "/doctor/reports", icon: FileText },
   { title: "Settings", url: "/doctor/settings", icon: Settings },
   { title: "Help", url: "/doctor/help", icon: HelpCircle },
 ];
@@ -137,26 +130,6 @@ const DoctorHelp = () => {
                 </AccordionItem>
               ))}
             </Accordion>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick Resources</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Button variant="outline" className="w-full justify-start">
-              <Video className="h-4 w-4 mr-2" />
-              Video Call Best Practices
-            </Button>
-            <Button variant="outline" className="w-full justify-start">
-              <FileText className="h-4 w-4 mr-2" />
-              Documentation Guidelines
-            </Button>
-            <Button variant="outline" className="w-full justify-start">
-              <Users className="h-4 w-4 mr-2" />
-              Patient Communication Tips
-            </Button>
           </CardContent>
         </Card>
       </div>

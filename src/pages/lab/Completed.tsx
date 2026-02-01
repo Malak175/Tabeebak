@@ -13,20 +13,13 @@ import {
   Settings,
   HelpCircle,
   Search,
-  Package,
-  BarChart3,
-  Download,
   Eye,
-  Printer,
 } from "lucide-react";
 
 const navItems = [
   { title: "Dashboard", url: "/lab/dashboard", icon: Home },
   { title: "Pending Tests", url: "/lab/pending", icon: Clock },
   { title: "Completed", url: "/lab/completed", icon: CheckCircle },
-  { title: "Sample Tracking", url: "/lab/samples", icon: Search },
-  { title: "Inventory", url: "/lab/inventory", icon: Package },
-  { title: "Reports", url: "/lab/reports", icon: BarChart3 },
   { title: "Settings", url: "/lab/settings", icon: Settings },
   { title: "Help", url: "/lab/help", icon: HelpCircle },
 ];
@@ -66,10 +59,6 @@ const LabCompleted = () => {
           <Badge variant="secondary" className="text-green-600">
             {completedTests.filter(t => t.status === "delivered").length} Delivered
           </Badge>
-          <Button variant="outline">
-            <Download className="h-4 w-4 mr-2" />
-            Export All
-          </Button>
         </div>
       </div>
 
@@ -113,14 +102,6 @@ const LabCompleted = () => {
                   <Button variant="outline" size="sm">
                     <Eye className="h-4 w-4 mr-2" />
                     View
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    <Download className="h-4 w-4 mr-2" />
-                    Download
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    <Printer className="h-4 w-4 mr-2" />
-                    Print
                   </Button>
                 </div>
               </div>

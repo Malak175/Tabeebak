@@ -3,23 +3,36 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Search, FlaskConical, Clock, CheckCircle, ArrowRight } from "lucide-react";
+import { 
+  Search, 
+  FlaskConical, 
+  ArrowRight, 
+  Droplet, 
+  Heart, 
+  Activity, 
+  Pill, 
+  Shield,
+  Truck,
+  Clock,
+  Award
+} from "lucide-react";
+import TestCategoryCard from "@/components/lab/TestCategoryCard";
+import TestCard from "@/components/lab/TestCard";
+import LabPartnerCard from "@/components/lab/LabPartnerCard";
 
 const testCategories = [
-  { name: "Blood Tests", count: 45 },
-  { name: "Urine Tests", count: 12 },
-  { name: "Imaging", count: 8 },
-  { name: "Heart Tests", count: 15 },
-  { name: "Diabetes", count: 10 },
-  { name: "Thyroid", count: 6 },
+  { name: "Blood Tests", count: 45, icon: Droplet },
+  { name: "Urine Tests", count: 12, icon: FlaskConical },
+  { name: "Heart Tests", count: 15, icon: Heart },
+  { name: "Diabetes", count: 10, icon: Activity },
+  { name: "Thyroid", count: 6, icon: Pill },
 ];
 
 const popularTests = [
   {
     id: 1,
     name: "Complete Blood Count (CBC)",
-    description: "Comprehensive blood analysis measuring red cells, white cells, and platelets",
+    description: "Comprehensive blood analysis measuring red cells, white cells, and platelets for overall health assessment",
     price: "$35",
     duration: "4-6 hours",
     category: "Blood Tests",
@@ -27,7 +40,7 @@ const popularTests = [
   {
     id: 2,
     name: "Lipid Profile",
-    description: "Measures cholesterol levels and cardiovascular risk factors",
+    description: "Measures cholesterol levels including HDL, LDL, and triglycerides for cardiovascular risk assessment",
     price: "$45",
     duration: "12 hours (fasting)",
     category: "Heart Tests",
@@ -35,7 +48,7 @@ const popularTests = [
   {
     id: 3,
     name: "Thyroid Function Test",
-    description: "TSH, T3, T4 levels to assess thyroid health",
+    description: "Comprehensive TSH, T3, T4 levels to assess thyroid health and metabolic function",
     price: "$55",
     duration: "24 hours",
     category: "Thyroid",
@@ -43,7 +56,7 @@ const popularTests = [
   {
     id: 4,
     name: "HbA1c Test",
-    description: "Average blood sugar levels over past 2-3 months",
+    description: "Average blood sugar levels over past 2-3 months for diabetes monitoring and diagnosis",
     price: "$40",
     duration: "4-6 hours",
     category: "Diabetes",
@@ -51,7 +64,7 @@ const popularTests = [
   {
     id: 5,
     name: "Liver Function Test",
-    description: "Comprehensive liver health assessment",
+    description: "Comprehensive liver health assessment including enzymes and bilirubin levels",
     price: "$50",
     duration: "24 hours",
     category: "Blood Tests",
@@ -59,7 +72,7 @@ const popularTests = [
   {
     id: 6,
     name: "Kidney Function Test",
-    description: "Creatinine, BUN, and electrolyte levels",
+    description: "Creatinine, BUN, and electrolyte levels to evaluate kidney health and function",
     price: "$48",
     duration: "24 hours",
     category: "Blood Tests",
@@ -72,141 +85,205 @@ const labPartners = [
   { name: "Precision Pathology", tests: 200, rating: 4.7 },
 ];
 
+const features = [
+  { icon: Shield, title: "100% Accurate", description: "NABL certified labs" },
+  { icon: Truck, title: "Home Collection", description: "Free sample pickup" },
+  { icon: Clock, title: "Fast Results", description: "Reports in 24 hours" },
+  { icon: Award, title: "Best Prices", description: "Up to 50% off" },
+];
+
 const LabServices = () => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
-  const filteredTests = popularTests.filter((test) =>
-    test.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    test.category.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredTests = popularTests.filter((test) => {
+    const matchesSearch = test.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      test.category.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = !activeCategory || test.category === activeCategory;
+    return matchesSearch && matchesCategory;
+  });
 
   return (
-    <main className="min-h-screen bg-muted/30">
+    <main className="min-h-screen bg-background">
       <Navbar />
       
       {/* Hero Section */}
-      <section className="pt-24 pb-16 gradient-teal text-secondary-foreground">
-        <div className="container mx-auto px-4">
+      <section className="relative pt-24 pb-20 overflow-hidden">
+        {/* Background gradient */}
+        <div className="absolute inset-0 gradient-hero" />
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMiIvPjwvZz48L2c+PC9zdmc+')] opacity-50" />
+        
+        <div className="container mx-auto px-4 relative">
           <div className="max-w-3xl mx-auto text-center">
-            <div className="inline-flex items-center gap-2 bg-secondary-foreground/20 px-4 py-2 rounded-full mb-6">
-              <FlaskConical className="h-4 w-4" />
-              <span className="text-sm font-medium">Trusted Lab Partners</span>
+            <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full mb-6 border border-white/20">
+              <FlaskConical className="h-4 w-4 text-primary-foreground" />
+              <span className="text-sm font-medium text-primary-foreground">Trusted by 50,000+ Patients</span>
             </div>
-            <h1 className="text-3xl md:text-4xl font-bold mb-4">Laboratory Services</h1>
-            <p className="text-secondary-foreground/80 mb-8 text-lg">
-              Book diagnostic tests from certified labs with accurate results and home sample collection
+            
+            <h1 className="text-4xl md:text-5xl font-bold mb-6 text-primary-foreground leading-tight">
+              Book Lab Tests with
+              <span className="block text-white/90">Certified Partners</span>
+            </h1>
+            
+            <p className="text-primary-foreground/80 mb-10 text-lg max-w-2xl mx-auto">
+              Get accurate diagnostic tests from NABL certified labs with free home sample collection and fast digital reports
             </p>
             
             {/* Search Bar */}
-            <div className="flex gap-4 bg-card p-2 rounded-xl shadow-lg max-w-xl mx-auto">
+            <div className="flex flex-col sm:flex-row gap-3 bg-card p-3 rounded-2xl shadow-2xl max-w-xl mx-auto">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input
-                  placeholder="Search for tests..."
-                  className="pl-10 border-0 bg-transparent text-foreground"
+                  placeholder="Search for tests, packages..."
+                  className="pl-12 h-12 border-0 bg-muted/50 text-foreground rounded-xl text-base"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
-              <Button variant="hero">Search</Button>
+              <Button className="h-12 px-8 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-lg">
+                <Search className="h-4 w-4 mr-2" />
+                Search
+              </Button>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Categories */}
-      <section className="py-12 bg-card">
+      {/* Features Strip */}
+      <section className="py-8 bg-card border-y border-border/50">
         <div className="container mx-auto px-4">
-          <h2 className="text-2xl font-bold mb-8 text-center">Test Categories</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {features.map((feature) => (
+              <div key={feature.title} className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <feature.icon className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <div className="font-semibold text-foreground">{feature.title}</div>
+                  <div className="text-sm text-muted-foreground">{feature.description}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Categories */}
+      <section className="py-16">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl font-bold mb-3 text-foreground">Browse by Category</h2>
+            <p className="text-muted-foreground max-w-xl mx-auto">
+              Choose from a wide range of diagnostic tests and health packages
+            </p>
+          </div>
+          
+          <div className="flex flex-wrap justify-center gap-4">
             {testCategories.map((category) => (
-              <button
+              <TestCategoryCard
                 key={category.name}
-                className="p-4 bg-muted/50 rounded-xl hover:bg-primary/10 hover:border-primary border-2 border-transparent transition-all text-center group"
-              >
-                <div className="text-lg font-semibold group-hover:text-primary">{category.name}</div>
-                <div className="text-sm text-muted-foreground">{category.count} tests</div>
-              </button>
+                name={category.name}
+                count={category.count}
+                icon={category.icon}
+                isActive={activeCategory === category.name}
+                onClick={() => setActiveCategory(
+                  activeCategory === category.name ? null : category.name
+                )}
+              />
             ))}
           </div>
         </div>
       </section>
 
       {/* Popular Tests */}
-      <section className="py-16">
+      <section className="py-16 bg-muted/30">
         <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl font-bold">Popular Tests</h2>
-            <Button variant="ghost" className="text-primary">
-              View All <ArrowRight className="h-4 w-4 ml-2" />
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-10">
+            <div>
+              <h2 className="text-3xl font-bold mb-2 text-foreground">Popular Tests</h2>
+              <p className="text-muted-foreground">Most booked diagnostic tests by our patients</p>
+            </div>
+            <Button variant="outline" className="gap-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground">
+              View All Tests <ArrowRight className="h-4 w-4" />
             </Button>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredTests.map((test) => (
-              <Card key={test.id} className="hover:shadow-lg transition-shadow">
-                <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-1 rounded-full">
-                        {test.category}
-                      </span>
-                      <CardTitle className="text-lg mt-2">{test.name}</CardTitle>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground text-sm mb-4">{test.description}</p>
-                  
-                  <div className="flex items-center gap-4 text-sm mb-4">
-                    <div className="flex items-center gap-1 text-muted-foreground">
-                      <Clock className="h-4 w-4" />
-                      Results in {test.duration}
-                    </div>
-                  </div>
+              <TestCard
+                key={test.id}
+                name={test.name}
+                description={test.description}
+                price={test.price}
+                duration={test.duration}
+                category={test.category}
+              />
+            ))}
+          </div>
 
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="text-2xl font-bold text-secondary">{test.price}</span>
-                    </div>
-                    <Button variant="teal" size="sm">
-                      Book Test
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+          {filteredTests.length === 0 && (
+            <div className="text-center py-12">
+              <FlaskConical className="h-16 w-16 text-muted-foreground/50 mx-auto mb-4" />
+              <p className="text-muted-foreground text-lg">No tests found matching your search</p>
+              <Button 
+                variant="link" 
+                className="text-primary mt-2"
+                onClick={() => {
+                  setSearchQuery("");
+                  setActiveCategory(null);
+                }}
+              >
+                Clear filters
+              </Button>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Lab Partners */}
+      <section className="py-16">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold mb-3 text-foreground">Our Lab Partners</h2>
+            <p className="text-muted-foreground max-w-xl mx-auto">
+              We partner with NABL certified labs to ensure accurate and reliable test results
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            {labPartners.map((lab) => (
+              <LabPartnerCard
+                key={lab.name}
+                name={lab.name}
+                tests={lab.tests}
+                rating={lab.rating}
+              />
             ))}
           </div>
         </div>
       </section>
 
-      {/* Lab Partners */}
-      <section className="py-16 bg-card">
+      {/* CTA Section */}
+      <section className="py-16">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-2xl font-bold mb-2">Our Lab Partners</h2>
-            <p className="text-muted-foreground">Certified and accredited diagnostic centers</p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-            {labPartners.map((lab) => (
-              <Card key={lab.name} className="text-center">
-                <CardContent className="pt-6">
-                  <div className="w-16 h-16 bg-secondary/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <FlaskConical className="h-8 w-8 text-secondary" />
-                  </div>
-                  <h3 className="font-semibold text-lg mb-2">{lab.name}</h3>
-                  <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground">
-                    <span>{lab.tests}+ tests</span>
-                    <span>⭐ {lab.rating}</span>
-                  </div>
-                  <div className="mt-4 flex items-center justify-center gap-2 text-green-600 text-sm">
-                    <CheckCircle className="h-4 w-4" />
-                    NABL Certified
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+          <div className="relative overflow-hidden rounded-3xl gradient-hero p-10 md:p-16 text-center">
+            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMiIvPjwvZz48L2c+PC9zdmc+')] opacity-50" />
+            <div className="relative">
+              <h2 className="text-3xl md:text-4xl font-bold text-primary-foreground mb-4">
+                Need Help Choosing the Right Test?
+              </h2>
+              <p className="text-primary-foreground/80 mb-8 max-w-xl mx-auto text-lg">
+                Our health experts are available 24/7 to guide you through the right diagnostic tests for your needs
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Button size="lg" className="bg-white text-primary hover:bg-white/90 font-semibold shadow-lg">
+                  Talk to Expert
+                </Button>
+                <Button size="lg" variant="outline" className="border-white/30 text-primary-foreground hover:bg-white/10">
+                  View Health Packages
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       </section>

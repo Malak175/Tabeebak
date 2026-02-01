@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -12,22 +11,16 @@ import {
   Settings,
   HelpCircle,
   Search,
-  Package,
-  BarChart3,
   Phone,
   Mail,
   Book,
   Headphones,
-  Video,
 } from "lucide-react";
 
 const navItems = [
   { title: "Dashboard", url: "/lab/dashboard", icon: Home },
   { title: "Pending Tests", url: "/lab/pending", icon: Clock },
   { title: "Completed", url: "/lab/completed", icon: CheckCircle },
-  { title: "Sample Tracking", url: "/lab/samples", icon: Search },
-  { title: "Inventory", url: "/lab/inventory", icon: Package },
-  { title: "Reports", url: "/lab/reports", icon: BarChart3 },
   { title: "Settings", url: "/lab/settings", icon: Settings },
   { title: "Help", url: "/lab/help", icon: HelpCircle },
 ];
@@ -135,26 +128,6 @@ const LabHelp = () => {
                 </AccordionItem>
               ))}
             </Accordion>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick Resources</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Button variant="outline" className="w-full justify-start">
-              <Video className="h-4 w-4 mr-2" />
-              System Tutorial Videos
-            </Button>
-            <Button variant="outline" className="w-full justify-start">
-              <Book className="h-4 w-4 mr-2" />
-              User Documentation
-            </Button>
-            <Button variant="outline" className="w-full justify-start">
-              <FlaskConical className="h-4 w-4 mr-2" />
-              Lab Protocol Guidelines
-            </Button>
           </CardContent>
         </Card>
       </div>

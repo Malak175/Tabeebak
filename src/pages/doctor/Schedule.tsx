@@ -24,9 +24,6 @@ const navItems = [
   { title: "Appointments", url: "/doctor/appointments", icon: Calendar },
   { title: "Patients", url: "/doctor/patients", icon: Users },
   { title: "Schedule", url: "/doctor/schedule", icon: Clock },
-  { title: "Messages", url: "/doctor/messages", icon: MessageSquare },
-  { title: "Video Consult", url: "/doctor/video", icon: Video },
-  { title: "Reports", url: "/doctor/reports", icon: FileText },
   { title: "Settings", url: "/doctor/settings", icon: Settings },
   { title: "Help", url: "/doctor/help", icon: HelpCircle },
 ];
@@ -187,26 +184,6 @@ const DoctorSchedule = () => {
               <span className="text-muted-foreground">Available Slots</span>
               <span className="text-2xl font-bold text-green-600">28</span>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Quick Actions</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <Button variant="outline" className="w-full justify-start">
-              <Calendar className="h-4 w-4 mr-2" />
-              Set Vacation Days
-            </Button>
-            <Button variant="outline" className="w-full justify-start">
-              <Clock className="h-4 w-4 mr-2" />
-              Adjust Slot Duration
-            </Button>
-            <Button variant="outline" className="w-full justify-start">
-              <Video className="h-4 w-4 mr-2" />
-              Video Call Settings
-            </Button>
           </CardContent>
         </Card>
       </div>

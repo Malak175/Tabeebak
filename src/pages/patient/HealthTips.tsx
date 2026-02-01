@@ -27,8 +27,6 @@ const navItems = [
   { title: "Dashboard", url: "/patient/dashboard", icon: Home },
   { title: "Appointments", url: "/patient/appointments", icon: Calendar },
   { title: "Lab Results", url: "/patient/lab-results", icon: FlaskConical },
-  { title: "Medical Records", url: "/patient/records", icon: FileText },
-  { title: "Prescriptions", url: "/patient/prescriptions", icon: Pill },
   { title: "Health Tips", url: "/patient/tips", icon: Heart },
   { title: "Settings", url: "/patient/settings", icon: Settings },
   { title: "Help", url: "/patient/help", icon: HelpCircle },

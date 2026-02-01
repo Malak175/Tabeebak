@@ -9,7 +9,6 @@ import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import {
   FlaskConical,
   Clock,
-  User,
   CheckCircle,
   FileText,
   Upload,
@@ -18,13 +17,8 @@ import {
   Home,
   Settings,
   HelpCircle,
-  Search,
-  Package,
-  Printer,
   ChevronRight,
-  Download,
   Eye,
-  BarChart3,
   Microscope,
 } from "lucide-react";
 
@@ -32,9 +26,6 @@ const navItems = [
   { title: "Dashboard", url: "/lab/dashboard", icon: Home },
   { title: "Pending Tests", url: "/lab/pending", icon: Clock },
   { title: "Completed", url: "/lab/completed", icon: CheckCircle },
-  { title: "Sample Tracking", url: "/lab/samples", icon: Search },
-  { title: "Inventory", url: "/lab/inventory", icon: Package },
-  { title: "Reports", url: "/lab/reports", icon: BarChart3 },
   { title: "Settings", url: "/lab/settings", icon: Settings },
   { title: "Help", url: "/lab/help", icon: HelpCircle },
 ];
@@ -106,11 +97,6 @@ const stats = [
   { label: "Urgent Tests", value: "3", icon: AlertCircle, color: "red", change: "-1" },
 ];
 
-const inventoryAlerts = [
-  { item: "Blood Collection Tubes", remaining: 45, reorderPoint: 50 },
-  { item: "Reagent Kit A", remaining: 12, reorderPoint: 20 },
-  { item: "Glucose Strips", remaining: 85, reorderPoint: 100 },
-];
 
 const LabDashboard = () => {
   const [lab] = useState({
@@ -118,18 +104,6 @@ const LabDashboard = () => {
     type: "Laboratory",
     certification: "NABL Certified",
   });
-
-  const getPriorityColor = (priority: string) => {
-    return priority === "urgent"
-      ? "bg-red-100 text-red-700"
-      : "bg-muted text-muted-foreground";
-  };
-
-  const getProgressColor = (progress: number) => {
-    if (progress >= 75) return "bg-green-500";
-    if (progress >= 50) return "bg-yellow-500";
-    return "bg-primary";
-  };
 
   return (
     <DashboardLayout
@@ -299,31 +273,6 @@ const LabDashboard = () => {
 
         {/* Sidebar - 1 column */}
         <div className="space-y-6">
-          {/* Quick Actions */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Button variant="hero" className="w-full justify-start">
-                <Upload className="h-4 w-4 mr-2" />
-                Upload New Result
-              </Button>
-              <Button variant="outline" className="w-full justify-start">
-                <Search className="h-4 w-4 mr-2" />
-                Track Sample
-              </Button>
-              <Button variant="outline" className="w-full justify-start">
-                <Printer className="h-4 w-4 mr-2" />
-                Print Reports
-              </Button>
-              <Button variant="outline" className="w-full justify-start">
-                <Package className="h-4 w-4 mr-2" />
-                Check Inventory
-              </Button>
-            </CardContent>
-          </Card>
-
           {/* Recent Uploads */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -362,42 +311,6 @@ const LabDashboard = () => {
               </div>
             </CardContent>
           </Card>
-
-          {/* Inventory Alerts */}
-          <Card className="border-yellow-200 bg-yellow-50/50">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <AlertCircle className="h-5 w-5 text-yellow-600" />
-                Inventory Alerts
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {inventoryAlerts.map((item) => (
-                <div key={item.item} className="p-3 bg-background rounded-xl">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium">{item.item}</span>
-                    <span
-                      className={`text-xs font-medium ${
-                        item.remaining < item.reorderPoint
-                          ? "text-red-600"
-                          : "text-green-600"
-                      }`}
-                    >
-                      {item.remaining} left
-                    </span>
-                  </div>
-                  <Progress
-                    value={(item.remaining / item.reorderPoint) * 100}
-                    className="h-1.5"
-                  />
-                </div>
-              ))}
-              <Button variant="outline" size="sm" className="w-full">
-                Order Supplies
-              </Button>
-            </CardContent>
-          </Card>
-
           {/* Lab Info */}
           <Card className="bg-gradient-to-br from-secondary/10 to-primary/5 border-secondary/20">
             <CardContent className="p-4 text-center">

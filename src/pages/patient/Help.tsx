@@ -1,33 +1,27 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import {
   Calendar,
-  FileText,
   FlaskConical,
   User,
   Heart,
-  Pill,
   Home,
   Settings,
   HelpCircle,
   Search,
-  MessageCircle,
   Phone,
   Mail,
   Book,
-  Video,
+  Headphones,
 } from "lucide-react";
 
 const navItems = [
   { title: "Dashboard", url: "/patient/dashboard", icon: Home },
   { title: "Appointments", url: "/patient/appointments", icon: Calendar },
   { title: "Lab Results", url: "/patient/lab-results", icon: FlaskConical },
-  { title: "Medical Records", url: "/patient/records", icon: FileText },
-  { title: "Prescriptions", url: "/patient/prescriptions", icon: Pill },
   { title: "Health Tips", url: "/patient/tips", icon: Heart },
   { title: "Settings", url: "/patient/settings", icon: Settings },
   { title: "Help", url: "/patient/help", icon: HelpCircle },
@@ -95,14 +89,14 @@ const PatientHelp = () => {
           />
         </div>
 
-        <div className="grid md:grid-cols-3 gap-4">
+             <div className="grid md:grid-cols-3 gap-4">
           <Card className="hover:border-primary/50 transition-colors cursor-pointer">
             <CardContent className="p-6 text-center">
               <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
-                <MessageCircle className="h-6 w-6 text-primary" />
+                <Headphones className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="font-semibold mb-1">Live Chat</h3>
-              <p className="text-sm text-muted-foreground">Chat with our support team</p>
+              <h3 className="font-semibold mb-1">Technical Support</h3>
+              <p className="text-sm text-muted-foreground">24/7 support available</p>
             </CardContent>
           </Card>
           <Card className="hover:border-primary/50 transition-colors cursor-pointer">
@@ -110,7 +104,7 @@ const PatientHelp = () => {
               <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
                 <Phone className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="font-semibold mb-1">Call Us</h3>
+              <h3 className="font-semibold mb-1">Call Support</h3>
               <p className="text-sm text-muted-foreground">+1 800 123 4567</p>
             </CardContent>
           </Card>
@@ -120,7 +114,7 @@ const PatientHelp = () => {
                 <Mail className="h-6 w-6 text-primary" />
               </div>
               <h3 className="font-semibold mb-1">Email Support</h3>
-              <p className="text-sm text-muted-foreground">support@tabeebak.com</p>
+              <p className="text-sm text-muted-foreground">admin@tabeebak.com</p>
             </CardContent>
           </Card>
         </div>
@@ -153,28 +147,7 @@ const PatientHelp = () => {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Video className="h-5 w-5" />
-              Video Tutorials
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Button variant="outline" className="w-full justify-start">
-              <Video className="h-4 w-4 mr-2" />
-              How to Book an Appointment
-            </Button>
-            <Button variant="outline" className="w-full justify-start">
-              <Video className="h-4 w-4 mr-2" />
-              Understanding Your Lab Results
-            </Button>
-            <Button variant="outline" className="w-full justify-start">
-              <Video className="h-4 w-4 mr-2" />
-              Managing Your Prescriptions
-            </Button>
-          </CardContent>
-        </Card>
+       
       </div>
     </DashboardLayout>
   );

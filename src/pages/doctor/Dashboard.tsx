@@ -30,9 +30,6 @@ const navItems = [
   { title: "Appointments", url: "/doctor/appointments", icon: Calendar },
   { title: "Patients", url: "/doctor/patients", icon: Users },
   { title: "Schedule", url: "/doctor/schedule", icon: Clock },
-  { title: "Messages", url: "/doctor/messages", icon: MessageSquare },
-  { title: "Video Consult", url: "/doctor/video", icon: Video },
-  { title: "Reports", url: "/doctor/reports", icon: FileText },
   { title: "Settings", url: "/doctor/settings", icon: Settings },
   { title: "Help", url: "/doctor/help", icon: HelpCircle },
 ];
@@ -334,73 +331,6 @@ const DoctorDashboard = () => {
 
         {/* Sidebar - 1 column */}
         <div className="space-y-6">
-          {/* Quick Actions */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Button variant="hero" className="w-full justify-start">
-                <Video className="h-4 w-4 mr-2" />
-                Start Video Consult
-              </Button>
-              <Button variant="outline" className="w-full justify-start">
-                <Calendar className="h-4 w-4 mr-2" />
-                Manage Schedule
-              </Button>
-              <Button variant="outline" className="w-full justify-start">
-                <FileText className="h-4 w-4 mr-2" />
-                Write Prescription
-              </Button>
-              <Button variant="outline" className="w-full justify-start">
-                <MessageSquare className="h-4 w-4 mr-2" />
-                Messages (3 new)
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Appointment Requests */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-lg">New Requests</CardTitle>
-              <Badge variant="secondary">{appointmentRequests.length}</Badge>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {appointmentRequests.map((request) => (
-                  <div
-                    key={request.id}
-                    className="p-3 bg-muted/50 rounded-xl space-y-2"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <UserPlus className="h-4 w-4 text-primary" />
-                        <span className="font-medium text-sm">{request.name}</span>
-                      </div>
-                      <Badge variant="outline" className="text-xs">
-                        {request.type}
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground">{request.issue}</p>
-                    <div className="text-xs text-muted-foreground">
-                      {request.date} at {request.time}
-                    </div>
-                    <div className="flex gap-2 pt-1">
-                      <Button size="sm" variant="hero" className="flex-1">
-                        <CheckCircle className="h-3.5 w-3.5 mr-1" />
-                        Accept
-                      </Button>
-                      <Button size="sm" variant="outline" className="flex-1">
-                        <XCircle className="h-3.5 w-3.5 mr-1" />
-                        Decline
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
           {/* Today's Summary */}
           <Card className="bg-gradient-to-br from-secondary/10 to-primary/5 border-secondary/20">
             <CardContent className="p-4">

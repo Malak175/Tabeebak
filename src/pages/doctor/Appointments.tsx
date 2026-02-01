@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,8 +9,6 @@ import {
   Calendar,
   Users,
   Clock,
-  CheckCircle,
-  XCircle,
   Stethoscope,
   Home,
   Settings,
@@ -27,9 +25,6 @@ const navItems = [
   { title: "Appointments", url: "/doctor/appointments", icon: Calendar },
   { title: "Patients", url: "/doctor/patients", icon: Users },
   { title: "Schedule", url: "/doctor/schedule", icon: Clock },
-  { title: "Messages", url: "/doctor/messages", icon: MessageSquare },
-  { title: "Video Consult", url: "/doctor/video", icon: Video },
-  { title: "Reports", url: "/doctor/reports", icon: FileText },
   { title: "Settings", url: "/doctor/settings", icon: Settings },
   { title: "Help", url: "/doctor/help", icon: HelpCircle },
 ];
@@ -45,7 +40,6 @@ const appointments = [
 
 const DoctorAppointments = () => {
   const [doctor] = useState({ name: "Dr. Sarah Johnson", specialty: "Cardiologist" });
-  const [selectedDate, setSelectedDate] = useState(new Date());
 
   const getStatusColor = (status: string) => {
     switch (status) {

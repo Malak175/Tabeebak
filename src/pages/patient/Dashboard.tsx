@@ -28,8 +28,6 @@ const navItems = [
   { title: "Dashboard", url: "/patient/dashboard", icon: Home },
   { title: "Appointments", url: "/patient/appointments", icon: Calendar },
   { title: "Lab Results", url: "/patient/lab-results", icon: FlaskConical },
-  { title: "Medical Records", url: "/patient/records", icon: FileText },
-  { title: "Prescriptions", url: "/patient/prescriptions", icon: Pill },
   { title: "Health Tips", url: "/patient/tips", icon: Heart },
   { title: "Settings", url: "/patient/settings", icon: Settings },
   { title: "Help", url: "/patient/help", icon: HelpCircle },
@@ -184,53 +182,6 @@ const PatientDashboard = () => {
         ))}
       </div>
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        {[
-          {
-            icon: Calendar,
-            label: "Book Appointment",
-            href: "/doctors",
-            color: "primary",
-          },
-          {
-            icon: FlaskConical,
-            label: "Book Lab Test",
-            href: "/lab-services",
-            color: "secondary",
-          },
-          {
-            icon: FileText,
-            label: "My Records",
-            href: "/patient/records",
-            color: "primary",
-          },
-          {
-            icon: Heart,
-            label: "Health Tips",
-            href: "/patient/tips",
-            color: "secondary",
-          },
-        ].map((action) => (
-          <Link key={action.label} to={action.href}>
-            <Card className="hover:shadow-md transition-all cursor-pointer h-full hover:border-primary/50 group">
-              <CardContent className="p-4 flex flex-col items-center justify-center text-center gap-2">
-                <div
-                  className={`w-12 h-12 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110 ${
-                    action.color === "primary"
-                      ? "bg-primary/10 text-primary"
-                      : "bg-secondary/20 text-secondary"
-                  }`}
-                >
-                  <action.icon className="h-6 w-6" />
-                </div>
-                <span className="text-sm font-medium">{action.label}</span>
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
-      </div>
-
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Main Content - 2 columns */}
         <div className="lg:col-span-2 space-y-6">
@@ -380,46 +331,6 @@ const PatientDashboard = () => {
                   <span className="font-medium">98 mg/dL</span>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Medications */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Pill className="h-5 w-5 text-primary" />
-                Active Medications
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {medications.map((med) => (
-                <div key={med.name} className="p-3 bg-muted/50 rounded-xl">
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <h4 className="font-medium text-sm">{med.name}</h4>
-                      <p className="text-xs text-muted-foreground">
-                        {med.dosage} • {med.frequency}
-                      </p>
-                    </div>
-                    {med.remaining < 10 && (
-                      <AlertCircle className="h-4 w-4 text-yellow-500" />
-                    )}
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">Remaining</span>
-                      <span>{med.remaining} pills</span>
-                    </div>
-                    <Progress
-                      value={(med.remaining / 30) * 100}
-                      className="h-1.5"
-                    />
-                  </div>
-                </div>
-              ))}
-              <Button variant="outline" size="sm" className="w-full">
-                Refill Prescription
-              </Button>
             </CardContent>
           </Card>
 
