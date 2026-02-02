@@ -315,41 +315,6 @@ const PatientLabResults = () => {
                         {selectedResult.aiRiskPrediction.riskLevel} Risk Level
                       </p>
                     </div>
-
-                    {/* Individual Condition Risks */}
-                    <div className="space-y-3 mb-4">
-                      <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Condition Risks</h5>
-                      {selectedResult.aiRiskPrediction.conditions.map((condition, idx) => (
-                        <div key={idx} className="space-y-1">
-                          <div className="flex items-center justify-between text-sm">
-                            <span>{condition.name}</span>
-                            <span className={`font-semibold ${getRiskColor(condition.level)}`}>
-                              {condition.percentage}%
-                            </span>
-                          </div>
-                          <div className="w-full bg-muted rounded-full h-2">
-                            <div 
-                              className={`h-2 rounded-full transition-all ${getRiskBgColor(condition.level)}`}
-                              style={{ width: `${condition.percentage}%` }}
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* AI Recommendation */}
-                    <div className="p-3 bg-background rounded-lg border-l-4 border-primary">
-                      <div className="flex items-start gap-2">
-                        <Info className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                        <div>
-                          <h5 className="text-xs font-semibold mb-1">AI Recommendation</h5>
-                          <p className="text-xs text-muted-foreground leading-relaxed">
-                            {selectedResult.aiRiskPrediction.recommendation}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
                     <p className="text-[10px] text-muted-foreground mt-3 text-center">
                       * AI predictions are for informational purposes only. Always consult your doctor for medical advice.
                     </p>
