@@ -14,6 +14,7 @@ import {
   Settings,
   HelpCircle,
   Lock,
+  Shield,
 } from "lucide-react";
 
 const navItems = [
@@ -30,6 +31,14 @@ const PatientSettings = () => {
     name: "John Doe",
     email: "john.doe@example.com",
     phone: "+1 234 567 8900",
+  });
+
+  const [notifications, setNotifications] = useState({
+    appointments: true,
+    labResults: true,
+    prescriptions: true,
+    healthTips: false,
+    marketing: false,
   });
 
   return (
@@ -77,7 +86,6 @@ const PatientSettings = () => {
             <Button>Save Changes</Button>
           </CardContent>
         </Card>
-
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -95,6 +103,21 @@ const PatientSettings = () => {
               </div>
               <Button variant="outline">Update</Button>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5" />
+              Privacy
+            </CardTitle>
+            <CardDescription>Control your data and privacy settings</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Button variant="outline" className="w-full justify-start text-red-600 hover:text-red-700">
+              Delete Account
+            </Button>
           </CardContent>
         </Card>
       </div>

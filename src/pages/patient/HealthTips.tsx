@@ -5,11 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import {
   Calendar,
-  FileText,
   FlaskConical,
   User,
   Heart,
-  Pill,
   Home,
   Settings,
   HelpCircle,
@@ -128,36 +126,6 @@ const PatientHealthTips = () => {
         </div>
 
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Activity className="h-5 w-5 text-primary" />
-                Daily Goals
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {dailyGoals.map((goal) => (
-                <div key={goal.name} className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <goal.icon className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm font-medium">{goal.name}</span>
-                    </div>
-                    <span className="text-sm text-muted-foreground">
-                      {goal.current}/{goal.target} {goal.unit}
-                    </span>
-                  </div>
-                  <div className="h-2 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-primary rounded-full transition-all"
-                      style={{ width: `${Math.min((goal.current / goal.target) * 100, 100)}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
           <Card className="bg-gradient-to-br from-primary/5 to-secondary/5 border-primary/20">
             <CardContent className="p-6">
               <div className="flex items-start gap-4">

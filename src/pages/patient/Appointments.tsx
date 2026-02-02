@@ -1,19 +1,16 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import {
   Calendar,
-  FileText,
   FlaskConical,
   Clock,
   User,
-  ChevronRight,
   Heart,
-  Pill,
   Home,
   Settings,
   HelpCircle,
@@ -28,8 +25,6 @@ const navItems = [
   { title: "Dashboard", url: "/patient/dashboard", icon: Home },
   { title: "Appointments", url: "/patient/appointments", icon: Calendar },
   { title: "Lab Results", url: "/patient/lab-results", icon: FlaskConical },
-  { title: "Medical Records", url: "/patient/records", icon: FileText },
-  { title: "Prescriptions", url: "/patient/prescriptions", icon: Pill },
   { title: "Health Tips", url: "/patient/tips", icon: Heart },
   { title: "Settings", url: "/patient/settings", icon: Settings },
   { title: "Help", url: "/patient/help", icon: HelpCircle },

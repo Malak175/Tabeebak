@@ -2,15 +2,12 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import {
   Calendar,
-  FileText,
   FlaskConical,
   User,
   Heart,
-  Pill,
   Home,
   Settings,
   HelpCircle,
@@ -19,14 +16,17 @@ import {
   TrendingUp,
   TrendingDown,
   Minus,
+  Brain,
+  AlertTriangle,
+  CheckCircle,
+  Info,
 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 
 const navItems = [
   { title: "Dashboard", url: "/patient/dashboard", icon: Home },
   { title: "Appointments", url: "/patient/appointments", icon: Calendar },
   { title: "Lab Results", url: "/patient/lab-results", icon: FlaskConical },
-  { title: "Medical Records", url: "/patient/records", icon: FileText },
-  { title: "Prescriptions", url: "/patient/prescriptions", icon: Pill },
   { title: "Health Tips", url: "/patient/tips", icon: Heart },
   { title: "Settings", url: "/patient/settings", icon: Settings },
   { title: "Help", url: "/patient/help", icon: HelpCircle },
@@ -40,6 +40,16 @@ const labResults = [
     status: "normal",
     doctor: "Dr. Sarah Johnson",
     lab: "MedLab Diagnostics",
+    aiRiskPrediction: {
+      overallRisk: 12,
+      riskLevel: "low",
+      conditions: [
+        { name: "Anemia Risk", percentage: 8, level: "low" },
+        { name: "Infection Risk", percentage: 15, level: "low" },
+        { name: "Blood Disorder Risk", percentage: 5, level: "low" },
+      ],
+      recommendation: "Your blood count values are within normal ranges. Continue maintaining a healthy lifestyle.",
+    },
     values: [
       { name: "Hemoglobin", value: "14.5 g/dL", status: "normal", range: "13.5-17.5" },
       { name: "WBC", value: "7,500 /μL", status: "normal", range: "4,500-11,000" },
@@ -53,6 +63,16 @@ const labResults = [
     status: "attention",
     doctor: "Dr. Sarah Johnson",
     lab: "MedLab Diagnostics",
+    aiRiskPrediction: {
+      overallRisk: 68,
+      riskLevel: "moderate",
+      conditions: [
+        { name: "Heart Disease Risk", percentage: 72, level: "high" },
+        { name: "Stroke Risk", percentage: 58, level: "moderate" },
+        { name: "Atherosclerosis Risk", percentage: 65, level: "moderate" },
+      ],
+      recommendation: "Your cholesterol levels are elevated. Consider dietary changes, regular exercise, and consult with your doctor about treatment options.",
+    },
     values: [
       { name: "Total Cholesterol", value: "220 mg/dL", status: "high", range: "<200" },
       { name: "LDL", value: "145 mg/dL", status: "high", range: "<100" },
@@ -65,8 +85,17 @@ const labResults = [
     name: "HbA1c Test",
     date: "Nov 20, 2024",
     status: "normal",
-    doctor: "Dr. Michael Chen",
+    doctor: "Dr. Sarah Johnson",
     lab: "City Lab Center",
+    aiRiskPrediction: {
+      overallRisk: 18,
+      riskLevel: "low",
+      conditions: [
+        { name: "Diabetes Risk", percentage: 18, level: "low" },
+        { name: "Pre-diabetes Risk", percentage: 22, level: "low" },
+      ],
+      recommendation: "Your blood sugar control is excellent. Maintain your current diet and exercise routine.",
+    },
     values: [
       { name: "HbA1c", value: "5.4%", status: "normal", range: "<5.7%" },
     ],
@@ -76,8 +105,17 @@ const labResults = [
     name: "Thyroid Function Test",
     date: "Nov 15, 2024",
     status: "normal",
-    doctor: "Dr. Emily Williams",
+    doctor: "Dr. Sarah Johnson",
     lab: "MedLab Diagnostics",
+    aiRiskPrediction: {
+      overallRisk: 10,
+      riskLevel: "low",
+      conditions: [
+        { name: "Hypothyroidism Risk", percentage: 8, level: "low" },
+        { name: "Hyperthyroidism Risk", percentage: 12, level: "low" },
+      ],
+      recommendation: "Your thyroid function is normal. No immediate concerns detected.",
+    },
     values: [
       { name: "TSH", value: "2.5 mIU/L", status: "normal", range: "0.4-4.0" },
       { name: "T4", value: "8.2 μg/dL", status: "normal", range: "4.5-12.0" },
@@ -113,6 +151,45 @@ const PatientLabResults = () => {
         return <TrendingDown className="h-4 w-4 text-blue-600" />;
       default:
         return <Minus className="h-4 w-4 text-green-600" />;
+    }
+  };
+
+  const getRiskColor = (level: string) => {
+    switch (level) {
+      case "low":
+        return "text-green-600";
+      case "moderate":
+        return "text-yellow-600";
+      case "high":
+        return "text-red-600";
+      default:
+        return "text-muted-foreground";
+    }
+  };
+
+  const getRiskBgColor = (level: string) => {
+    switch (level) {
+      case "low":
+        return "bg-green-500";
+      case "moderate":
+        return "bg-yellow-500";
+      case "high":
+        return "bg-red-500";
+      default:
+        return "bg-muted";
+    }
+  };
+
+  const getRiskIcon = (level: string) => {
+    switch (level) {
+      case "low":
+        return <CheckCircle className="h-5 w-5 text-green-600" />;
+      case "moderate":
+        return <AlertTriangle className="h-5 w-5 text-yellow-600" />;
+      case "high":
+        return <AlertTriangle className="h-5 w-5 text-red-600" />;
+      default:
+        return <Info className="h-5 w-5 text-muted-foreground" />;
     }
   };
 
@@ -203,6 +280,82 @@ const PatientLabResults = () => {
                     </div>
                   </div>
                 ))}
+
+                {/* AI Risk Prediction Section */}
+                {selectedResult.aiRiskPrediction && (
+                  <div className="mt-6 p-4 bg-gradient-to-br from-primary/5 to-secondary/5 rounded-xl border border-primary/20">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                        <Brain className="h-4 w-4 text-primary" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-sm">AI Risk Analysis</h4>
+                        <p className="text-xs text-muted-foreground">Powered by advanced AI prediction</p>
+                      </div>
+                    </div>
+
+                    {/* Overall Risk Score */}
+                    <div className="mb-4 p-3 bg-background rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium">Overall Risk Score</span>
+                        {getRiskIcon(selectedResult.aiRiskPrediction.riskLevel)}
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1">
+                          <Progress 
+                            value={selectedResult.aiRiskPrediction.overallRisk} 
+                            className={`h-3 ${getRiskBgColor(selectedResult.aiRiskPrediction.riskLevel)}`}
+                          />
+                        </div>
+                        <span className={`text-2xl font-bold ${getRiskColor(selectedResult.aiRiskPrediction.riskLevel)}`}>
+                          {selectedResult.aiRiskPrediction.overallRisk}%
+                        </span>
+                      </div>
+                      <p className={`text-xs mt-1 capitalize ${getRiskColor(selectedResult.aiRiskPrediction.riskLevel)}`}>
+                        {selectedResult.aiRiskPrediction.riskLevel} Risk Level
+                      </p>
+                    </div>
+
+                    {/* Individual Condition Risks */}
+                    <div className="space-y-3 mb-4">
+                      <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Condition Risks</h5>
+                      {selectedResult.aiRiskPrediction.conditions.map((condition, idx) => (
+                        <div key={idx} className="space-y-1">
+                          <div className="flex items-center justify-between text-sm">
+                            <span>{condition.name}</span>
+                            <span className={`font-semibold ${getRiskColor(condition.level)}`}>
+                              {condition.percentage}%
+                            </span>
+                          </div>
+                          <div className="w-full bg-muted rounded-full h-2">
+                            <div 
+                              className={`h-2 rounded-full transition-all ${getRiskBgColor(condition.level)}`}
+                              style={{ width: `${condition.percentage}%` }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* AI Recommendation */}
+                    <div className="p-3 bg-background rounded-lg border-l-4 border-primary">
+                      <div className="flex items-start gap-2">
+                        <Info className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                        <div>
+                          <h5 className="text-xs font-semibold mb-1">AI Recommendation</h5>
+                          <p className="text-xs text-muted-foreground leading-relaxed">
+                            {selectedResult.aiRiskPrediction.recommendation}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <p className="text-[10px] text-muted-foreground mt-3 text-center">
+                      * AI predictions are for informational purposes only. Always consult your doctor for medical advice.
+                    </p>
+                  </div>
+                )}
+
                 <Button className="w-full mt-4">
                   <Download className="h-4 w-4 mr-2" />
                   Download Full Report

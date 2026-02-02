@@ -2,12 +2,9 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import {
   Calendar,
-  FileText,
   FlaskConical,
   Clock,
   User,
@@ -15,8 +12,6 @@ import {
   Heart,
   Stethoscope,
   Activity,
-  Pill,
-  AlertCircle,
   TrendingUp,
   Download,
   Home,
@@ -33,33 +28,46 @@ const navItems = [
   { title: "Help", url: "/patient/help", icon: HelpCircle },
 ];
 
+// Patient's assigned doctor (one doctor per patient)
+const assignedDoctor = {
+  id: 1,
+  name: "Dr. Sarah Johnson",
+  specialty: "Cardiologist",
+  experience: "15 years",
+  rating: 4.9,
+  location: "Medical Center, Downtown",
+  avatar: "SJ",
+  phone: "+1 (555) 123-4567",
+  email: "dr.johnson@tabeebak.com",
+};
+
 const upcomingAppointments = [
   {
     id: 1,
-    doctor: "Dr. Sarah Johnson",
-    specialty: "Cardiologist",
+    doctor: assignedDoctor.name,
+    specialty: assignedDoctor.specialty,
     date: "Dec 10, 2024",
     time: "10:00 AM",
     status: "confirmed",
-    avatar: "SJ",
+    avatar: assignedDoctor.avatar,
   },
   {
     id: 2,
-    doctor: "Dr. Michael Chen",
-    specialty: "Neurologist",
+    doctor: assignedDoctor.name,
+    specialty: assignedDoctor.specialty,
     date: "Dec 15, 2024",
     time: "2:30 PM",
     status: "pending",
-    avatar: "MC",
+    avatar: assignedDoctor.avatar,
   },
   {
     id: 3,
-    doctor: "Dr. Emily Williams",
-    specialty: "General Physician",
+    doctor: assignedDoctor.name,
+    specialty: assignedDoctor.specialty,
     date: "Dec 20, 2024",
     time: "11:00 AM",
     status: "confirmed",
-    avatar: "EW",
+    avatar: assignedDoctor.avatar,
   },
 ];
 
@@ -69,21 +77,21 @@ const recentLabResults = [
     name: "Complete Blood Count",
     date: "Dec 1, 2024",
     status: "normal",
-    doctor: "Dr. Sarah Johnson",
+    doctor: assignedDoctor.name,
   },
   {
     id: 2,
     name: "Lipid Profile",
     date: "Nov 28, 2024",
     status: "attention",
-    doctor: "Dr. Sarah Johnson",
+    doctor: assignedDoctor.name,
   },
   {
     id: 3,
     name: "HbA1c Test",
     date: "Nov 20, 2024",
     status: "normal",
-    doctor: "Dr. Michael Chen",
+    doctor: assignedDoctor.name,
   },
 ];
 
@@ -123,63 +131,96 @@ const PatientDashboard = () => {
         </p>
       </div>
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        {[
-          {
-            icon: Calendar,
-            label: "Upcoming",
-            value: "3",
-            sublabel: "Appointments",
-            color: "primary",
-          },
-          {
-            icon: FlaskConical,
-            label: "Pending",
-            value: "2",
-            sublabel: "Lab Results",
-            color: "secondary",
-          },
-          {
-            icon: Pill,
-            label: "Active",
-            value: "3",
-            sublabel: "Medications",
-            color: "primary",
-          },
-          {
-            icon: Activity,
-            label: "Heart Rate",
-            value: "72",
-            sublabel: "bpm (Normal)",
-            color: "green",
-          },
-        ].map((stat) => (
-          <Card key={stat.label}>
-            <CardContent className="p-4">
-              <div className="flex items-start justify-between">
-                <div
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                    stat.color === "primary"
-                      ? "bg-primary/10 text-primary"
-                      : stat.color === "green"
-                      ? "bg-green-100 text-green-600"
-                      : "bg-secondary/20 text-secondary"
-                  }`}
-                >
-                  <stat.icon className="h-5 w-5" />
+      {/* My Doctor Card */}
+      <Card className="mb-6 border-primary/20 bg-gradient-to-r from-primary/5 to-transparent">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Stethoscope className="h-5 w-5 text-primary" />
+            My Doctor
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col md:flex-row md:items-center gap-4">
+            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xl">
+              {assignedDoctor.avatar}
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold">{assignedDoctor.name}</h3>
+              <p className="text-primary font-medium">{assignedDoctor.specialty}</p>
+              <p className="text-sm text-muted-foreground">{assignedDoctor.experience} experience • {assignedDoctor.location}</p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button variant="outline" size="sm" className="gap-2">
+                <Calendar className="h-4 w-4" />
+                Book Appointment
+              </Button>
+              <Button variant="hero" size="sm" className="gap-2">
+                <Stethoscope className="h-4 w-4" />
+                Contact Doctor
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Quick Stats - Full width, centered cards */}
+      <div className="mb-8">
+        <div className="flex flex-wrap justify-center gap-6 max-w-5xl mx-auto">
+          {[
+            {
+              icon: Calendar,
+              label: "Upcoming",
+              value: "3",
+              sublabel: "Appointments",
+              color: "primary",
+            },
+            {
+              icon: FlaskConical,
+              label: "Pending",
+              value: "2",
+              sublabel: "Lab Results",
+              color: "secondary",
+            },
+            {
+              icon: Activity,
+              label: "Heart Rate",
+              value: "72",
+              sublabel: "bpm (Normal)",
+              color: "green",
+            },
+          ].map((stat) => (
+            <Card
+              key={stat.label}
+              className="flex-1 min-w-[240px] max-w-[320px] shadow-sm hover:shadow-md transition-shadow"
+            >
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between mb-4">
+                  <div
+                    className={`w-12 h-12 rounded-2xl flex items-center justify-center ${stat.color === "primary"
+                        ? "bg-primary/10 text-primary"
+                        : stat.color === "green"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-secondary/20 text-secondary"
+                      }`}
+                  >
+                    <stat.icon className="h-6 w-6" />
+                  </div>
+                  <TrendingUp className="h-5 w-5 text-green-500 opacity-80" />
                 </div>
-                <TrendingUp className="h-4 w-4 text-green-500" />
-              </div>
-              <div className="mt-3">
-                <div className="text-2xl font-bold">{stat.value}</div>
-                <div className="text-xs text-muted-foreground">
-                  {stat.sublabel}
+
+                <div className="space-y-1">
+                  <div className="text-3xl font-bold tracking-tight">{stat.value}</div>
+                  <div className="text-sm font-medium text-muted-foreground">
+                    {stat.label}
+                  </div>
+                  <div className="text-xs text-muted-foreground/80">
+                    {stat.sublabel}
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
@@ -220,11 +261,10 @@ const PatientDashboard = () => {
                     </div>
                     <div className="flex flex-col items-end gap-2">
                       <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          apt.status === "confirmed"
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${apt.status === "confirmed"
                             ? "bg-green-100 text-green-700"
                             : "bg-yellow-100 text-yellow-700"
-                        }`}
+                          }`}
                       >
                         {apt.status}
                       </span>
@@ -258,11 +298,10 @@ const PatientDashboard = () => {
                   >
                     <div className="flex items-center gap-4">
                       <div
-                        className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                          result.status === "normal"
+                        className={`w-10 h-10 rounded-full flex items-center justify-center ${result.status === "normal"
                             ? "bg-green-100 text-green-600"
                             : "bg-yellow-100 text-yellow-600"
-                        }`}
+                          }`}
                       >
                         <FlaskConical className="h-5 w-5" />
                       </div>
@@ -275,11 +314,10 @@ const PatientDashboard = () => {
                     </div>
                     <div className="flex items-center gap-3">
                       <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          result.status === "normal"
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${result.status === "normal"
                             ? "bg-green-100 text-green-700"
                             : "bg-yellow-100 text-yellow-700"
-                        }`}
+                          }`}
                       >
                         {result.status === "normal" ? "Normal" : "Needs Attention"}
                       </span>
@@ -333,7 +371,6 @@ const PatientDashboard = () => {
               </div>
             </CardContent>
           </Card>
-
           {/* Health Tips */}
           <Card className="bg-gradient-to-br from-primary/5 to-secondary/5 border-primary/20">
             <CardContent className="p-4">
