@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { UserRound, Stethoscope, FlaskConical, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
@@ -49,12 +49,6 @@ const Login = () => {
     patient: UserRound,
     doctor: Stethoscope,
     laboratory: FlaskConical,
-  };
-
-  const roleColors = {
-    patient: "primary",
-    doctor: "secondary",
-    laboratory: "primary",
   };
 
   return (

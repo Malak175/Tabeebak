@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
+import ForgotPassword from "./pages/ForgotPassword";
 import Register from "./pages/Register";
 import Doctors from "./pages/Doctors";
 import LabServices from "./pages/LabServices";
@@ -42,6 +43,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/register" element={<Register />} />
             <Route path="/doctors" element={<Doctors />} />
             <Route path="/lab-services" element={<LabServices />} />
