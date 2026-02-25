@@ -1,0 +1,173 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 59% 13%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 240 59% 13%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 59% 13%;
+
+    --primary: 218 100% 32%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 212 100% 36%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 0 0% 76%;
+    --muted-foreground: 0 0% 44%;
+
+    --accent: 213 98% 19%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 76%;
+    --input: 0 0% 76%;
+    --ring: 218 100% 32%;
+
+    --radius: 0.75rem;
+
+    /* Custom colors - #003DA5, #0057B8, #012D61 */
+    --navy: 213 98% 19%;
+    --navy-light: 218 100% 95%;
+    --blue: 212 100% 36%;
+    --blue-light: 212 100% 95%;
+    --deep-blue: 218 100% 32%;
+    --deep-blue-light: 218 100% 95%;
+
+    /* Grays - #686868, #707070, #C1C1C1 */
+    --gray: 0 0% 41%;
+    --gray-medium: 0 0% 44%;
+    --gray-light: 0 0% 76%;
+
+    /* Gradients */
+    --gradient-hero: linear-gradient(135deg, hsl(218 100% 32%) 0%, hsl(212 100% 36%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(218 100% 98%) 100%);
+    --gradient-navy: linear-gradient(135deg, hsl(213 98% 19%) 0%, hsl(218 100% 32%) 100%);
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 hsl(240 59% 13% / 0.05);
+    --shadow-md: 0 4px 6px -1px hsl(240 59% 13% / 0.1), 0 2px 4px -2px hsl(240 59% 13% / 0.1);
+    --shadow-lg: 0 10px 15px -3px hsl(240 59% 13% / 0.1), 0 4px 6px -4px hsl(240 59% 13% / 0.1);
+    --shadow-glow: 0 0 40px hsl(218 100% 32% / 0.2);
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 59% 13%;
+    --sidebar-primary: 218 100% 32%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 218 100% 95%;
+    --sidebar-accent-foreground: 213 98% 19%;
+    --sidebar-border: 0 0% 76%;
+    --sidebar-ring: 218 100% 32%;
+  }
+
+  .dark {
+    --background: 240 59% 13%;
+    --foreground: 0 0% 100%;
+
+    --card: 213 98% 19%;
+    --card-foreground: 0 0% 100%;
+
+    --popover: 213 98% 19%;
+    --popover-foreground: 0 0% 100%;
+
+    --primary: 212 100% 36%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 218 100% 32%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 240 40% 20%;
+    --muted-foreground: 0 0% 76%;
+
+    --accent: 218 100% 25%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 240 40% 25%;
+    --input: 240 40% 25%;
+    --ring: 212 100% 36%;
+
+    --sidebar-background: 240 59% 13%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 212 100% 36%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 218 100% 25%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 240 40% 25%;
+    --sidebar-ring: 212 100% 36%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+}
+
+@layer utilities {
+  .gradient-hero {
+    background: var(--gradient-hero);
+  }
+
+  .gradient-teal {
+    background: var(--gradient-teal);
+  }
+
+  .shadow-glow {
+    box-shadow: var(--shadow-glow);
+  }
+
+  .text-gradient {
+    background: var(--gradient-hero);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Diagonal clip path - inspired by Heart Foundation */
+  .clip-diagonal {
+    clip-path: polygon(0 0, 100% 0, 65% 100%, 0% 100%);
+  }
+
+  @media (max-width: 1024px) {
+    .clip-diagonal {
+      clip-path: polygon(0 0, 100% 0, 100% 85%, 0% 100%);
+    }
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.6s ease-out forwards;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
