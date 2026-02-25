@@ -33,14 +33,6 @@ const PatientSettings = () => {
     phone: "+1 234 567 8900",
   });
 
-  const [notifications, setNotifications] = useState({
-    appointments: true,
-    labResults: true,
-    prescriptions: true,
-    healthTips: false,
-    marketing: false,
-  });
-
   return (
     <DashboardLayout
       userRole="patient"

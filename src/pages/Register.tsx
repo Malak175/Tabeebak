@@ -99,7 +99,7 @@ const Register = () => {
     // Password
     if (touched.password && formData.password) {
       const hasNumber = /\d/.test(formData.password);
-      const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(formData.password);
+      const hasSpecial = /[!@#$%^&*()_+\-=()[\]{};':"\\|,.<>/?]/.test(formData.password);
       if (formData.password.length < 8 || !hasNumber || !hasSpecial) {
         e.password = "Password must be at least 8 characters and include numbers and special characters";
       }
@@ -151,7 +151,10 @@ const Register = () => {
       if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
       return age >= 16;
     })();
-    const hasValidPassword = formData.password.length >= 8 && /\d/.test(formData.password) && /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(formData.password);
+    const hasValidPassword =
+      formData.password.length >= 8 &&
+      /\d/.test(formData.password) &&
+      /[^A-Za-z0-9]/.test(formData.password);
     const passwordsMatch = formData.password === formData.confirmPassword;
     const emailNotTaken = !SIMULATED_EXISTING_EMAILS.includes(formData.email.toLowerCase());
 
