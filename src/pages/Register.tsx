@@ -1,19 +1,34 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Eye, EyeOff, ArrowLeft, UserRound, Heart } from "lucide-react";
+import { Eye, EyeOff, ArrowLeft, UserRound, Heart, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { FieldError } from "@/components/ui/field-error";
 import logo from "@/assets/logo.png";
+
+const SIMULATED_EXISTING_EMAILS = ["test@example.com", "john@example.com", "admin@tabeebak.com"];
+
+type FieldErrors = {
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  password?: string;
+  confirmPassword?: string;
+  email?: string;
+};
 
 const Register = () => {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -25,22 +40,127 @@ const Register = () => {
     confirmPassword: "",
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (formData.password !== formData.confirmPassword) {
-      toast.error("Passwords do not match");
-      return;
+  const maxDateOfBirth = useMemo(() => {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() - 16);
+    return d.toISOString().split("T")[0];
+  }, []);
+
+  const errors = useMemo<FieldErrors>(() => {
+    const e: FieldErrors = {};
+
+    // Required empty checks
+    if (touched.firstName && !formData.firstName.trim()) {
+      e.firstName = "Please fill out this field";
+    }
+    if (touched.lastName && !formData.lastName.trim()) {
+      e.lastName = "Please fill out this field";
+    }
+    if (touched.email && !formData.email.trim()) {
+      e.email = "Please fill out this field";
+    }
+    if (touched.phone && !formData.phone) {
+      e.phone = "Please fill out this field";
+    }
+    if (touched.dateOfBirth && !formData.dateOfBirth) {
+      e.dateOfBirth = "Please fill out this field";
+    }
+    if (touched.gender && !formData.gender) {
+      e.gender = "Please fill out this field";
+    }
+    if (touched.password && !formData.password) {
+      e.password = "Please fill out this field";
+    }
+    if (touched.confirmPassword && !formData.confirmPassword) {
+      e.confirmPassword = "Please fill out this field";
     }
 
-    if (formData.password.length < 8) {
-      toast.error("Password must be at least 8 characters");
+    // Phone
+    if (touched.phone && formData.phone) {
+      if (!/^\d*$/.test(formData.phone)) {
+        e.phone = "Phone number must contain numbers only";
+      } else if (formData.phone.length !== 11) {
+        e.phone = "Phone number must be exactly 11 digits";
+      }
+    }
+
+    // Date of birth - must be at least 16
+    if (touched.dateOfBirth && formData.dateOfBirth) {
+      const birth = new Date(formData.dateOfBirth);
+      const today = new Date();
+      let age = today.getFullYear() - birth.getFullYear();
+      const m = today.getMonth() - birth.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+      if (age < 16) {
+        e.dateOfBirth = "You must be at least 16 years old";
+      }
+    }
+
+    // Password
+    if (touched.password && formData.password) {
+      const hasNumber = /\d/.test(formData.password);
+      const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(formData.password);
+      if (formData.password.length < 8 || !hasNumber || !hasSpecial) {
+        e.password = "Password must be at least 8 characters and include numbers and special characters";
+      }
+    }
+
+    // Confirm password
+    if (touched.confirmPassword && formData.confirmPassword && formData.password !== formData.confirmPassword) {
+      e.confirmPassword = "Passwords do not match";
+    }
+
+    // Email format + duplicate check
+    if (touched.email && formData.email) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+        e.email = "Please enter a valid email address (e.g. name@example.com)";
+      } else if (SIMULATED_EXISTING_EMAILS.includes(formData.email.toLowerCase())) {
+        e.email = "This email is already registered";
+      }
+    }
+
+    return e;
+  }, [formData, touched]);
+
+  const hasErrors = Object.keys(errors).length > 0;
+
+  const handleBlur = (field: string) => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+  };
+
+  const handlePhoneChange = (value: string) => {
+    // Only allow digits
+    const digits = value.replace(/\D/g, "").slice(0, 11);
+    setFormData({ ...formData, phone: digits });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Touch all fields to show errors
+    setTouched({ firstName: true, lastName: true, phone: true, dateOfBirth: true, password: true, confirmPassword: true, email: true, gender: true });
+
+    // Re-validate
+    const hasPhone = formData.phone && /^\d{11}$/.test(formData.phone);
+    const hasValidAge = (() => {
+      if (!formData.dateOfBirth) return false;
+      const birth = new Date(formData.dateOfBirth);
+      const today = new Date();
+      let age = today.getFullYear() - birth.getFullYear();
+      const m = today.getMonth() - birth.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+      return age >= 16;
+    })();
+    const hasValidPassword = formData.password.length >= 8 && /\d/.test(formData.password) && /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(formData.password);
+    const passwordsMatch = formData.password === formData.confirmPassword;
+    const emailNotTaken = !SIMULATED_EXISTING_EMAILS.includes(formData.email.toLowerCase());
+
+    if (!hasPhone || !hasValidAge || !hasValidPassword || !passwordsMatch || !emailNotTaken) {
+      toast.error("Please fix the errors before submitting");
       return;
     }
 
     setIsLoading(true);
-
-    // Simulate registration
     setTimeout(() => {
       setIsLoading(false);
       toast.success("Registration successful! Please login to continue.");
@@ -48,19 +168,22 @@ const Register = () => {
     }, 1500);
   };
 
+  const inputErrorClass = (field: keyof FieldErrors) =>
+    errors[field] ? "border-destructive/60 focus-visible:ring-destructive/40" : "";
+
   return (
     <div className="min-h-screen flex">
       {/* Left Panel - Decorative */}
       <div className="hidden lg:flex lg:w-1/2 gradient-hero relative overflow-hidden">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0zNiAxOGMtNi42MjcgMC0xMiA1LjM3My0xMiAxMnM1LjM3MyAxMiAxMiAxMiAxMi01LjM3MyAxMi0xMi01LjM3My0xMi0xMi0xMnoiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLW9wYWNpdHk9Ii4xIi8+PC9nPjwvc3ZnPg==')] opacity-20" />
-        
+
         <div className="relative z-10 flex flex-col justify-center items-center w-full p-12 text-primary-foreground">
           <img src={logo} alt="TABEEBAK" className="h-24 w-24 object-contain rounded-full mb-8" />
           <h1 className="text-4xl font-bold mb-4">Join TABEEBAK</h1>
           <p className="text-xl text-primary-foreground/80 text-center max-w-md mb-12">
             Create your patient account and start your journey to better health.
           </p>
-          
+
           <div className="bg-primary-foreground/10 backdrop-blur-sm rounded-2xl p-8 max-w-sm">
             <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <Heart className="h-5 w-5 animate-heartbeat" />
@@ -117,65 +240,93 @@ const Register = () => {
                     <Input
                       id="firstName"
                       placeholder="John"
+                      className={inputErrorClass("firstName")}
                       value={formData.firstName}
-                      onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                      onChange={(e) => setFormData({ ...formData, firstName: e.target.value.toLowerCase() })}
+                      onBlur={() => handleBlur("firstName")}
                       required
                     />
+                    <FieldError message={errors.firstName} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="lastName">Last Name</Label>
                     <Input
                       id="lastName"
                       placeholder="Doe"
+                      className={inputErrorClass("lastName")}
                       value={formData.lastName}
-                      onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                      onChange={(e) => setFormData({ ...formData, lastName: e.target.value.toLowerCase() })}
+                      onBlur={() => handleBlur("lastName")}
                       required
                     />
+                    <FieldError message={errors.lastName} />
                   </div>
                 </div>
 
+                {/* Email with duplicate warning */}
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
                   <Input
                     id="email"
                     type="email"
                     placeholder="john.doe@example.com"
+                    className={errors.email ? "border-amber-400/70 focus-visible:ring-amber-400/40" : ""}
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    onBlur={() => handleBlur("email")}
                     required
                   />
+                  {errors.email && (
+                    <div className="flex items-center gap-2 bg-destructive/5 border border-destructive/20 rounded-lg px-3 py-2 animate-fade-in">
+                      <AlertTriangle className="h-4 w-4 text-destructive/70 shrink-0" />
+                      <p className="text-xs font-medium text-destructive">{errors.email}</p>
+                    </div>
+                  )}
                 </div>
 
+                {/* Phone with digits-only filter */}
                 <div className="space-y-2">
                   <Label htmlFor="phone">Phone Number</Label>
                   <Input
                     id="phone"
                     type="tel"
-                    placeholder="+1 234 567 890"
+                    inputMode="numeric"
+                    placeholder="01234567890"
+                    className={inputErrorClass("phone")}
                     value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    onChange={(e) => handlePhoneChange(e.target.value)}
+                    onBlur={() => handleBlur("phone")}
                     required
                   />
+                  <FieldError message={errors.phone} />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
+                  {/* Date of birth with max date */}
                   <div className="space-y-2">
                     <Label htmlFor="dateOfBirth">Date of Birth</Label>
                     <Input
                       id="dateOfBirth"
                       type="date"
+                      max={maxDateOfBirth}
+                      className={inputErrorClass("dateOfBirth")}
                       value={formData.dateOfBirth}
                       onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+                      onBlur={() => handleBlur("dateOfBirth")}
                       required
                     />
+                    <FieldError message={errors.dateOfBirth} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="gender">Gender</Label>
                     <Select
                       value={formData.gender}
-                      onValueChange={(value) => setFormData({ ...formData, gender: value })}
+                      onValueChange={(value) => {
+                        setFormData({ ...formData, gender: value });
+                        setTouched((prev) => ({ ...prev, gender: true }));
+                      }}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className={errors.gender ? "border-destructive/60 focus-visible:ring-destructive/40" : ""}>
                         <SelectValue placeholder="Select" />
                       </SelectTrigger>
                       <SelectContent>
@@ -183,9 +334,11 @@ const Register = () => {
                         <SelectItem value="female">Female</SelectItem>
                       </SelectContent>
                     </Select>
+                    <FieldError message={errors.gender} />
                   </div>
                 </div>
 
+                {/* Password with strength validation */}
                 <div className="space-y-2">
                   <Label htmlFor="password">Password</Label>
                   <div className="relative">
@@ -193,8 +346,10 @@ const Register = () => {
                       id="password"
                       type={showPassword ? "text" : "password"}
                       placeholder="At least 8 characters"
+                      className={inputErrorClass("password")}
                       value={formData.password}
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      onBlur={() => handleBlur("password")}
                       required
                     />
                     <button
@@ -205,8 +360,10 @@ const Register = () => {
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
+                  <FieldError message={errors.password} />
                 </div>
 
+                {/* Confirm Password */}
                 <div className="space-y-2">
                   <Label htmlFor="confirmPassword">Confirm Password</Label>
                   <div className="relative">
@@ -214,8 +371,10 @@ const Register = () => {
                       id="confirmPassword"
                       type={showConfirmPassword ? "text" : "password"}
                       placeholder="Confirm your password"
+                      className={inputErrorClass("confirmPassword")}
                       value={formData.confirmPassword}
                       onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                      onBlur={() => handleBlur("confirmPassword")}
                       required
                     />
                     <button
@@ -226,6 +385,7 @@ const Register = () => {
                       {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
+                  <FieldError message={errors.confirmPassword} />
                 </div>
 
                 <label htmlFor="terms" className="flex items-start gap-3 cursor-pointer bg-muted/50 border border-input rounded-md px-3 py-3 hover:bg-muted transition-colors">
@@ -242,7 +402,7 @@ const Register = () => {
                   </span>
                 </label>
 
-                <Button type="submit" variant="hero" className="w-full" size="lg" disabled={isLoading}>
+                <Button type="submit" variant="hero" className="w-full" size="lg" disabled={isLoading || hasErrors}>
                   {isLoading ? "Creating Account..." : "Create Account"}
                 </Button>
               </form>

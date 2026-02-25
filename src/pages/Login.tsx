@@ -1,35 +1,74 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { UserRound, Stethoscope, FlaskConical, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
+import { FieldError } from "@/components/ui/field-error";
 import logo from "@/assets/logo.png";
 
 type UserRole = "patient" | "doctor" | "laboratory";
+
+type FieldErrors = {
+  email?: string;
+  password?: string;
+};
 
 const Login = () => {
   const navigate = useNavigate();
   const [selectedRole, setSelectedRole] = useState<UserRole>("patient");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
 
+  const handleBlur = (field: string) => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+  };
+
+  const errors = useMemo<FieldErrors>(() => {
+    const e: FieldErrors = {};
+
+    if (touched.email && !formData.email.trim()) {
+      e.email = "Please fill out this field";
+    } else if (touched.email && formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      e.email = "Please enter a valid email address (e.g. name@example.com)";
+    }
+
+    if (touched.password && !formData.password) {
+      e.password = "Please fill out this field";
+    }
+
+    return e;
+  }, [formData, touched]);
+
+  const hasErrors = Object.keys(errors).length > 0;
+
+  const inputErrorClass = (field: keyof FieldErrors) =>
+    errors[field] ? "border-destructive/60 focus-visible:ring-destructive/40" : "";
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setTouched({ email: true, password: true });
+
+    if (!formData.email.trim() || !formData.password || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      toast.error("Please fix the errors before submitting");
+      return;
+    }
+
     setIsLoading(true);
 
     // Simulate login
     setTimeout(() => {
       setIsLoading(false);
       toast.success(`Welcome back! Logged in as ${selectedRole}`);
-      
+
       // Navigate to appropriate dashboard
       switch (selectedRole) {
         case "patient":
@@ -51,19 +90,25 @@ const Login = () => {
     laboratory: FlaskConical,
   };
 
+  const roleColors = {
+    patient: "primary",
+    doctor: "secondary",
+    laboratory: "primary",
+  };
+
   return (
     <div className="min-h-screen flex">
       {/* Left Panel - Decorative */}
       <div className="hidden lg:flex lg:w-1/2 gradient-hero relative overflow-hidden">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0zNiAxOGMtNi42MjcgMC0xMiA1LjM3My0xMiAxMnM1LjM3MyAxMiAxMiAxMiAxMi01LjM3MyAxMi0xMi01LjM3My0xMi0xMi0xMnoiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLW9wYWNpdHk9Ii4xIi8+PC9nPjwvc3ZnPg==')] opacity-20" />
-        
+
         <div className="relative z-10 flex flex-col justify-center items-center w-full p-12 text-primary-foreground">
           <img src={logo} alt="TABEEBAK" className="h-24 w-24 object-contain rounded-full mb-8" />
           <h1 className="text-4xl font-bold mb-4">Welcome to TABEEBAK</h1>
           <p className="text-xl text-primary-foreground/80 text-center max-w-md">
             Your trusted healthcare platform connecting patients, doctors, and laboratories.
           </p>
-          
+
           <div className="mt-12 grid grid-cols-3 gap-8">
             {[
               { icon: UserRound, label: "Patients" },
@@ -126,10 +171,13 @@ const Login = () => {
                     id="email"
                     type="email"
                     placeholder="Enter your email"
+                    className={inputErrorClass("email")}
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    onBlur={() => handleBlur("email")}
                     required
                   />
+                  <FieldError message={errors.email} />
                 </div>
 
                 <div className="space-y-2">
@@ -139,8 +187,10 @@ const Login = () => {
                       id="password"
                       type={showPassword ? "text" : "password"}
                       placeholder="Enter your password"
+                      className={inputErrorClass("password")}
                       value={formData.password}
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      onBlur={() => handleBlur("password")}
                       required
                     />
                     <button
@@ -151,6 +201,7 @@ const Login = () => {
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
+                  <FieldError message={errors.password} />
                 </div>
 
                 <div className="flex items-center justify-between text-sm">
@@ -163,7 +214,7 @@ const Login = () => {
                   </Link>
                 </div>
 
-                <Button type="submit" variant="hero" className="w-full" size="lg" disabled={isLoading}>
+                <Button type="submit" variant="hero" className="w-full" size="lg" disabled={isLoading || hasErrors}>
                   {isLoading ? "Signing in..." : `Sign In as ${selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1)}`}
                 </Button>
               </form>
