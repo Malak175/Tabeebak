@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,12 +13,11 @@ import {
   Home,
   Settings,
   HelpCircle,
-  FileText,
-  MessageSquare,
-  Video,
   Lock,
   User,
 } from "lucide-react";
+import { useAuth, useChangePasswordMutation, useUpdateProfileMutation } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 const navItems = [
   { title: "Dashboard", url: "/doctor/dashboard", icon: Home },
@@ -30,18 +29,61 @@ const navItems = [
 ];
 
 const DoctorSettings = () => {
-  const [doctor] = useState({
-    name: "Dr. Sarah Johnson",
-    specialty: "Cardiologist",
-    email: "sarah.johnson@tabeebak.com",
-    phone: "+1 234 567 8900",
+  const { user } = useAuth();
+  const updateProfileMutation = useUpdateProfileMutation();
+  const changePasswordMutation = useChangePasswordMutation();
+
+  const [form, setForm] = useState({
+    firstName: "",
+    lastName: "",
+    phone: "",
+    bio: "",
   });
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+  });
+
+  useEffect(() => {
+    if (!user) return;
+    const [firstName = "", lastName = ""] = (user.name ?? "").split(" ");
+    setForm({
+      firstName: user.firstName ?? firstName,
+      lastName: user.lastName ?? lastName,
+      phone: user.phone ?? "",
+      bio: "",
+    });
+  }, [user]);
+
+  const submitProfile = () => {
+    updateProfileMutation.mutate(
+      {
+        firstName: form.firstName,
+        lastName: form.lastName,
+        phone: form.phone,
+      },
+      {
+        onSuccess: () => toast.success("Profile updated successfully"),
+        onError: (error: Error) => toast.error(error.message),
+      },
+    );
+  };
+
+  const submitPassword = () => {
+    changePasswordMutation.mutate(passwordForm, {
+      onSuccess: (response) => {
+        toast.success(response.message);
+        setPasswordForm({ currentPassword: "", newPassword: "" });
+      },
+      onError: (error: Error) => toast.error(error.message),
+    });
+  };
 
   return (
     <DashboardLayout
       userRole="doctor"
-      userName={doctor.name}
-      userSubtitle={doctor.specialty}
+      userName={user?.name ?? "Doctor"}
+      userSubtitle={user?.role ?? "Doctor"}
       navItems={navItems}
       userIcon={Stethoscope}
     >
@@ -62,33 +104,29 @@ const DoctorSettings = () => {
           <CardContent className="space-y-4">
             <div className="grid md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
-                <Input id="name" defaultValue={doctor.name} />
+                <Label htmlFor="firstName">First Name</Label>
+                <Input id="firstName" value={form.firstName} onChange={(event) => setForm((current) => ({ ...current, firstName: event.target.value }))} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="specialty">Specialty</Label>
-                <Input id="specialty" defaultValue={doctor.specialty} />
+                <Label htmlFor="lastName">Last Name</Label>
+                <Input id="lastName" value={form.lastName} onChange={(event) => setForm((current) => ({ ...current, lastName: event.target.value }))} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" defaultValue={doctor.email} />
+                <Input id="email" type="email" value={user?.email ?? ""} disabled />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="phone">Phone Number</Label>
-                <Input id="phone" defaultValue={doctor.phone} />
+                <Input id="phone" value={form.phone} onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))} />
               </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="bio">Professional Bio</Label>
-              <Textarea
-                id="bio"
-                placeholder="Write a brief description about yourself..."
-                defaultValue="Board-certified cardiologist with 12 years of experience specializing in preventive cardiology and heart failure management."
-              />
+              <Textarea id="bio" value={form.bio} onChange={(event) => setForm((current) => ({ ...current, bio: event.target.value }))} />
             </div>
-            <Button>Save Changes</Button>
+            <Button onClick={submitProfile} disabled={updateProfileMutation.isPending}>Save Changes</Button>
           </CardContent>
-        </Card>     
+        </Card>
 
         <Card>
           <CardHeader>
@@ -99,13 +137,15 @@ const DoctorSettings = () => {
             <CardDescription>Manage your account security</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Change Password</Label>
-                <p className="text-sm text-muted-foreground">Update your password regularly</p>
-              </div>
-              <Button variant="outline">Update</Button>
+            <div className="space-y-2">
+              <Label htmlFor="currentPassword">Current Password</Label>
+              <Input id="currentPassword" type="password" value={passwordForm.currentPassword} onChange={(event) => setPasswordForm((current) => ({ ...current, currentPassword: event.target.value }))} />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="newPassword">New Password</Label>
+              <Input id="newPassword" type="password" value={passwordForm.newPassword} onChange={(event) => setPasswordForm((current) => ({ ...current, newPassword: event.target.value }))} />
+            </div>
+            <Button variant="outline" onClick={submitPassword} disabled={changePasswordMutation.isPending}>Update</Button>
           </CardContent>
         </Card>
       </div>
