@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   Sidebar,
@@ -16,9 +16,10 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { NavLink } from "@/components/NavLink";
-import { Bell, LogOut, User, LucideIcon } from "lucide-react";
+import { LogOut, User, LucideIcon } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import logo from "@/assets/logo.png";
+import { useAuth } from "@/hooks/useAuth";
 
 interface NavItem {
   title: string;
@@ -44,6 +45,8 @@ const DashboardLayout = ({
   userIcon: UserIcon = User,
 }: DashboardLayoutProps) => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { logout } = useAuth();
 
   const getRoleColor = () => {
     switch (userRole) {
@@ -115,12 +118,18 @@ const DashboardLayout = ({
             
             <div className="flex items-center gap-4">
               <ThemeToggle />
-              <Link to="/">
-                <Button variant="ghost" size="sm" className="gap-2">
-                  <LogOut className="h-4 w-4" />
-                  <span className="hidden sm:inline">Logout</span>
-                </Button>
-              </Link>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-2"
+                onClick={() => {
+                  logout();
+                  navigate("/login");
+                }}
+              >
+                <LogOut className="h-4 w-4" />
+                <span className="hidden sm:inline">Logout</span>
+              </Button>
             </div>
           </header>
 
