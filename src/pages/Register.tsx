@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,8 +9,10 @@ import { Eye, EyeOff, ArrowLeft, UserRound, Heart, AlertTriangle } from "lucide-
 import { toast } from "sonner";
 import { FieldError } from "@/components/ui/field-error";
 import logo from "@/assets/logo.png";
+import { useAuth, useRegisterMutation } from "@/hooks/useAuth";
+import { routeByRole } from "@/services/auth.service";
 
-const SIMULATED_EXISTING_EMAILS = ["test@example.com", "john@example.com", "admin@tabeebak.com"];
+const IS_DEV = import.meta.env.DEV;
 
 type FieldErrors = {
   firstName?: string;
@@ -25,6 +27,8 @@ type FieldErrors = {
 
 const Register = () => {
   const navigate = useNavigate();
+  const { isAuthenticated, user } = useAuth();
+  const registerMutation = useRegisterMutation();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -114,8 +118,6 @@ const Register = () => {
     if (touched.email && formData.email) {
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
         e.email = "Please enter a valid email address (e.g. name@example.com)";
-      } else if (SIMULATED_EXISTING_EMAILS.includes(formData.email.toLowerCase())) {
-        e.email = "This email is already registered";
       }
     }
 
@@ -123,6 +125,13 @@ const Register = () => {
   }, [formData, touched]);
 
   const hasErrors = Object.keys(errors).length > 0;
+
+  useEffect(() => {
+    if (!IS_DEV) return;
+    if (Object.keys(errors).length > 0) {
+      console.error("[FORM VALIDATION ERROR]", { form: "Register", errors });
+    }
+  }, [errors]);
 
   const handleBlur = (field: string) => {
     setTouched((prev) => ({ ...prev, [field]: true }));
@@ -136,6 +145,9 @@ const Register = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (IS_DEV) {
+      console.log("[FORM SUBMIT]", { form: "Register", formValues: formData });
+    }
 
     // Touch all fields to show errors
     setTouched({ firstName: true, lastName: true, phone: true, dateOfBirth: true, password: true, confirmPassword: true, email: true, gender: true });
@@ -156,20 +168,49 @@ const Register = () => {
       /\d/.test(formData.password) &&
       /[^A-Za-z0-9]/.test(formData.password);
     const passwordsMatch = formData.password === formData.confirmPassword;
-    const emailNotTaken = !SIMULATED_EXISTING_EMAILS.includes(formData.email.toLowerCase());
-
-    if (!hasPhone || !hasValidAge || !hasValidPassword || !passwordsMatch || !emailNotTaken) {
+    if (!hasPhone || !hasValidAge || !hasValidPassword || !passwordsMatch) {
+      if (IS_DEV) {
+        console.error("[FORM VALIDATION ERROR]", {
+          form: "Register",
+          hasPhone,
+          hasValidAge,
+          hasValidPassword,
+          passwordsMatch,
+        });
+      }
       toast.error("Please fix the errors before submitting");
       return;
     }
 
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      toast.success("Registration successful! Please login to continue.");
-      navigate("/login");
-    }, 1500);
+    registerMutation.mutate(
+      {
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        email: formData.email.trim(),
+        phone: formData.phone,
+        dateOfBirth: formData.dateOfBirth,
+        gender: formData.gender,
+        password: formData.password,
+      },
+      {
+        onSuccess: (response) => {
+          toast.success("Registration successful!");
+          navigate(routeByRole(response.user.role));
+        },
+        onError: (error: Error) => {
+          toast.error(error.message);
+        },
+        onSettled: () => setIsLoading(false),
+      },
+    );
   };
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      navigate(routeByRole(user.role), { replace: true });
+    }
+  }, [isAuthenticated, user, navigate]);
 
   const inputErrorClass = (field: keyof FieldErrors) =>
     errors[field] ? "border-destructive/60 focus-visible:ring-destructive/40" : "";

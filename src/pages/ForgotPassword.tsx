@@ -1,28 +1,56 @@
-import { useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Mail, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
+import { useForgotPasswordMutation } from "@/hooks/useAuth";
 import logo from "@/assets/logo.png";
+const IS_DEV = import.meta.env.DEV;
+
+const schema = z.object({
+  email: z.string().email("Enter a valid email address"),
+});
+
+type FormValues = z.infer<typeof schema>;
 
 const ForgotPassword = () => {
-  const [email, setEmail] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSubmitted, setIsSubmitted] = useState(false);
+  const forgotPasswordMutation = useForgotPasswordMutation();
+  const {
+    register,
+    handleSubmit,
+    watch,
+    formState: { errors },
+  } = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: { email: "" },
+  });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-
-    setTimeout(() => {
-      setIsLoading(false);
-      setIsSubmitted(true);
-      toast.success("Password reset link sent to your email");
-    }, 1500);
+  const onSubmit = async (values: FormValues) => {
+    if (IS_DEV) {
+      console.log("[FORM SUBMIT]", { form: "ForgotPassword", formValues: values });
+    }
+    forgotPasswordMutation.mutate(values, {
+      onSuccess: (response) => {
+        toast.success(response.message);
+      },
+      onError: (error: Error) => {
+        toast.error(error.message);
+      },
+    });
   };
+
+  useEffect(() => {
+    if (!IS_DEV) return;
+    if (Object.keys(errors).length > 0) {
+      console.error("[FORM VALIDATION ERROR]", { form: "ForgotPassword", errors });
+    }
+  }, [errors]);
 
   return (
     <div className="min-h-screen flex items-center justify-center p-8 bg-background">
@@ -41,21 +69,21 @@ const ForgotPassword = () => {
           <CardHeader className="text-center pb-4">
             <CardTitle className="text-2xl">Forgot Password</CardTitle>
             <CardDescription>
-              {isSubmitted
+              {forgotPasswordMutation.isSuccess
                 ? "Check your email for a reset link"
                 : "Enter your email and we'll send you a reset link"}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {isSubmitted ? (
+            {forgotPasswordMutation.isSuccess ? (
               <div className="flex flex-col items-center gap-4 py-4">
                 <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
                   <CheckCircle className="h-8 w-8 text-primary" />
                 </div>
                 <p className="text-sm text-muted-foreground text-center">
-                  We've sent a password reset link to <strong className="text-foreground">{email}</strong>. Please check your inbox.
+                  We've sent a password reset link to <strong className="text-foreground">{watch("email")}</strong>. Please check your inbox.
                 </p>
-                <Button variant="outline" className="w-full mt-2" onClick={() => setIsSubmitted(false)}>
+                <Button variant="outline" className="w-full mt-2" onClick={() => forgotPasswordMutation.reset()}>
                   Try another email
                 </Button>
                 <Link to="/login" className="text-sm text-primary hover:underline mt-2">
@@ -63,7 +91,7 @@ const ForgotPassword = () => {
                 </Link>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
                   <div className="relative">
@@ -72,15 +100,14 @@ const ForgotPassword = () => {
                       id="email"
                       type="email"
                       placeholder="Enter your email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
                       className="pl-10"
-                      required
+                      {...register("email")}
                     />
                   </div>
+                  {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
                 </div>
-                <Button type="submit" variant="hero" className="w-full" size="lg" disabled={isLoading}>
-                  {isLoading ? "Sending..." : "Send Reset Link"}
+                <Button type="submit" variant="hero" className="w-full" size="lg" disabled={forgotPasswordMutation.isPending}>
+                  {forgotPasswordMutation.isPending ? "Sending..." : "Send Reset Link"}
                 </Button>
               </form>
             )}

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,8 +9,11 @@ import { UserRound, Stethoscope, FlaskConical, Eye, EyeOff, ArrowLeft } from "lu
 import { toast } from "sonner";
 import { FieldError } from "@/components/ui/field-error";
 import logo from "@/assets/logo.png";
+import { routeByRole } from "@/services/auth.service";
+import { useAuth, useSignInMutation } from "@/hooks/useAuth";
 
-type UserRole = "patient" | "doctor" | "laboratory";
+type LoginRole = "patient" | "doctor" | "laboratory";
+const IS_DEV = import.meta.env.DEV;
 
 type FieldErrors = {
   email?: string;
@@ -19,7 +22,9 @@ type FieldErrors = {
 
 const Login = () => {
   const navigate = useNavigate();
-  const [selectedRole, setSelectedRole] = useState<UserRole>("patient");
+  const { isAuthenticated, user, logout } = useAuth();
+  const signInMutation = useSignInMutation();
+  const [selectedRole, setSelectedRole] = useState<LoginRole>("patient");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
@@ -50,39 +55,69 @@ const Login = () => {
 
   const hasErrors = Object.keys(errors).length > 0;
 
+  useEffect(() => {
+    if (!IS_DEV) return;
+    if (Object.keys(errors).length > 0) {
+      console.error("[FORM VALIDATION ERROR]", { form: "Login", errors });
+    }
+  }, [errors]);
+
   const inputErrorClass = (field: keyof FieldErrors) =>
     errors[field] ? "border-destructive/60 focus-visible:ring-destructive/40" : "";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (IS_DEV) {
+      console.log("[FORM SUBMIT]", { form: "Login", formValues: formData });
+    }
     setTouched({ email: true, password: true });
 
     if (!formData.email.trim() || !formData.password || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      if (IS_DEV) {
+        console.error("[FORM VALIDATION ERROR]", {
+          form: "Login",
+          emailValid: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email),
+          hasPassword: Boolean(formData.password),
+        });
+      }
       toast.error("Please fix the errors before submitting");
       return;
     }
 
     setIsLoading(true);
+    signInMutation.mutate(
+      { email: formData.email.trim(), password: formData.password },
+      {
+        onSuccess: (response) => {
+          const selectedRoleMap: Record<LoginRole, "Patient" | "Doctor" | "Lab"> = {
+            patient: "Patient",
+            doctor: "Doctor",
+            laboratory: "Lab",
+          };
 
-    // Simulate login
-    setTimeout(() => {
-      setIsLoading(false);
-      toast.success(`Welcome back! Logged in as ${selectedRole}`);
+          const requestedRole = selectedRoleMap[selectedRole];
+          if (response.user.role !== requestedRole) {
+            logout();
+            toast.error(`This account is not a ${selectedRole} account.`);
+            return;
+          }
 
-      // Navigate to appropriate dashboard
-      switch (selectedRole) {
-        case "patient":
-          navigate("/patient/dashboard");
-          break;
-        case "doctor":
-          navigate("/doctor/dashboard");
-          break;
-        case "laboratory":
-          navigate("/lab/dashboard");
-          break;
-      }
-    }, 1500);
+          toast.success("Welcome back!");
+          navigate(routeByRole(response.user.role));
+        },
+        onError: (error: Error) => {
+          toast.error(error.message);
+        },
+        onSettled: () => setIsLoading(false),
+      },
+    );
   };
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      navigate(routeByRole(user.role), { replace: true });
+    }
+  }, [isAuthenticated, user, navigate]);
 
   const roleIcons = {
     patient: UserRound,
@@ -232,7 +267,7 @@ const Login = () => {
                 <p className="text-center text-sm text-muted-foreground mt-6">
                   {selectedRole === "doctor" ? "Doctor" : "Laboratory"} accounts are created by administrators.
                   <br />
-                  <Link to="/contact" className="text-primary hover:underline">
+                  <Link to={`/contact?role=${selectedRole === "doctor" ? "Doctor" : "Lab"}`} className="text-primary hover:underline">
                     Contact us for access
                   </Link>
                 </p>
