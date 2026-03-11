@@ -10,6 +10,7 @@ export interface AuthUser {
   phone?: string;
   dateOfBirth?: string;
   gender?: string;
+  avatarUrl?: string;
 }
 
 export interface RegisterPayload {
@@ -27,20 +28,6 @@ export interface LoginPayload {
   password: string;
 }
 
-export interface UpdateProfilePayload {
-  firstName?: string;
-  lastName?: string;
-  name?: string;
-  phone?: string;
-  dateOfBirth?: string;
-  gender?: string;
-}
-
-export interface ChangePasswordPayload {
-  currentPassword: string;
-  newPassword: string;
-}
-
 export interface ForgotPasswordPayload {
   email: string;
 }
@@ -55,7 +42,11 @@ export interface AuthResponse {
   user: AuthUser;
 }
 
+export interface AuthTokenResponse {
+  token: string;
+}
+
 export interface AuthStorage {
   token: string;
-  user: AuthUser;
+  user: AuthUser | null;
 }

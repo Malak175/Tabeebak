@@ -11,6 +11,7 @@ import { FieldError } from "@/components/ui/field-error";
 import logo from "@/assets/logo.png";
 import { routeByRole } from "@/services/auth.service";
 import { useAuth, useSignInMutation } from "@/hooks/useAuth";
+import AuthBootstrapFeedback from "@/components/auth/AuthBootstrapFeedback";
 
 type LoginRole = "patient" | "doctor" | "laboratory";
 const IS_DEV = import.meta.env.DEV;
@@ -22,7 +23,8 @@ type FieldErrors = {
 
 const Login = () => {
   const navigate = useNavigate();
-  const { isAuthenticated, user, logout } = useAuth();
+  const { bootstrapError, isAuthenticated, isBootstrapping, logout, retryBootstrap, token, user } =
+    useAuth();
   const signInMutation = useSignInMutation();
   const [selectedRole, setSelectedRole] = useState<LoginRole>("patient");
   const [showPassword, setShowPassword] = useState(false);
@@ -85,32 +87,29 @@ const Login = () => {
     }
 
     setIsLoading(true);
-    signInMutation.mutate(
-      { email: formData.email.trim(), password: formData.password },
-      {
-        onSuccess: (response) => {
-          const selectedRoleMap: Record<LoginRole, "Patient" | "Doctor" | "Lab"> = {
-            patient: "Patient",
-            doctor: "Doctor",
-            laboratory: "Lab",
-          };
+    signInMutation
+      .mutateAsync({ email: formData.email.trim(), password: formData.password })
+      .then((response) => {
+        const selectedRoleMap: Record<LoginRole, "Patient" | "Doctor" | "Lab"> = {
+          patient: "Patient",
+          doctor: "Doctor",
+          laboratory: "Lab",
+        };
 
-          const requestedRole = selectedRoleMap[selectedRole];
-          if (response.user.role !== requestedRole) {
-            logout();
-            toast.error(`This account is not a ${selectedRole} account.`);
-            return;
-          }
+        const requestedRole = selectedRoleMap[selectedRole];
+        if (response.user.role !== requestedRole) {
+          logout();
+          toast.error(`This account is not a ${selectedRole} account.`);
+          return;
+        }
 
-          toast.success("Welcome back!");
-          navigate(routeByRole(response.user.role));
-        },
-        onError: (error: Error) => {
-          toast.error(error.message);
-        },
-        onSettled: () => setIsLoading(false),
-      },
-    );
+        toast.success("Welcome back!");
+        navigate(routeByRole(response.user.role));
+      })
+      .catch((error: Error) => {
+        toast.error(error.message);
+      })
+      .finally(() => setIsLoading(false));
   };
 
   useEffect(() => {
@@ -125,11 +124,22 @@ const Login = () => {
     laboratory: FlaskConical,
   };
 
-  const roleColors = {
-    patient: "primary",
-    doctor: "secondary",
-    laboratory: "primary",
-  };
+  if (token && isBootstrapping && !user) {
+    return <AuthBootstrapFeedback mode="loading" />;
+  }
+
+  if (token && bootstrapError && !user) {
+    return (
+      <AuthBootstrapFeedback
+        mode="error"
+        message={bootstrapError.message}
+        onLogout={logout}
+        onRetry={() => {
+          void retryBootstrap();
+        }}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen flex">
@@ -181,7 +191,7 @@ const Login = () => {
             </CardHeader>
             <CardContent>
               {/* Role Selection Tabs */}
-              <Tabs value={selectedRole} onValueChange={(v) => setSelectedRole(v as UserRole)} className="mb-6">
+              <Tabs value={selectedRole} onValueChange={(v) => setSelectedRole(v as LoginRole)} className="mb-6">
                 <TabsList className="grid grid-cols-3 w-full">
                   {(["patient", "doctor", "laboratory"] as const).map((role) => {
                     const Icon = roleIcons[role];

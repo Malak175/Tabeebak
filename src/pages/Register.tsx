@@ -11,6 +11,7 @@ import { FieldError } from "@/components/ui/field-error";
 import logo from "@/assets/logo.png";
 import { useAuth, useRegisterMutation } from "@/hooks/useAuth";
 import { routeByRole } from "@/services/auth.service";
+import AuthBootstrapFeedback from "@/components/auth/AuthBootstrapFeedback";
 
 const IS_DEV = import.meta.env.DEV;
 
@@ -27,7 +28,8 @@ type FieldErrors = {
 
 const Register = () => {
   const navigate = useNavigate();
-  const { isAuthenticated, user } = useAuth();
+  const { bootstrapError, isAuthenticated, isBootstrapping, logout, retryBootstrap, token, user } =
+    useAuth();
   const registerMutation = useRegisterMutation();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -183,8 +185,8 @@ const Register = () => {
     }
 
     setIsLoading(true);
-    registerMutation.mutate(
-      {
+    registerMutation
+      .mutateAsync({
         firstName: formData.firstName.trim(),
         lastName: formData.lastName.trim(),
         email: formData.email.trim(),
@@ -192,18 +194,15 @@ const Register = () => {
         dateOfBirth: formData.dateOfBirth,
         gender: formData.gender,
         password: formData.password,
-      },
-      {
-        onSuccess: (response) => {
-          toast.success("Registration successful!");
-          navigate(routeByRole(response.user.role));
-        },
-        onError: (error: Error) => {
-          toast.error(error.message);
-        },
-        onSettled: () => setIsLoading(false),
-      },
-    );
+      })
+      .then((response) => {
+        toast.success("Registration successful!");
+        navigate(routeByRole(response.user.role));
+      })
+      .catch((error: Error) => {
+        toast.error(error.message);
+      })
+      .finally(() => setIsLoading(false));
   };
 
   useEffect(() => {
@@ -214,6 +213,23 @@ const Register = () => {
 
   const inputErrorClass = (field: keyof FieldErrors) =>
     errors[field] ? "border-destructive/60 focus-visible:ring-destructive/40" : "";
+
+  if (token && isBootstrapping && !user) {
+    return <AuthBootstrapFeedback mode="loading" />;
+  }
+
+  if (token && bootstrapError && !user) {
+    return (
+      <AuthBootstrapFeedback
+        mode="error"
+        message={bootstrapError.message}
+        onLogout={logout}
+        onRetry={() => {
+          void retryBootstrap();
+        }}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen flex">
