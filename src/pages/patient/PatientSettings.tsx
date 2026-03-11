@@ -8,6 +8,7 @@ import {
   User,
 } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import PatientProfileSettings from "@/components/patient/PatientProfileSettings";
 import SharedAccountSettings from "@/components/settings/SharedAccountSettings";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -30,7 +31,7 @@ const PatientSettings = () => {
       navItems={navItems}
       userIcon={User}
     >
-      <div className="max-w-7xl">
+      <div className="max-w-7xl space-y-10">
         <SharedAccountSettings
           bioLabel="Bio"
           pageDescription="Manage your account preferences, profile details, and privacy settings."
@@ -39,6 +40,7 @@ const PatientSettings = () => {
           showDemographics
           variant="individual"
         />
+        <PatientProfileSettings />
       </div>
     </DashboardLayout>
   );
