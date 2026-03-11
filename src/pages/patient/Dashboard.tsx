@@ -13,24 +13,13 @@ import {
   Download,
   FlaskConical,
   Heart,
-  HelpCircle,
-  Home,
-  Settings,
   Stethoscope,
   TrendingUp,
   User,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { usePatientDashboardSummaryQuery } from "@/hooks/usePatient";
-
-const navItems = [
-  { title: "Dashboard", url: "/patient/dashboard", icon: Home },
-  { title: "Appointments", url: "/patient/appointments", icon: Calendar },
-  { title: "Lab Results", url: "/patient/lab-results", icon: FlaskConical },
-  { title: "Health Tips", url: "/patient/tips", icon: Heart },
-  { title: "Settings", url: "/patient/settings", icon: Settings },
-  { title: "Help", url: "/patient/help", icon: HelpCircle },
-];
+import { patientNavItems } from "@/pages/patient/navigation";
 
 const formatDisplayDate = (value?: string) => {
   if (!value) return "Not scheduled";
@@ -78,7 +67,7 @@ const PatientDashboard = () => {
     <DashboardLayout
       userRole="patient"
       userName={user?.name ?? summary?.patientName ?? "Patient"}
-      navItems={navItems}
+      navItems={patientNavItems}
       userIcon={User}
     >
       <div className="mb-6">
@@ -235,8 +224,8 @@ const PatientDashboard = () => {
                             <span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
                               {appointment.status ?? "Scheduled"}
                             </span>
-                            <Button size="sm" variant="ghost">
-                              Details
+                            <Button asChild size="sm" variant="ghost">
+                              <Link to={`/patient/appointments/${appointment.id}`}>Details</Link>
                             </Button>
                           </div>
                         </div>
@@ -289,8 +278,10 @@ const PatientDashboard = () => {
                             <span className="rounded-full bg-secondary/10 px-2 py-1 text-xs font-medium text-secondary">
                               {result.status ?? "Ready"}
                             </span>
-                            <Button size="sm" variant="ghost">
-                              <Download className="h-4 w-4" />
+                            <Button asChild size="sm" variant="ghost">
+                              <Link to={`/patient/lab-results/${result.id}`}>
+                                <Download className="h-4 w-4" />
+                              </Link>
                             </Button>
                           </div>
                         </div>

@@ -1,25 +1,11 @@
 import {
-  Calendar,
-  FlaskConical,
-  Heart,
-  HelpCircle,
-  Home,
-  Settings,
   User,
 } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import PatientProfileSettings from "@/components/patient/PatientProfileSettings";
 import SharedAccountSettings from "@/components/settings/SharedAccountSettings";
 import { useAuth } from "@/hooks/useAuth";
-
-const navItems = [
-  { title: "Dashboard", url: "/patient/dashboard", icon: Home },
-  { title: "Appointments", url: "/patient/appointments", icon: Calendar },
-  { title: "Lab Results", url: "/patient/lab-results", icon: FlaskConical },
-  { title: "Health Tips", url: "/patient/tips", icon: Heart },
-  { title: "Settings", url: "/patient/settings", icon: Settings },
-  { title: "Help", url: "/patient/help", icon: HelpCircle },
-];
+import { patientNavItems } from "@/pages/patient/navigation";
 
 const PatientSettings = () => {
   const { user } = useAuth();
@@ -28,7 +14,7 @@ const PatientSettings = () => {
     <DashboardLayout
       userRole="patient"
       userName={user?.name ?? "Patient"}
-      navItems={navItems}
+      navItems={patientNavItems}
       userIcon={User}
     >
       <div className="max-w-7xl space-y-10">

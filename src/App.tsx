@@ -18,6 +18,11 @@ import Contact from "./pages/Contact";
 import PatientDashboard from "./pages/patient/Dashboard";
 import PatientAppointments from "./pages/patient/Appointments";
 import PatientLabResults from "./pages/patient/LabResults";
+import PatientPrescriptions from "./pages/patient/Prescriptions";
+import PatientLabOrders from "./pages/patient/LabOrders";
+import PatientAppointmentDetails from "./pages/patient/AppointmentDetails";
+import PatientPrescriptionDetails from "./pages/patient/PrescriptionDetails";
+import PatientLabResultDetails from "./pages/patient/LabResultDetails";
 import PatientHealthTips from "./pages/patient/HealthTips";
 import PatientSettings from "./pages/patient/PatientSettings";
 import PatientHelp from "./pages/patient/Help";
@@ -58,7 +63,12 @@ const App = () => (
               {/* Patient Routes */}
               <Route path="/patient/dashboard" element={<ProtectedRoute allowedRoles={["Patient"]}><PatientDashboard /></ProtectedRoute>} />
               <Route path="/patient/appointments" element={<ProtectedRoute allowedRoles={["Patient"]}><PatientAppointments /></ProtectedRoute>} />
+              <Route path="/patient/appointments/:appointmentId" element={<ProtectedRoute allowedRoles={["Patient"]}><PatientAppointmentDetails /></ProtectedRoute>} />
+              <Route path="/patient/prescriptions" element={<ProtectedRoute allowedRoles={["Patient"]}><PatientPrescriptions /></ProtectedRoute>} />
+              <Route path="/patient/prescriptions/:prescriptionId" element={<ProtectedRoute allowedRoles={["Patient"]}><PatientPrescriptionDetails /></ProtectedRoute>} />
+              <Route path="/patient/lab-orders" element={<ProtectedRoute allowedRoles={["Patient"]}><PatientLabOrders /></ProtectedRoute>} />
               <Route path="/patient/lab-results" element={<ProtectedRoute allowedRoles={["Patient"]}><PatientLabResults /></ProtectedRoute>} />
+              <Route path="/patient/lab-results/:resultId" element={<ProtectedRoute allowedRoles={["Patient"]}><PatientLabResultDetails /></ProtectedRoute>} />
               <Route path="/patient/tips" element={<ProtectedRoute allowedRoles={["Patient"]}><PatientHealthTips /></ProtectedRoute>} />
               <Route path="/patient/settings" element={<ProtectedRoute allowedRoles={["Patient"]}><PatientSettings /></ProtectedRoute>} />
               <Route path="/patient/help" element={<ProtectedRoute allowedRoles={["Patient"]}><PatientHelp /></ProtectedRoute>} />

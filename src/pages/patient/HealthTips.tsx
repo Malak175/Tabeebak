@@ -3,14 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import { patientNavItems } from "@/pages/patient/navigation";
 import {
-  Calendar,
-  FlaskConical,
   User,
   Heart,
-  Home,
-  Settings,
-  HelpCircle,
   Apple,
   Activity,
   Moon,
@@ -20,15 +16,6 @@ import {
   Footprints,
   Smile,
 } from "lucide-react";
-
-const navItems = [
-  { title: "Dashboard", url: "/patient/dashboard", icon: Home },
-  { title: "Appointments", url: "/patient/appointments", icon: Calendar },
-  { title: "Lab Results", url: "/patient/lab-results", icon: FlaskConical },
-  { title: "Health Tips", url: "/patient/tips", icon: Heart },
-  { title: "Settings", url: "/patient/settings", icon: Settings },
-  { title: "Help", url: "/patient/help", icon: HelpCircle },
-];
 
 const healthTips = [
   {
@@ -95,7 +82,7 @@ const PatientHealthTips = () => {
     <DashboardLayout
       userRole="patient"
       userName={user.name}
-      navItems={navItems}
+      navItems={patientNavItems}
       userIcon={User}
     >
       <div className="mb-6">
