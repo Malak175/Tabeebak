@@ -135,7 +135,10 @@ export const authService = {
   async changePassword(payload: ChangePasswordPayload): Promise<{ message: string }> {
     const response = await apiRequest<{ message?: string }>("/auth/change-password", {
       method: "PUT",
-      body: payload,
+      body: {
+        old_password: payload.currentPassword,
+        new_password: payload.newPassword,
+      },
       auth: true,
     });
 
