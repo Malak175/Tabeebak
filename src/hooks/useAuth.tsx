@@ -109,8 +109,6 @@ export const useSignInMutation = () => {
 };
 
 export const useRegisterMutation = () => {
-  const { setAuth } = useAuth();
-
   return useMutation({
     mutationFn: (payload: RegisterPayload) => {
       debugLog("[MUTATION START]", { mutationName: "register" });
@@ -118,7 +116,6 @@ export const useRegisterMutation = () => {
     },
     onSuccess: (data) => {
       debugLog("[MUTATION SUCCESS]", { mutationName: "register", data });
-      setAuth(data);
     },
     onError: (error) => {
       debugError("[MUTATION ERROR]", { mutationName: "register", error });

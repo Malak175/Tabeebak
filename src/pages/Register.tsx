@@ -203,9 +203,9 @@ const Register = () => {
         role: "Patient",
       },
       {
-        onSuccess: (response) => {
-          toast.success("Registration successful!");
-          navigate(routeByRole(response.user.role));
+        onSuccess: () => {
+          toast.success("Registration successful. Please sign in to continue.");
+          navigate("/login");
         },
         onError: (error: Error) => {
           toast.error(error.message);
