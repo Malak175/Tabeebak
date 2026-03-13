@@ -143,6 +143,14 @@ const Register = () => {
     setFormData({ ...formData, phone: digits });
   };
 
+  const normalizePhoneToE164 = (value: string) => {
+    const digits = value.replace(/\D/g, "");
+    if (digits.startsWith("0")) {
+      return `+20${digits.slice(1)}`;
+    }
+    return `+${digits}`;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (IS_DEV) {
@@ -188,10 +196,11 @@ const Register = () => {
         firstName: formData.firstName.trim(),
         lastName: formData.lastName.trim(),
         email: formData.email.trim(),
-        phone: formData.phone,
+        phone: normalizePhoneToE164(formData.phone),
         dateOfBirth: formData.dateOfBirth,
         gender: formData.gender,
         password: formData.password,
+        role: "Patient",
       },
       {
         onSuccess: (response) => {

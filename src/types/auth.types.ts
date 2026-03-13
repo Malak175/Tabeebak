@@ -20,6 +20,7 @@ export interface RegisterPayload {
   dateOfBirth: string;
   gender: string;
   password: string;
+  role?: "Patient";
 }
 
 export interface LoginPayload {
