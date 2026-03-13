@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,9 @@ import {
   Lock,
   Building,
 } from "lucide-react";
+import { useAuth, useChangePasswordMutation, useUpdateProfileMutation } from "@/hooks/useAuth";
+import { toast } from "sonner";
+import { validatePasswordPolicy } from "@/lib/password-policy";
 
 const navItems = [
   { title: "Dashboard", url: "/lab/dashboard", icon: Home },
@@ -25,19 +28,60 @@ const navItems = [
 ];
 
 const LabSettings = () => {
-  const [lab] = useState({
-    name: "MedLab Diagnostics",
-    certification: "NABL Certified",
-    email: "contact@medlab.com",
-    phone: "+1 234 567 8900",
-    address: "123 Medical Center Drive, Healthcare City",
+  const { user } = useAuth();
+  const updateProfileMutation = useUpdateProfileMutation();
+  const changePasswordMutation = useChangePasswordMutation();
+
+  const [form, setForm] = useState({
+    name: "",
+    phone: "",
+    address: "",
   });
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+  });
+
+  useEffect(() => {
+    if (!user) return;
+    setForm({
+      name: user.name ?? "",
+      phone: user.phone ?? "",
+      address: "",
+    });
+  }, [user]);
+
+  const submitProfile = () => {
+    updateProfileMutation.mutate(
+      { name: form.name, phone: form.phone },
+      {
+        onSuccess: () => toast.success("Laboratory profile updated successfully"),
+        onError: (error: Error) => toast.error(error.message),
+      },
+    );
+  };
+
+  const submitPassword = () => {
+    const passwordError = validatePasswordPolicy(passwordForm.newPassword);
+    if (passwordError) {
+      toast.error(passwordError);
+      return;
+    }
+
+    changePasswordMutation.mutate(passwordForm, {
+      onSuccess: (response) => {
+        toast.success(response.message);
+        setPasswordForm({ currentPassword: "", newPassword: "" });
+      },
+      onError: (error: Error) => toast.error(error.message),
+    });
+  };
 
   return (
     <DashboardLayout
       userRole="laboratory"
-      userName={lab.name}
-      userSubtitle={lab.certification}
+      userName={user?.name ?? "Laboratory"}
+      userSubtitle={user?.role ?? "Lab"}
       navItems={navItems}
       userIcon={FlaskConical}
     >
@@ -59,26 +103,22 @@ const LabSettings = () => {
             <div className="grid md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Laboratory Name</Label>
-                <Input id="name" defaultValue={lab.name} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="certification">Certification</Label>
-                <Input id="certification" defaultValue={lab.certification} />
+                <Input id="name" value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" defaultValue={lab.email} />
+                <Input id="email" type="email" value={user?.email ?? ""} disabled />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="phone">Phone Number</Label>
-                <Input id="phone" defaultValue={lab.phone} />
+                <Input id="phone" value={form.phone} onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))} />
               </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="address">Address</Label>
-              <Input id="address" defaultValue={lab.address} />
+              <Input id="address" value={form.address} onChange={(event) => setForm((current) => ({ ...current, address: event.target.value }))} />
             </div>
-            <Button>Save Changes</Button>
+            <Button onClick={submitProfile} disabled={updateProfileMutation.isPending}>Save Changes</Button>
           </CardContent>
         </Card>
 
@@ -92,13 +132,15 @@ const LabSettings = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <Separator />
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Change Password</Label>
-                <p className="text-sm text-muted-foreground">Update your password regularly</p>
-              </div>
-              <Button variant="outline">Update</Button>
+            <div className="space-y-2">
+              <Label htmlFor="currentPassword">Current Password</Label>
+              <Input id="currentPassword" type="password" value={passwordForm.currentPassword} onChange={(event) => setPasswordForm((current) => ({ ...current, currentPassword: event.target.value }))} />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="newPassword">New Password</Label>
+              <Input id="newPassword" type="password" value={passwordForm.newPassword} onChange={(event) => setPasswordForm((current) => ({ ...current, newPassword: event.target.value }))} />
+            </div>
+            <Button variant="outline" onClick={submitPassword} disabled={changePasswordMutation.isPending}>Update</Button>
           </CardContent>
         </Card>
       </div>

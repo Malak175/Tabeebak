@@ -4,9 +4,12 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
+import { AuthProvider } from "@/hooks/useAuth";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import Register from "./pages/Register";
 import Doctors from "./pages/Doctors";
 import LabServices from "./pages/LabServices";
@@ -35,49 +38,52 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/doctors" element={<Doctors />} />
-            <Route path="/lab-services" element={<LabServices />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/contact" element={<Contact />} />
-            
-            {/* Patient Routes */}
-            <Route path="/patient/dashboard" element={<PatientDashboard />} />
-            <Route path="/patient/appointments" element={<PatientAppointments />} />
-            <Route path="/patient/lab-results" element={<PatientLabResults />} />
-            <Route path="/patient/tips" element={<PatientHealthTips />} />
-            <Route path="/patient/settings" element={<PatientSettings />} />
-            <Route path="/patient/help" element={<PatientHelp />} />
-            
-            {/* Doctor Routes */}
-            <Route path="/doctor/dashboard" element={<DoctorDashboard />} />
-            <Route path="/doctor/appointments" element={<DoctorAppointments />} />
-            <Route path="/doctor/patients" element={<DoctorPatients />} />
-            <Route path="/doctor/schedule" element={<DoctorSchedule />} />
-            <Route path="/doctor/settings" element={<DoctorSettings />} />
-            <Route path="/doctor/help" element={<DoctorHelp />} />
-            
-            {/* Laboratory Routes */}
-            <Route path="/lab/dashboard" element={<LabDashboard />} />
-            <Route path="/lab/pending" element={<LabPending />} />
-            <Route path="/lab/completed" element={<LabCompleted />} />
-            <Route path="/lab/settings" element={<LabSettings />} />
-            <Route path="/lab/help" element={<LabHelp />} />
-            
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </ThemeProvider>
+    <AuthProvider>
+      <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/doctors" element={<Doctors />} />
+              <Route path="/lab-services" element={<LabServices />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/contact" element={<Contact />} />
+              
+              {/* Patient Routes */}
+              <Route path="/patient/dashboard" element={<ProtectedRoute allowedRoles={["Patient"]}><PatientDashboard /></ProtectedRoute>} />
+              <Route path="/patient/appointments" element={<ProtectedRoute allowedRoles={["Patient"]}><PatientAppointments /></ProtectedRoute>} />
+              <Route path="/patient/lab-results" element={<ProtectedRoute allowedRoles={["Patient"]}><PatientLabResults /></ProtectedRoute>} />
+              <Route path="/patient/tips" element={<ProtectedRoute allowedRoles={["Patient"]}><PatientHealthTips /></ProtectedRoute>} />
+              <Route path="/patient/settings" element={<ProtectedRoute allowedRoles={["Patient"]}><PatientSettings /></ProtectedRoute>} />
+              <Route path="/patient/help" element={<ProtectedRoute allowedRoles={["Patient"]}><PatientHelp /></ProtectedRoute>} />
+              
+              {/* Doctor Routes */}
+              <Route path="/doctor/dashboard" element={<ProtectedRoute allowedRoles={["Doctor"]}><DoctorDashboard /></ProtectedRoute>} />
+              <Route path="/doctor/appointments" element={<ProtectedRoute allowedRoles={["Doctor"]}><DoctorAppointments /></ProtectedRoute>} />
+              <Route path="/doctor/patients" element={<ProtectedRoute allowedRoles={["Doctor"]}><DoctorPatients /></ProtectedRoute>} />
+              <Route path="/doctor/schedule" element={<ProtectedRoute allowedRoles={["Doctor"]}><DoctorSchedule /></ProtectedRoute>} />
+              <Route path="/doctor/settings" element={<ProtectedRoute allowedRoles={["Doctor"]}><DoctorSettings /></ProtectedRoute>} />
+              <Route path="/doctor/help" element={<ProtectedRoute allowedRoles={["Doctor"]}><DoctorHelp /></ProtectedRoute>} />
+              
+              {/* Laboratory Routes */}
+              <Route path="/lab/dashboard" element={<ProtectedRoute allowedRoles={["Lab"]}><LabDashboard /></ProtectedRoute>} />
+              <Route path="/lab/pending" element={<ProtectedRoute allowedRoles={["Lab"]}><LabPending /></ProtectedRoute>} />
+              <Route path="/lab/completed" element={<ProtectedRoute allowedRoles={["Lab"]}><LabCompleted /></ProtectedRoute>} />
+              <Route path="/lab/settings" element={<ProtectedRoute allowedRoles={["Lab"]}><LabSettings /></ProtectedRoute>} />
+              <Route path="/lab/help" element={<ProtectedRoute allowedRoles={["Lab"]}><LabHelp /></ProtectedRoute>} />
+              
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </ThemeProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,8 +9,16 @@ import { Eye, EyeOff, ArrowLeft, UserRound, Heart, AlertTriangle } from "lucide-
 import { toast } from "sonner";
 import { FieldError } from "@/components/ui/field-error";
 import logo from "@/assets/logo.png";
+import { useAuth, useRegisterMutation } from "@/hooks/useAuth";
+import { routeByRole } from "@/services/auth.service";
+import {
+  PASSWORD_POLICY_MESSAGE,
+  PASSWORDS_DO_NOT_MATCH_MESSAGE,
+  isPasswordPolicyValid,
+  passwordsMatch,
+} from "@/lib/password-policy";
 
-const SIMULATED_EXISTING_EMAILS = ["test@example.com", "john@example.com", "admin@tabeebak.com"];
+const IS_DEV = import.meta.env.DEV;
 
 type FieldErrors = {
   firstName?: string;
@@ -25,6 +33,8 @@ type FieldErrors = {
 
 const Register = () => {
   const navigate = useNavigate();
+  const { isAuthenticated, user } = useAuth();
+  const registerMutation = useRegisterMutation();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -42,7 +52,7 @@ const Register = () => {
 
   const maxDateOfBirth = useMemo(() => {
     const d = new Date();
-    d.setFullYear(d.getFullYear() - 16);
+    d.setFullYear(d.getFullYear() - 18);
     return d.toISOString().split("T")[0];
   }, []);
 
@@ -84,38 +94,34 @@ const Register = () => {
       }
     }
 
-    // Date of birth - must be at least 16
+    // Date of birth - must be at least 18
     if (touched.dateOfBirth && formData.dateOfBirth) {
       const birth = new Date(formData.dateOfBirth);
       const today = new Date();
       let age = today.getFullYear() - birth.getFullYear();
       const m = today.getMonth() - birth.getMonth();
       if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
-      if (age < 16) {
-        e.dateOfBirth = "You must be at least 16 years old";
+      if (age < 18) {
+        e.dateOfBirth = "You must be at least 18 years old";
       }
     }
 
     // Password
     if (touched.password && formData.password) {
-      const hasNumber = /\d/.test(formData.password);
-      const hasSpecial = /[!@#$%^&*()_+\-=()[\]{};':"\\|,.<>/?]/.test(formData.password);
-      if (formData.password.length < 8 || !hasNumber || !hasSpecial) {
-        e.password = "Password must be at least 8 characters and include numbers and special characters";
+      if (!isPasswordPolicyValid(formData.password)) {
+        e.password = PASSWORD_POLICY_MESSAGE;
       }
     }
 
     // Confirm password
-    if (touched.confirmPassword && formData.confirmPassword && formData.password !== formData.confirmPassword) {
-      e.confirmPassword = "Passwords do not match";
+    if (touched.confirmPassword && formData.confirmPassword && !passwordsMatch(formData.password, formData.confirmPassword)) {
+      e.confirmPassword = PASSWORDS_DO_NOT_MATCH_MESSAGE;
     }
 
     // Email format + duplicate check
     if (touched.email && formData.email) {
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
         e.email = "Please enter a valid email address (e.g. name@example.com)";
-      } else if (SIMULATED_EXISTING_EMAILS.includes(formData.email.toLowerCase())) {
-        e.email = "This email is already registered";
       }
     }
 
@@ -123,6 +129,13 @@ const Register = () => {
   }, [formData, touched]);
 
   const hasErrors = Object.keys(errors).length > 0;
+
+  useEffect(() => {
+    if (!IS_DEV) return;
+    if (Object.keys(errors).length > 0) {
+      console.error("[FORM VALIDATION ERROR]", { form: "Register", errors });
+    }
+  }, [errors]);
 
   const handleBlur = (field: string) => {
     setTouched((prev) => ({ ...prev, [field]: true }));
@@ -134,8 +147,19 @@ const Register = () => {
     setFormData({ ...formData, phone: digits });
   };
 
+  const normalizePhoneToE164 = (value: string) => {
+    const digits = value.replace(/\D/g, "");
+    if (digits.startsWith("0")) {
+      return `+20${digits.slice(1)}`;
+    }
+    return `+${digits}`;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (IS_DEV) {
+      console.log("[FORM SUBMIT]", { form: "Register", formValues: formData });
+    }
 
     // Touch all fields to show errors
     setTouched({ firstName: true, lastName: true, phone: true, dateOfBirth: true, password: true, confirmPassword: true, email: true, gender: true });
@@ -149,27 +173,54 @@ const Register = () => {
       let age = today.getFullYear() - birth.getFullYear();
       const m = today.getMonth() - birth.getMonth();
       if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
-      return age >= 16;
+      return age >= 18;
     })();
-    const hasValidPassword =
-      formData.password.length >= 8 &&
-      /\d/.test(formData.password) &&
-      /[^A-Za-z0-9]/.test(formData.password);
-    const passwordsMatch = formData.password === formData.confirmPassword;
-    const emailNotTaken = !SIMULATED_EXISTING_EMAILS.includes(formData.email.toLowerCase());
-
-    if (!hasPhone || !hasValidAge || !hasValidPassword || !passwordsMatch || !emailNotTaken) {
+    const hasValidPassword = isPasswordPolicyValid(formData.password);
+    const confirmPasswordMatches = passwordsMatch(formData.password, formData.confirmPassword);
+    if (!hasPhone || !hasValidAge || !hasValidPassword || !confirmPasswordMatches) {
+      if (IS_DEV) {
+        console.error("[FORM VALIDATION ERROR]", {
+          form: "Register",
+          hasPhone,
+          hasValidAge,
+          hasValidPassword,
+          passwordsMatch: confirmPasswordMatches,
+        });
+      }
       toast.error("Please fix the errors before submitting");
       return;
     }
 
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      toast.success("Registration successful! Please login to continue.");
-      navigate("/login");
-    }, 1500);
+    registerMutation.mutate(
+      {
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        email: formData.email.trim(),
+        phone: normalizePhoneToE164(formData.phone),
+        dateOfBirth: formData.dateOfBirth,
+        gender: formData.gender,
+        password: formData.password,
+        role: "Patient",
+      },
+      {
+        onSuccess: () => {
+          toast.success("Registration successful. Please sign in to continue.");
+          navigate("/login");
+        },
+        onError: (error: Error) => {
+          toast.error(error.message);
+        },
+        onSettled: () => setIsLoading(false),
+      },
+    );
   };
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      navigate(routeByRole(user.role), { replace: true });
+    }
+  }, [isAuthenticated, user, navigate]);
 
   const inputErrorClass = (field: keyof FieldErrors) =>
     errors[field] ? "border-destructive/60 focus-visible:ring-destructive/40" : "";

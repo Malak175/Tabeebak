@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo } from "react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,13 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Mail, Phone, MapPin, Clock, Send } from "lucide-react";
 import { toast } from "sonner";
+import { useSearchParams } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { useContactMutation } from "@/hooks/useContactMutation";
+import { ContactRole } from "@/types/contact.types";
+const IS_DEV = import.meta.env.DEV;
 
 const contactInfo = [
   {
@@ -32,38 +39,81 @@ const contactInfo = [
   },
 ];
 
+const schema = z.object({
+  name: z.string().min(2, "Name is required"),
+  email: z.string().email("Enter a valid email address"),
+  role: z.enum(["Doctor", "Lab"]),
+  subject: z.string().min(3, "Subject is required"),
+  message: z.string().min(10, "Please provide more details"),
+});
+
+type FormValues = z.infer<typeof schema>;
+
 const Contact = () => {
-  const [isLoading, setIsLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    subject: "",
-    message: "",
+  const [params] = useSearchParams();
+  const contactMutation = useContactMutation();
+
+  const defaultRole = useMemo<ContactRole>(() => {
+    const roleParam = params.get("role");
+    return roleParam === "Lab" ? "Lab" : "Doctor";
+  }, [params]);
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      name: "",
+      email: "",
+      subject: "Request to join TABEEBAK",
+      message: "",
+      role: defaultRole,
+    },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-
-    setTimeout(() => {
-      setIsLoading(false);
-      toast.success("Message sent successfully! We'll get back to you soon.");
-      setFormData({ name: "", email: "", subject: "", message: "" });
-    }, 1500);
+  const onSubmit = (values: FormValues) => {
+    if (IS_DEV) {
+      console.log("[FORM SUBMIT]", { form: "Contact", formValues: values });
+    }
+    contactMutation.mutate(values, {
+      onSuccess: (response) => {
+        toast.success(response.message || "Request submitted successfully");
+        reset({
+          name: "",
+          email: "",
+          role: defaultRole,
+          subject: "Request to join TABEEBAK",
+          message: "",
+        });
+      },
+      onError: (error: Error) => {
+        toast.error(error.message);
+      },
+    });
   };
+
+  useEffect(() => {
+    if (!IS_DEV) return;
+    if (Object.keys(errors).length > 0) {
+      console.error("[FORM VALIDATION ERROR]", { form: "Contact", errors });
+    }
+  }, [errors]);
 
   return (
     <main className="min-h-screen bg-muted/30">
       <Navbar />
-      
+
       {/* Hero Section */}
       <section className="pt-32 pb-16 bg-card">
         <div className="container mx-auto px-4">
           <div className="max-w-2xl mx-auto text-center">
             <span className="text-primary font-semibold text-sm uppercase tracking-wider">Contact Us</span>
-            <h1 className="text-4xl md:text-5xl font-bold mt-4 mb-4">Get in Touch</h1>
+            <h1 className="text-4xl md:text-5xl font-bold mt-4 mb-4">Join as Doctor or Lab</h1>
             <p className="text-muted-foreground text-lg">
-              Have questions or need assistance? We're here to help. Reach out to us through any of the channels below.
+              Doctor and laboratory accounts are created by administrators. Submit your request and our team will contact you.
             </p>
           </div>
         </div>
@@ -98,86 +148,64 @@ const Contact = () => {
           <div className="max-w-2xl mx-auto">
             <Card className="shadow-xl">
               <CardContent className="p-8">
-                <h2 className="text-2xl font-bold mb-2">Send us a Message</h2>
+                <h2 className="text-2xl font-bold mb-2">Submit Access Request</h2>
                 <p className="text-muted-foreground mb-8">
-                  Fill out the form below and we'll get back to you as soon as possible.
+                  Fill out this form for Doctor/Lab onboarding. Admin will review your request.
                 </p>
 
-                <form onSubmit={handleSubmit} className="space-y-6">
+                <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="name">Full Name</Label>
-                      <Input
-                        id="name"
-                        placeholder="John Doe"
-                        value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        required
-                      />
+                      <Input id="name" placeholder="John Doe" {...register("name")} />
+                      {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="email">Email</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        placeholder="john@example.com"
-                        value={formData.email}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        required
-                      />
+                      <Input id="email" type="email" placeholder="john@example.com" {...register("email")} />
+                      {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
                     </div>
                   </div>
 
                   <div className="space-y-2">
+                    <Label htmlFor="role">Request Type</Label>
+                    <select id="role" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register("role")}>
+                      <option value="Doctor">Doctor</option>
+                      <option value="Lab">Lab</option>
+                    </select>
+                    {errors.role && <p className="text-xs text-destructive">{errors.role.message}</p>}
+                  </div>
+
+                  <div className="space-y-2">
                     <Label htmlFor="subject">Subject</Label>
-                    <Input
-                      id="subject"
-                      placeholder="How can we help?"
-                      value={formData.subject}
-                      onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                      required
-                    />
+                    <Input id="subject" placeholder="Request to join TABEEBAK" {...register("subject")} />
+                    {errors.subject && <p className="text-xs text-destructive">{errors.subject.message}</p>}
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="message">Message</Label>
                     <Textarea
                       id="message"
-                      placeholder="Tell us more about your inquiry..."
+                      placeholder="Tell us about your specialization, clinic/lab, and why you want to join..."
                       rows={5}
-                      value={formData.message}
-                      onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                      required
+                      {...register("message")}
                     />
+                    {errors.message && <p className="text-xs text-destructive">{errors.message.message}</p>}
                   </div>
 
-                  <Button type="submit" variant="hero" size="lg" className="w-full" disabled={isLoading}>
-                    {isLoading ? (
+                  <Button type="submit" variant="hero" size="lg" className="w-full" disabled={contactMutation.isPending}>
+                    {contactMutation.isPending ? (
                       "Sending..."
                     ) : (
                       <>
                         <Send className="h-4 w-4" />
-                        Send Message
+                        Submit Request
                       </>
                     )}
                   </Button>
                 </form>
               </CardContent>
             </Card>
-          </div>
-        </div>
-      </section>
-
-      {/* Map Placeholder */}
-      <section className="py-16 bg-card">
-        <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto">
-            <div className="bg-muted rounded-2xl h-80 flex items-center justify-center">
-              <div className="text-center">
-                <MapPin className="h-12 w-12 text-primary mx-auto mb-4" />
-                <p className="text-muted-foreground">Interactive map will be displayed here</p>
-              </div>
-            </div>
           </div>
         </div>
       </section>
