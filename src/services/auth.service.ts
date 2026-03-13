@@ -103,7 +103,8 @@ export const authService = {
       body: payload,
     });
 
-    return normalizeAuthResponse(response);
+    const wrapped = (response ?? {}) as Record<string, unknown>;
+    return normalizeAuthResponse(wrapped.data ?? response);
   },
 
   async updateProfile(payload: UpdateProfilePayload): Promise<AuthUser> {
