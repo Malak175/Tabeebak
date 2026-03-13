@@ -81,7 +81,7 @@ const ForgotPassword = () => {
                   <CheckCircle className="h-8 w-8 text-primary" />
                 </div>
                 <p className="text-sm text-muted-foreground text-center">
-                  We've sent a password reset link to <strong className="text-foreground">{watch("email")}</strong>. Please check your inbox.
+                  If the email exists, you will receive a password reset link.
                 </p>
                 <Button variant="outline" className="w-full mt-2" onClick={() => forgotPasswordMutation.reset()}>
                   Try another email
