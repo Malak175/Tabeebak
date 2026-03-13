@@ -46,7 +46,7 @@ const Register = () => {
 
   const maxDateOfBirth = useMemo(() => {
     const d = new Date();
-    d.setFullYear(d.getFullYear() - 16);
+    d.setFullYear(d.getFullYear() - 18);
     return d.toISOString().split("T")[0];
   }, []);
 
@@ -88,15 +88,15 @@ const Register = () => {
       }
     }
 
-    // Date of birth - must be at least 16
+    // Date of birth - must be at least 18
     if (touched.dateOfBirth && formData.dateOfBirth) {
       const birth = new Date(formData.dateOfBirth);
       const today = new Date();
       let age = today.getFullYear() - birth.getFullYear();
       const m = today.getMonth() - birth.getMonth();
       if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
-      if (age < 16) {
-        e.dateOfBirth = "You must be at least 16 years old";
+      if (age < 18) {
+        e.dateOfBirth = "You must be at least 18 years old";
       }
     }
 
@@ -169,7 +169,7 @@ const Register = () => {
       let age = today.getFullYear() - birth.getFullYear();
       const m = today.getMonth() - birth.getMonth();
       if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
-      return age >= 16;
+      return age >= 18;
     })();
     const hasValidPassword =
       formData.password.length >= 8 &&
