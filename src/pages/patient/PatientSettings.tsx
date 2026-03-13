@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useAuth, useChangePasswordMutation, useUpdateProfileMutation } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { validatePasswordPolicy } from "@/lib/password-policy";
 
 const navItems = [
   { title: "Dashboard", url: "/patient/dashboard", icon: Home },
@@ -74,6 +75,12 @@ const PatientSettings = () => {
   };
 
   const handleChangePassword = () => {
+    const passwordError = validatePasswordPolicy(passwordForm.newPassword);
+    if (passwordError) {
+      toast.error(passwordError);
+      return;
+    }
+
     changePasswordMutation.mutate(passwordForm, {
       onSuccess: (response) => {
         toast.success(response.message);

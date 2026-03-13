@@ -11,19 +11,24 @@ import { ArrowLeft, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useResetPasswordMutation } from "@/hooks/useAuth";
 import logo from "@/assets/logo.png";
+import {
+  PASSWORD_CONFIRM_REQUIRED_MESSAGE,
+  PASSWORD_POLICY_MESSAGE,
+  PASSWORDS_DO_NOT_MATCH_MESSAGE,
+  isPasswordPolicyValid,
+  passwordsMatch,
+} from "@/lib/password-policy";
 
 const schema = z
   .object({
     password: z
       .string()
-      .min(8, "Password must be at least 8 characters")
-      .regex(/\d/, "Password must include at least one number")
-      .regex(/[^A-Za-z0-9]/, "Password must include at least one special character"),
-    confirmPassword: z.string().min(1, "Confirm password is required"),
+      .refine(isPasswordPolicyValid, PASSWORD_POLICY_MESSAGE),
+    confirmPassword: z.string().min(1, PASSWORD_CONFIRM_REQUIRED_MESSAGE),
   })
-  .refine((values) => values.password === values.confirmPassword, {
+  .refine((values) => passwordsMatch(values.password, values.confirmPassword), {
     path: ["confirmPassword"],
-    message: "Passwords do not match",
+    message: PASSWORDS_DO_NOT_MATCH_MESSAGE,
   });
 
 type FormValues = z.infer<typeof schema>;

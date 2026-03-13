@@ -11,6 +11,12 @@ import { FieldError } from "@/components/ui/field-error";
 import logo from "@/assets/logo.png";
 import { useAuth, useRegisterMutation } from "@/hooks/useAuth";
 import { routeByRole } from "@/services/auth.service";
+import {
+  PASSWORD_POLICY_MESSAGE,
+  PASSWORDS_DO_NOT_MATCH_MESSAGE,
+  isPasswordPolicyValid,
+  passwordsMatch,
+} from "@/lib/password-policy";
 
 const IS_DEV = import.meta.env.DEV;
 
@@ -102,16 +108,14 @@ const Register = () => {
 
     // Password
     if (touched.password && formData.password) {
-      const hasNumber = /\d/.test(formData.password);
-      const hasSpecial = /[!@#$%^&*()_+\-=()[\]{};':"\\|,.<>/?]/.test(formData.password);
-      if (formData.password.length < 8 || !hasNumber || !hasSpecial) {
-        e.password = "Password must be at least 8 characters and include numbers and special characters";
+      if (!isPasswordPolicyValid(formData.password)) {
+        e.password = PASSWORD_POLICY_MESSAGE;
       }
     }
 
     // Confirm password
-    if (touched.confirmPassword && formData.confirmPassword && formData.password !== formData.confirmPassword) {
-      e.confirmPassword = "Passwords do not match";
+    if (touched.confirmPassword && formData.confirmPassword && !passwordsMatch(formData.password, formData.confirmPassword)) {
+      e.confirmPassword = PASSWORDS_DO_NOT_MATCH_MESSAGE;
     }
 
     // Email format + duplicate check
@@ -171,19 +175,16 @@ const Register = () => {
       if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
       return age >= 18;
     })();
-    const hasValidPassword =
-      formData.password.length >= 8 &&
-      /\d/.test(formData.password) &&
-      /[^A-Za-z0-9]/.test(formData.password);
-    const passwordsMatch = formData.password === formData.confirmPassword;
-    if (!hasPhone || !hasValidAge || !hasValidPassword || !passwordsMatch) {
+    const hasValidPassword = isPasswordPolicyValid(formData.password);
+    const confirmPasswordMatches = passwordsMatch(formData.password, formData.confirmPassword);
+    if (!hasPhone || !hasValidAge || !hasValidPassword || !confirmPasswordMatches) {
       if (IS_DEV) {
         console.error("[FORM VALIDATION ERROR]", {
           form: "Register",
           hasPhone,
           hasValidAge,
           hasValidPassword,
-          passwordsMatch,
+          passwordsMatch: confirmPasswordMatches,
         });
       }
       toast.error("Please fix the errors before submitting");
