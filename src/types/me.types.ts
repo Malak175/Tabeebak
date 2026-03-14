@@ -76,3 +76,48 @@ export interface AvatarUploadResponse {
   avatarUrl: string;
   message?: string;
 }
+
+export interface PaginatedItemsResponse<T> {
+  data: T[];
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
+export interface NotificationsFilterParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  type?: string;
+  isRead?: boolean;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
+}
+
+export interface NotificationItem {
+  id: string;
+  title: string;
+  message: string;
+  type?: string | null;
+  isRead: boolean;
+  createdAt?: string | null;
+  readAt?: string | null;
+  actionUrl?: string | null;
+  metadata?: Record<string, unknown> | null;
+}
+
+export interface SessionItem {
+  id: string;
+  deviceName: string;
+  deviceType?: string | null;
+  browser?: string | null;
+  operatingSystem?: string | null;
+  ipAddress?: string | null;
+  location?: string | null;
+  isCurrent: boolean;
+  lastActiveAt?: string | null;
+  createdAt?: string | null;
+}
