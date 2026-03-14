@@ -12,6 +12,7 @@ import {
   User,
 } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import { patientNavItems } from "@/components/settings/AccountSettingsContent";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -23,15 +24,6 @@ import {
 } from "@/hooks/usePatientProfile";
 import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName, getInitials } from "@/lib/auth";
-
-const navItems = [
-  { title: "Dashboard", url: "/patient/dashboard", icon: Home },
-  { title: "Appointments", url: "/patient/appointments", icon: Calendar },
-  { title: "Lab Results", url: "/patient/lab-results", icon: FlaskConical },
-  { title: "Health Tips", url: "/patient/tips", icon: Heart },
-  { title: "Settings", url: "/patient/settings", icon: Settings },
-  { title: "Help", url: "/patient/help", icon: HelpCircle },
-];
 
 const formatMetric = (value: number | string | null | undefined, suffix?: string) => {
   if (value === null || value === undefined || value === "") {
@@ -117,7 +109,7 @@ const PatientDashboard = () => {
   });
 
   return (
-    <DashboardLayout userRole="patient" userName={userName} navItems={navItems} userIcon={User}>
+    <DashboardLayout userRole="patient" userName={userName} navItems={patientNavItems} userIcon={User}>
       <div className="mb-6">
         <h1 className="mb-2 text-2xl font-bold md:text-3xl">
           Welcome back, {userName.split(" ")[0]}!
@@ -313,6 +305,9 @@ const PatientDashboard = () => {
               </Button>
               <Button asChild className="w-full justify-start" variant="outline">
                 <Link to="/patient/lab-results">Go to Lab Results</Link>
+              </Button>
+              <Button asChild className="w-full justify-start" variant="outline">
+                <Link to="/patient/prescriptions">Go to Prescriptions</Link>
               </Button>
               <Button asChild className="w-full justify-start" variant="outline">
                 <Link to="/patient/settings">Manage Profile & Insurance</Link>

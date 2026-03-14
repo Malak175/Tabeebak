@@ -3,29 +3,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import { patientNavItems } from "@/components/settings/AccountSettingsContent";
+import { useAuth } from "@/hooks/useAuth";
+import { getDisplayName } from "@/lib/auth";
 import {
-  Calendar,
-  FlaskConical,
   User,
-  Heart,
-  Home,
-  Settings,
-  HelpCircle,
   Search,
   Phone,
   Mail,
   Book,
   Headphones,
 } from "lucide-react";
-
-const navItems = [
-  { title: "Dashboard", url: "/patient/dashboard", icon: Home },
-  { title: "Appointments", url: "/patient/appointments", icon: Calendar },
-  { title: "Lab Results", url: "/patient/lab-results", icon: FlaskConical },
-  { title: "Health Tips", url: "/patient/tips", icon: Heart },
-  { title: "Settings", url: "/patient/settings", icon: Settings },
-  { title: "Help", url: "/patient/help", icon: HelpCircle },
-];
 
 const faqs = [
   {
@@ -55,7 +43,7 @@ const faqs = [
 ];
 
 const PatientHelp = () => {
-  const [user] = useState({ name: "John Doe" });
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
 
   const filteredFaqs = faqs.filter(
@@ -67,8 +55,8 @@ const PatientHelp = () => {
   return (
     <DashboardLayout
       userRole="patient"
-      userName={user.name}
-      navItems={navItems}
+      userName={getDisplayName(user ?? {})}
+      navItems={patientNavItems}
       userIcon={User}
     >
       <div className="mb-6">
