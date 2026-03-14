@@ -1,290 +1,276 @@
-import { useState } from "react";
+import { Link } from "react-router-dom";
+import {
+  AlertCircle,
+  ArrowRight,
+  Clock,
+  FlaskConical,
+  Shield,
+  TestTubeDiagonal,
+  Truck,
+} from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { 
-  Search, 
-  FlaskConical, 
-  ArrowRight, 
-  Droplet, 
-  Heart, 
-  Activity, 
-  Pill, 
-  Shield,
-  Truck,
-  Clock,
-  Award
-} from "lucide-react";
-import TestCategoryCard from "@/components/lab/TestCategoryCard";
-import TestCard from "@/components/lab/TestCard";
-import LabPartnerCard from "@/components/lab/LabPartnerCard";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/hooks/useAuth";
+import { useLabProfileQuery, useLabServicesQuery } from "@/hooks/useLabProfile";
 
-const testCategories = [
-  { name: "Blood Tests", count: 45, icon: Droplet },
-  { name: "Urine Tests", count: 12, icon: FlaskConical },
-  { name: "Heart Tests", count: 15, icon: Heart },
-  { name: "Diabetes", count: 10, icon: Activity },
-  { name: "Thyroid", count: 6, icon: Pill },
-];
+const formatPrice = (price?: number | null, currency?: string | null) => {
+  if (price === null || price === undefined) {
+    return "Price pending";
+  }
 
-const popularTests = [
-  {
-    id: 1,
-    name: "Complete Blood Count (CBC)",
-    description: "Comprehensive blood analysis measuring red cells, white cells, and platelets for overall health assessment",
-    price: "$35",
-    duration: "4-6 hours",
-    category: "Blood Tests",
-  },
-  {
-    id: 2,
-    name: "Lipid Profile",
-    description: "Measures cholesterol levels including HDL, LDL, and triglycerides for cardiovascular risk assessment",
-    price: "$45",
-    duration: "12 hours (fasting)",
-    category: "Heart Tests",
-  },
-  {
-    id: 3,
-    name: "Thyroid Function Test",
-    description: "Comprehensive TSH, T3, T4 levels to assess thyroid health and metabolic function",
-    price: "$55",
-    duration: "24 hours",
-    category: "Thyroid",
-  },
-  {
-    id: 4,
-    name: "HbA1c Test",
-    description: "Average blood sugar levels over past 2-3 months for diabetes monitoring and diagnosis",
-    price: "$40",
-    duration: "4-6 hours",
-    category: "Diabetes",
-  },
-  {
-    id: 5,
-    name: "Liver Function Test",
-    description: "Comprehensive liver health assessment including enzymes and bilirubin levels",
-    price: "$50",
-    duration: "24 hours",
-    category: "Blood Tests",
-  },
-  {
-    id: 6,
-    name: "Kidney Function Test",
-    description: "Creatinine, BUN, and electrolyte levels to evaluate kidney health and function",
-    price: "$48",
-    duration: "24 hours",
-    category: "Blood Tests",
-  },
-];
+  const normalizedCurrency = (currency ?? "USD").toUpperCase();
 
-const labPartners = [
-  { name: "MedLab Diagnostics", tests: 150, rating: 4.9 },
-  { name: "HealthFirst Labs", tests: 120, rating: 4.8 },
-  { name: "Precision Pathology", tests: 200, rating: 4.7 },
-];
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: normalizedCurrency,
+      maximumFractionDigits: 0,
+    }).format(price);
+  } catch {
+    return `${normalizedCurrency} ${price}`;
+  }
+};
 
-const features = [
-  { icon: Shield, title: "100% Accurate", description: "NABL certified labs" },
-  { icon: Truck, title: "Home Collection", description: "Free sample pickup" },
-  { icon: Clock, title: "Fast Results", description: "Reports in 24 hours" },
-  { icon: Award, title: "Best Prices", description: "Up to 50% off" },
+const statusCards = [
+  {
+    icon: Shield,
+    title: "Verified backend scope",
+    description: "Live lab services are currently available for authenticated laboratory accounts.",
+  },
+  {
+    icon: TestTubeDiagonal,
+    title: "Public catalog pending",
+    description: "Patient-facing test discovery and booking still need a dedicated public API.",
+  },
+  {
+    icon: Truck,
+    title: "Home collection",
+    description: "Availability is driven by each lab profile once the public catalog is connected.",
+  },
 ];
 
 const LabServices = () => {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
-
-  const filteredTests = popularTests.filter((test) => {
-    const matchesSearch = test.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      test.category.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = !activeCategory || test.category === activeCategory;
-    return matchesSearch && matchesCategory;
-  });
+  const { user } = useAuth();
+  const isLabUser = user?.role === "Lab";
+  const profileQuery = useLabProfileQuery(isLabUser);
+  const servicesQuery = useLabServicesQuery(isLabUser);
+  const activeServices =
+    servicesQuery.data?.filter((service) => service.isActive !== false) ?? [];
 
   return (
     <main className="min-h-screen bg-background">
       <Navbar />
-      
-      {/* Hero Section */}
-      <section className="relative pt-24 pb-20 overflow-hidden">
-        {/* Background gradient */}
-        <div className="absolute inset-0 gradient-hero" />
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMiIvPjwvZz48L2c+PC9zdmc+')] opacity-50" />
-        
-        <div className="container mx-auto px-4 relative">
-          <div className="max-w-3xl mx-auto text-center">
-            <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full mb-6 border border-white/20">
-              <FlaskConical className="h-4 w-4 text-primary-foreground" />
-              <span className="text-sm font-medium text-primary-foreground">Trusted by 50,000+ Patients</span>
-            </div>
-            
-            <h1 className="text-4xl md:text-5xl font-bold mb-6 text-primary-foreground leading-tight">
-              Book Lab Tests with
-              <span className="block text-white/90">Certified Partners</span>
+
+      <section className="relative overflow-hidden pb-20 pt-24">
+        <div className="gradient-hero absolute inset-0" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.18),_transparent_55%)]" />
+
+        <div className="container relative mx-auto px-4">
+          <div className="mx-auto max-w-4xl text-center">
+            <Badge className="mb-6 border-white/20 bg-white/10 text-primary-foreground hover:bg-white/10">
+              Lab services status
+            </Badge>
+            <h1 className="mb-6 text-4xl font-bold leading-tight text-primary-foreground md:text-5xl">
+              {isLabUser ? "Live laboratory services" : "Lab services catalog"}
             </h1>
-            
-            <p className="text-primary-foreground/80 mb-10 text-lg max-w-2xl mx-auto">
-              Get accurate diagnostic tests from NABL certified labs with free home sample collection and fast digital reports
+            <p className="mx-auto max-w-2xl text-lg text-primary-foreground/85">
+              {isLabUser
+                ? "This view now reflects the services returned by your authenticated laboratory profile instead of placeholder marketing cards."
+                : "The public patient-facing lab catalog is not connected to backend search or booking yet, so this page now shows implementation status instead of fake production data."}
             </p>
-            
-            {/* Search Bar */}
-            <div className="flex flex-col sm:flex-row gap-3 bg-card p-3 rounded-2xl shadow-2xl max-w-xl mx-auto">
-              <div className="relative flex-1">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input
-                  placeholder="Search for tests, packages..."
-                  className="pl-12 h-12 border-0 bg-muted/50 text-foreground rounded-xl text-base"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
+          </div>
+        </div>
+      </section>
+
+      <section className="border-y border-border/60 bg-card py-8">
+        <div className="container mx-auto grid gap-6 px-4 md:grid-cols-3">
+          {statusCards.map((item) => (
+            <div key={item.title} className="flex items-start gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <item.icon className="h-5 w-5" />
               </div>
-              <Button className="h-12 px-8 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-lg">
-                <Search className="h-4 w-4 mr-2" />
-                Search
-              </Button>
+              <div>
+                <p className="font-semibold text-foreground">{item.title}</p>
+                <p className="text-sm text-muted-foreground">{item.description}</p>
+              </div>
             </div>
-          </div>
+          ))}
         </div>
       </section>
 
-      {/* Features Strip */}
-      <section className="py-8 bg-card border-y border-border/50">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {features.map((feature) => (
-              <div key={feature.title} className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <feature.icon className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <div className="font-semibold text-foreground">{feature.title}</div>
-                  <div className="text-sm text-muted-foreground">{feature.description}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Categories */}
       <section className="py-16">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-10">
-            <h2 className="text-3xl font-bold mb-3 text-foreground">Browse by Category</h2>
-            <p className="text-muted-foreground max-w-xl mx-auto">
-              Choose from a wide range of diagnostic tests and health packages
-            </p>
-          </div>
-          
-          <div className="flex flex-wrap justify-center gap-4">
-            {testCategories.map((category) => (
-              <TestCategoryCard
-                key={category.name}
-                name={category.name}
-                count={category.count}
-                icon={category.icon}
-                isActive={activeCategory === category.name}
-                onClick={() => setActiveCategory(
-                  activeCategory === category.name ? null : category.name
-                )}
-              />
-            ))}
-          </div>
-        </div>
-      </section>
+          {isLabUser ? (
+            <div className="space-y-8">
+              <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <h2 className="text-3xl font-bold text-foreground">Your live services</h2>
+                  <p className="text-muted-foreground">
+                    Loaded from the laboratory profile APIs that already power the authenticated lab workflow.
+                  </p>
+                </div>
+                <Button asChild variant="outline" className="gap-2">
+                  <Link to="/lab/settings">
+                    Manage in Lab Settings
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </div>
 
-      {/* Popular Tests */}
-      <section className="py-16 bg-muted/30">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-10">
-            <div>
-              <h2 className="text-3xl font-bold mb-2 text-foreground">Popular Tests</h2>
-              <p className="text-muted-foreground">Most booked diagnostic tests by our patients</p>
+              {profileQuery.isError ? (
+                <Alert variant="destructive">
+                  <AlertTitle>Unable to load lab profile</AlertTitle>
+                  <AlertDescription>{(profileQuery.error as Error).message}</AlertDescription>
+                </Alert>
+              ) : null}
+
+              <div className="grid gap-4 md:grid-cols-3">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardDescription>Laboratory</CardDescription>
+                    <CardTitle>{profileQuery.data?.displayName || user?.displayName || "Current lab"}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-sm text-muted-foreground">
+                    {profileQuery.data?.accreditation || "Accreditation was not returned by the API."}
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardDescription>Home collection</CardDescription>
+                    <CardTitle>
+                      {profileQuery.data?.homeCollectionAvailable ? "Available" : "Not enabled"}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-sm text-muted-foreground">
+                    Availability comes from `/api/v1/labs/me/profile`.
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardDescription>Active services</CardDescription>
+                    <CardTitle>{activeServices.length}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-sm text-muted-foreground">
+                    Count based on `/api/v1/labs/me/services`.
+                  </CardContent>
+                </Card>
+              </div>
+
+              {servicesQuery.isLoading ? (
+                <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                  {[0, 1, 2].map((index) => (
+                    <Card key={index}>
+                      <CardHeader>
+                        <Skeleton className="h-4 w-24" />
+                        <Skeleton className="h-6 w-40" />
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-5/6" />
+                        <Skeleton className="h-10 w-full" />
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : servicesQuery.isError ? (
+                <Alert variant="destructive">
+                  <AlertTitle>Unable to load live lab services</AlertTitle>
+                  <AlertDescription>{(servicesQuery.error as Error).message}</AlertDescription>
+                </Alert>
+              ) : activeServices.length ? (
+                <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                  {activeServices.map((service) => (
+                    <Card key={service.id} className="border-border/70">
+                      <CardHeader>
+                        <div className="flex items-center justify-between gap-3">
+                          <Badge variant="outline">{service.category || "Uncategorized"}</Badge>
+                          <span className="text-sm font-semibold text-primary">
+                            {formatPrice(service.price, service.currency)}
+                          </span>
+                        </div>
+                        <CardTitle>{service.name || "Unnamed service"}</CardTitle>
+                        <CardDescription>
+                          {service.description || "No service description was returned."}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-3 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-4 w-4 text-primary" />
+                          <span>{service.turnaroundTime || "Turnaround time pending"}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <FlaskConical className="h-4 w-4 text-primary" />
+                          <span>{service.sampleType || "Sample type pending"}</span>
+                        </div>
+                        <p>
+                          {service.preparationInstructions || "Preparation instructions have not been added yet."}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <Card>
+                  <CardContent className="p-8 text-center text-muted-foreground">
+                    No active services were returned for this lab yet. Add them from Lab Settings when the backend catalog is ready.
+                  </CardContent>
+                </Card>
+              )}
             </div>
-            <Button variant="outline" className="gap-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground">
-              View All Tests <ArrowRight className="h-4 w-4" />
-            </Button>
-          </div>
+          ) : (
+            <div className="mx-auto max-w-4xl space-y-6">
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Public catalog not connected yet</AlertTitle>
+                <AlertDescription>
+                  The current backend scope exposes laboratory service data for authenticated lab accounts only. Public patient search and booking still need dedicated endpoints before this page can show real catalog results.
+                </AlertDescription>
+              </Alert>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredTests.map((test) => (
-              <TestCard
-                key={test.id}
-                name={test.name}
-                description={test.description}
-                price={test.price}
-                duration={test.duration}
-                category={test.category}
-              />
-            ))}
-          </div>
+              <div className="grid gap-6 md:grid-cols-2">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>What is live today</CardTitle>
+                    <CardDescription>Already implemented in the authenticated laboratory flow.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3 text-sm text-muted-foreground">
+                    <p>Lab dashboard metrics are loaded from live laboratory endpoints.</p>
+                    <p>Branch and service management already use the authenticated `labs/me` APIs.</p>
+                    <p>Pending and completed lab workflow pages are backed by live order and result queries.</p>
+                  </CardContent>
+                </Card>
 
-          {filteredTests.length === 0 && (
-            <div className="text-center py-12">
-              <FlaskConical className="h-16 w-16 text-muted-foreground/50 mx-auto mb-4" />
-              <p className="text-muted-foreground text-lg">No tests found matching your search</p>
-              <Button 
-                variant="link" 
-                className="text-primary mt-2"
-                onClick={() => {
-                  setSearchQuery("");
-                  setActiveCategory(null);
-                }}
-              >
-                Clear filters
-              </Button>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>What still needs backend support</CardTitle>
+                    <CardDescription>Required before public users can browse real lab tests here.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3 text-sm text-muted-foreground">
+                    <p>Public test catalog endpoint for patient browsing.</p>
+                    <p>Public lab partner discovery endpoint.</p>
+                    <p>Patient-side booking flow for selecting and reserving a test.</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="flex flex-col gap-4 sm:flex-row">
+                <Button asChild className="gap-2">
+                  <Link to="/contact">
+                    Contact support
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+                <Button asChild variant="outline">
+                  <Link to="/login">Lab sign in</Link>
+                </Button>
+              </div>
             </div>
           )}
-        </div>
-      </section>
-
-      {/* Lab Partners */}
-      <section className="py-16">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold mb-3 text-foreground">Our Lab Partners</h2>
-            <p className="text-muted-foreground max-w-xl mx-auto">
-              We partner with NABL certified labs to ensure accurate and reliable test results
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {labPartners.map((lab) => (
-              <LabPartnerCard
-                key={lab.name}
-                name={lab.name}
-                tests={lab.tests}
-                rating={lab.rating}
-              />
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-16">
-        <div className="container mx-auto px-4">
-          <div className="relative overflow-hidden rounded-3xl gradient-hero p-10 md:p-16 text-center">
-            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMiIvPjwvZz48L2c+PC9zdmc+')] opacity-50" />
-            <div className="relative">
-              <h2 className="text-3xl md:text-4xl font-bold text-primary-foreground mb-4">
-                Need Help Choosing the Right Test?
-              </h2>
-              <p className="text-primary-foreground/80 mb-8 max-w-xl mx-auto text-lg">
-                Our health experts are available 24/7 to guide you through the right diagnostic tests for your needs
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button size="lg" className="bg-white text-primary hover:bg-white/90 font-semibold shadow-lg">
-                  Talk to Expert
-                </Button>
-                <Button size="lg" variant="outline" className="border-white/30 text-primary-foreground hover:bg-white/10">
-                  View Health Packages
-                </Button>
-              </div>
-            </div>
-          </div>
         </div>
       </section>
 
