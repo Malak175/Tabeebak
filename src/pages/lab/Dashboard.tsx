@@ -1,332 +1,289 @@
-import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import {
-  FlaskConical,
-  Clock,
+  Activity,
+  Building2,
   CheckCircle,
-  FileText,
-  Upload,
-  TrendingUp,
-  AlertCircle,
-  Home,
-  Settings,
-  HelpCircle,
   ChevronRight,
-  Eye,
+  Clock,
+  FlaskConical,
   Microscope,
 } from "lucide-react";
+import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import { labNavItems } from "@/components/settings/AccountSettingsContent";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  useLabBranchesQuery,
+  useLabDashboardSummaryQuery,
+  useLabProfileQuery,
+  useLabServicesQuery,
+} from "@/hooks/useLabProfile";
+import { getDisplayName } from "@/lib/auth";
 
-const navItems = [
-  { title: "Dashboard", url: "/lab/dashboard", icon: Home },
-  { title: "Pending Tests", url: "/lab/pending", icon: Clock },
-  { title: "Completed", url: "/lab/completed", icon: CheckCircle },
-  { title: "Settings", url: "/lab/settings", icon: Settings },
-  { title: "Help", url: "/lab/help", icon: HelpCircle },
-];
-
-const pendingTests = [
+const statCards = (summary: ReturnType<typeof useLabDashboardSummaryQuery>["data"]) => [
   {
-    id: 1,
-    patient: "Ahmed Ali",
-    test: "Complete Blood Count",
-    doctor: "Dr. Sarah Johnson",
-    date: "Dec 7, 2024",
-    priority: "urgent",
-    sampleId: "SMP-001234",
-    progress: 75,
+    label: "Pending Tests",
+    value: summary?.pendingTestsCount ?? 0,
+    icon: Clock,
+    description: "Items still waiting on processing",
   },
   {
-    id: 2,
-    patient: "Fatima Hassan",
-    test: "Lipid Profile",
-    doctor: "Dr. Michael Chen",
-    date: "Dec 7, 2024",
-    priority: "urgent",
-    sampleId: "SMP-001235",
-    progress: 40,
+    label: "Completed Today",
+    value: summary?.completedTestsToday ?? 0,
+    icon: CheckCircle,
+    description: "Results completed today",
   },
   {
-    id: 3,
-    patient: "Mohammed Said",
-    test: "Thyroid Function",
-    doctor: "Dr. Emily Williams",
-    date: "Dec 6, 2024",
-    priority: "normal",
-    sampleId: "SMP-001236",
-    progress: 90,
+    label: "Services",
+    value: summary?.totalServicesCount ?? 0,
+    icon: FlaskConical,
+    description: "Catalog entries returned by the API",
   },
   {
-    id: 4,
-    patient: "Sara Ahmed",
-    test: "HbA1c",
-    doctor: "Dr. Sarah Johnson",
-    date: "Dec 6, 2024",
-    priority: "normal",
-    sampleId: "SMP-001237",
-    progress: 20,
-  },
-  {
-    id: 5,
-    patient: "Omar Khan",
-    test: "Liver Function Test",
-    doctor: "Dr. Michael Chen",
-    date: "Dec 6, 2024",
-    priority: "normal",
-    sampleId: "SMP-001238",
-    progress: 60,
+    label: "Branches",
+    value: summary?.totalBranchesCount ?? 0,
+    icon: Building2,
+    description: "Locations currently attached to the lab",
   },
 ];
-
-const recentUploads = [
-  { id: 1, patient: "Khalid Omar", test: "Kidney Function", time: "15 min ago", status: "delivered" },
-  { id: 2, patient: "Maryam Said", test: "Electrolytes Panel", time: "30 min ago", status: "delivered" },
-  { id: 3, patient: "Yusuf Ali", test: "CBC", time: "1 hour ago", status: "pending" },
-  { id: 4, patient: "Aisha Hassan", test: "Urine Analysis", time: "2 hours ago", status: "delivered" },
-];
-
-const stats = [
-  { label: "Pending Tests", value: "12", icon: Clock, color: "primary", change: "+3" },
-  { label: "Completed Today", value: "28", icon: CheckCircle, color: "green", change: "+5" },
-  { label: "Total This Month", value: "342", icon: FileText, color: "secondary", change: "+45" },
-  { label: "Urgent Tests", value: "3", icon: AlertCircle, color: "red", change: "-1" },
-];
-
 
 const LabDashboard = () => {
-  const [lab] = useState({
-    name: "MedLab Diagnostics",
-    type: "Laboratory",
-    certification: "NABL Certified",
+  const summaryQuery = useLabDashboardSummaryQuery();
+  const profileQuery = useLabProfileQuery();
+  const branchesQuery = useLabBranchesQuery();
+  const servicesQuery = useLabServicesQuery();
+  const summary = summaryQuery.data;
+  const profile = profileQuery.data;
+  const labName = getDisplayName({
+    displayName: profile?.displayName ?? summary?.displayName,
+    name: summary?.legalName ?? profile?.legalName ?? summary?.displayName,
+    email: profile?.email ?? summary?.email,
   });
+  const subtitle = summary?.accreditation ?? profile?.accreditation ?? "Laboratory account";
+  const activeServicesCount = servicesQuery.data?.filter((service) => service.isActive !== false).length ?? 0;
+  const activeBranchesCount = branchesQuery.data?.filter((branch) => branch.isActive !== false).length ?? 0;
 
   return (
     <DashboardLayout
       userRole="laboratory"
-      userName={lab.name}
-      userSubtitle={lab.certification}
-      navItems={navItems}
+      userName={labName}
+      userSubtitle={subtitle}
+      navItems={labNavItems}
       userIcon={FlaskConical}
     >
-      {/* Welcome Section */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+      <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold mb-2">
-            Laboratory Dashboard
-          </h1>
+          <h1 className="mb-2 text-2xl font-bold md:text-3xl">Laboratory Dashboard</h1>
           <p className="text-muted-foreground">
-            Manage test results and patient samples efficiently
+            Live lab profile, branch, and services metrics are now coming from the laboratory APIs.
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <Badge variant="secondary" className="gap-1">
-            <Microscope className="h-3 w-3" />
-            {lab.certification}
-          </Badge>
-          <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
-            <span className="w-2 h-2 bg-green-500 rounded-full mr-1.5 animate-pulse" />
-            All Systems Active
-          </Badge>
+        <div className="flex flex-wrap items-center gap-3">
+          {subtitle && (
+            <Badge variant="secondary" className="gap-1">
+              <Microscope className="h-3 w-3" />
+              {subtitle}
+            </Badge>
+          )}
+          {summary?.profileCompletionPercentage != null && (
+            <Badge variant="outline">
+              Profile completion {summary.profileCompletionPercentage}%
+            </Badge>
+          )}
+          {summary?.rating != null && (
+            <Badge variant="outline">Rating {summary.rating.toFixed(1)}</Badge>
+          )}
+          {profile?.homeCollectionAvailable && (
+            <Badge variant="outline" className="text-green-700">
+              Home collection active
+            </Badge>
+          )}
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        {stats.map((stat) => (
-          <Card key={stat.label}>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-2">
-                <div
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                    stat.color === "primary"
-                      ? "bg-primary/10 text-primary"
-                      : stat.color === "green"
-                      ? "bg-green-100 text-green-600"
-                      : stat.color === "red"
-                      ? "bg-red-100 text-red-600"
-                      : "bg-secondary/20 text-secondary"
-                  }`}
-                >
-                  <stat.icon className="h-5 w-5" />
-                </div>
-                <span
-                  className={`flex items-center text-sm font-medium ${
-                    stat.change.startsWith("+") ? "text-green-600" : "text-red-600"
-                  }`}
-                >
-                  <TrendingUp
-                    className={`h-3.5 w-3.5 mr-1 ${
-                      stat.change.startsWith("-") ? "rotate-180" : ""
-                    }`}
-                  />
-                  {stat.change}
-                </span>
-              </div>
-              <div className="text-2xl font-bold">{stat.value}</div>
-              <div className="text-sm text-muted-foreground">{stat.label}</div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Pending Tests - 2 columns */}
-        <div className="lg:col-span-2 space-y-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-lg">Pending Tests</CardTitle>
-              <Link
-                to="/lab/pending"
-                className="text-primary text-sm hover:underline flex items-center gap-1"
-              >
-                View All <ChevronRight className="h-4 w-4" />
-              </Link>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {pendingTests.map((test) => (
-                  <div
-                    key={test.id}
-                    className="p-4 bg-muted/50 rounded-xl hover:bg-muted transition-colors"
-                  >
-                    <div className="flex items-start gap-4">
-                      <Avatar className="h-10 w-10">
-                        <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                          {test.patient
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h4 className="font-medium">{test.patient}</h4>
-                          {test.priority === "urgent" && (
-                            <Badge variant="destructive" className="text-xs">
-                              Urgent
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-sm text-foreground">{test.test}</p>
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-xs text-muted-foreground">
-                          <span>Sample: {test.sampleId}</span>
-                          <span>{test.doctor}</span>
-                          <span>{test.date}</span>
-                        </div>
-                        <div className="mt-3">
-                          <div className="flex items-center justify-between text-xs mb-1">
-                            <span className="text-muted-foreground">Progress</span>
-                            <span className="font-medium">{test.progress}%</span>
-                          </div>
-                          <Progress value={test.progress} className="h-1.5" />
-                        </div>
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        <Button size="sm" variant="hero">
-                          <Upload className="h-4 w-4 mr-1" />
-                          Upload
-                        </Button>
-                        <Button size="sm" variant="outline">
-                          <Eye className="h-4 w-4 mr-1" />
-                          Details
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Test Analytics */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Weekly Overview</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid sm:grid-cols-4 gap-4 text-center">
-                <div className="p-4 bg-primary/5 rounded-xl">
-                  <div className="text-2xl font-bold text-primary">156</div>
-                  <div className="text-xs text-muted-foreground">Total Tests</div>
-                </div>
-                <div className="p-4 bg-green-50 rounded-xl">
-                  <div className="text-2xl font-bold text-green-600">142</div>
-                  <div className="text-xs text-muted-foreground">Completed</div>
-                </div>
-                <div className="p-4 bg-yellow-50 rounded-xl">
-                  <div className="text-2xl font-bold text-yellow-600">12</div>
-                  <div className="text-xs text-muted-foreground">In Progress</div>
-                </div>
-                <div className="p-4 bg-secondary/10 rounded-xl">
-                  <div className="text-2xl font-bold text-secondary">4.2h</div>
-                  <div className="text-xs text-muted-foreground">Avg. Time</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Sidebar - 1 column */}
+      {summaryQuery.isLoading ? (
         <div className="space-y-6">
-          {/* Recent Uploads */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-lg">Recent Uploads</CardTitle>
-              <Link to="/lab/completed" className="text-primary text-sm hover:underline">
-                View All
-              </Link>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {recentUploads.map((upload) => (
-                  <div
-                    key={upload.id}
-                    className="flex items-center gap-3 p-3 bg-muted/50 rounded-xl"
-                  >
-                    <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                        upload.status === "delivered"
-                          ? "bg-green-100 text-green-600"
-                          : "bg-yellow-100 text-yellow-600"
-                      }`}
-                    >
-                      {upload.status === "delivered" ? (
-                        <CheckCircle className="h-4 w-4" />
-                      ) : (
-                        <Clock className="h-4 w-4" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{upload.patient}</p>
-                      <p className="text-xs text-muted-foreground">{upload.test}</p>
-                    </div>
-                    <span className="text-xs text-muted-foreground">{upload.time}</span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-          {/* Lab Info */}
-          <Card className="bg-gradient-to-br from-secondary/10 to-primary/5 border-secondary/20">
-            <CardContent className="p-4 text-center">
-              <FlaskConical className="h-10 w-10 text-secondary mx-auto mb-3" />
-              <h3 className="font-semibold mb-1">{lab.name}</h3>
-              <p className="text-sm text-muted-foreground mb-3">
-                {lab.certification}
-              </p>
-              <div className="flex items-center justify-center gap-2 text-sm text-green-600">
-                <CheckCircle className="h-4 w-4" />
-                Quality Assured
-              </div>
-            </CardContent>
-          </Card>
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <Card key={index}>
+                <CardContent className="space-y-3 p-4">
+                  <Skeleton className="h-10 w-10 rounded-xl" />
+                  <Skeleton className="h-8 w-16" />
+                  <Skeleton className="h-4 w-28" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <div className="grid gap-6 lg:grid-cols-3">
+            <Skeleton className="h-64 w-full lg:col-span-2" />
+            <Skeleton className="h-64 w-full" />
+          </div>
         </div>
-      </div>
+      ) : summaryQuery.isError ? (
+        <Alert variant="destructive">
+          <AlertTitle>Unable to load lab dashboard summary</AlertTitle>
+          <AlertDescription>
+            {(summaryQuery.error as Error).message}
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-3"
+              onClick={() => void summaryQuery.refetch()}
+            >
+              Retry
+            </Button>
+          </AlertDescription>
+        </Alert>
+      ) : (
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            {statCards(summary).map((stat) => (
+              <Card key={stat.label}>
+                <CardContent className="p-4">
+                  <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+                    <stat.icon className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="text-2xl font-bold">{stat.value}</div>
+                  <div className="text-sm font-medium">{stat.label}</div>
+                  <div className="text-xs text-muted-foreground">{stat.description}</div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-3">
+            <Card className="lg:col-span-2">
+              <CardHeader className="flex flex-row items-start justify-between gap-4">
+                <div>
+                  <CardTitle>Operational Snapshot</CardTitle>
+                  <CardDescription>
+                    Summary cards are backed by `/api/v1/labs/me/dashboard-summary`, while the counts
+                    below refresh from the live branches and services endpoints.
+                  </CardDescription>
+                </div>
+                <Link to="/lab/settings" className="text-sm text-primary hover:underline">
+                  Manage lab
+                </Link>
+              </CardHeader>
+              <CardContent className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-xl border p-4">
+                  <div className="mb-2 flex items-center gap-2 text-sm font-medium">
+                    <Building2 className="h-4 w-4" />
+                    Branch coverage
+                  </div>
+                  <div className="text-2xl font-bold">{activeBranchesCount}</div>
+                  <p className="text-sm text-muted-foreground">
+                    Active branches out of {branchesQuery.data?.length ?? 0} total.
+                  </p>
+                </div>
+                <div className="rounded-xl border p-4">
+                  <div className="mb-2 flex items-center gap-2 text-sm font-medium">
+                    <FlaskConical className="h-4 w-4" />
+                    Active catalog
+                  </div>
+                  <div className="text-2xl font-bold">{activeServicesCount}</div>
+                  <p className="text-sm text-muted-foreground">
+                    Active services out of {servicesQuery.data?.length ?? 0} total.
+                  </p>
+                </div>
+                <div className="rounded-xl border p-4">
+                  <div className="mb-2 flex items-center gap-2 text-sm font-medium">
+                    <Activity className="h-4 w-4" />
+                    Monthly throughput
+                  </div>
+                  <div className="text-2xl font-bold">{summary?.totalTestsThisMonth ?? 0}</div>
+                  <p className="text-sm text-muted-foreground">Total tests recorded this month.</p>
+                </div>
+                <div className="rounded-xl border p-4">
+                  <div className="mb-2 flex items-center gap-2 text-sm font-medium">
+                    <Clock className="h-4 w-4" />
+                    Urgent queue
+                  </div>
+                  <div className="text-2xl font-bold">{summary?.urgentTestsCount ?? 0}</div>
+                  <p className="text-sm text-muted-foreground">
+                    Urgent tests currently reported by the backend.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="space-y-6">
+              <Card className="bg-gradient-to-br from-secondary/10 to-primary/5">
+                <CardHeader>
+                  <CardTitle>Lab Identity</CardTitle>
+                  <CardDescription>Snapshot from the lab profile endpoint.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3 text-sm">
+                  <div className="rounded-lg bg-background/70 p-3">
+                    <div className="font-medium">Name</div>
+                    <div className="text-muted-foreground">{labName}</div>
+                  </div>
+                  <div className="rounded-lg bg-background/70 p-3">
+                    <div className="font-medium">Email</div>
+                    <div className="text-muted-foreground">
+                      {profile?.email ?? summary?.email ?? "Not provided"}
+                    </div>
+                  </div>
+                  <div className="rounded-lg bg-background/70 p-3">
+                    <div className="font-medium">Phone</div>
+                    <div className="text-muted-foreground">
+                      {profile?.phone ?? summary?.phone ?? "Not provided"}
+                    </div>
+                  </div>
+                  <div className="rounded-lg bg-background/70 p-3">
+                    <div className="font-medium">Address</div>
+                    <div className="text-muted-foreground">
+                      {summary?.addressSummary ?? "No address details returned yet"}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Quick Links</CardTitle>
+                  <CardDescription>
+                    Navigate directly to the integrated lab management areas.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Link
+                    to="/lab/settings"
+                    className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/40"
+                  >
+                    <span className="font-medium">Profile & branches</span>
+                    <ChevronRight className="h-4 w-4" />
+                  </Link>
+                  <Link
+                    to="/lab/settings"
+                    className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/40"
+                  >
+                    <span className="font-medium">Services catalog</span>
+                    <ChevronRight className="h-4 w-4" />
+                  </Link>
+                  <Link
+                    to="/lab/pending"
+                    className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/40"
+                  >
+                    <span className="font-medium">Pending tests</span>
+                    <ChevronRight className="h-4 w-4" />
+                  </Link>
+                  <Link
+                    to="/lab/completed"
+                    className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/40"
+                  >
+                    <span className="font-medium">Completed tests</span>
+                    <ChevronRight className="h-4 w-4" />
+                  </Link>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 };
