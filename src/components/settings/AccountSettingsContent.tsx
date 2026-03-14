@@ -31,6 +31,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import { AccountActivitySections } from "@/components/settings/AccountActivitySections";
 import { getDisplayName, getInitials } from "@/lib/auth";
 import { validatePasswordPolicy } from "@/lib/password-policy";
 import {
@@ -624,6 +625,8 @@ export const AccountSettingsContent = ({
             })
           }
         />
+
+        <AccountActivitySections />
 
         {children}
       </div>
