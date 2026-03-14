@@ -1,23 +1,35 @@
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import { useEffect, useMemo, useState } from "react";
 import {
   Calendar,
-  Users,
   Clock,
-  Stethoscope,
-  Home,
-  Settings,
   HelpCircle,
-  FileText,
-  MessageSquare,
-  Video,
-  ChevronLeft,
-  ChevronRight,
-  Plus,
+  Home,
+  Save,
+  Settings,
+  Stethoscope,
+  Users,
 } from "lucide-react";
+import { toast } from "sonner";
+import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  useDoctorAvailabilityQuery,
+  useDoctorProfessionalProfileQuery,
+  useDoctorProfileQuery,
+  useUpdateDoctorAvailabilityMutation,
+} from "@/hooks/useDoctorProfile";
+import { getDisplayName } from "@/lib/auth";
+import {
+  DoctorAvailabilityDay,
+  UpdateDoctorAvailabilityRequest,
+} from "@/types/doctor-profile.types";
 
 const navItems = [
   { title: "Dashboard", url: "/doctor/dashboard", icon: Home },
@@ -28,165 +40,407 @@ const navItems = [
   { title: "Help", url: "/doctor/help", icon: HelpCircle },
 ];
 
-const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const timeSlots = ["9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM"];
+const weekDays = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
+];
 
-const scheduleData = {
-  "Mon": [
-    { time: "9:00 AM", patient: "Ahmed Ali", type: "Consultation" },
-    { time: "11:00 AM", patient: "Sara Ahmed", type: "Follow-up" },
-    { time: "2:00 PM", patient: "Omar Khan", type: "Check-up" },
-  ],
-  "Tue": [
-    { time: "10:00 AM", patient: "Fatima Hassan", type: "Consultation" },
-    { time: "3:00 PM", patient: "Mohammed Said", type: "Video Call" },
-  ],
-  "Wed": [
-    { time: "9:00 AM", patient: "Layla Mahmoud", type: "Consultation" },
-    { time: "11:00 AM", patient: "Khalid Omar", type: "Follow-up" },
-    { time: "2:00 PM", patient: "Maryam Said", type: "Check-up" },
-    { time: "4:00 PM", patient: "Yusuf Ali", type: "Consultation" },
-  ],
-  "Thu": [
-    { time: "10:00 AM", patient: "Aisha Hassan", type: "Follow-up" },
-    { time: "2:00 PM", patient: "Hassan Ali", type: "Consultation" },
-  ],
-  "Fri": [
-    { time: "9:00 AM", patient: "Noor Mohammed", type: "Check-up" },
-  ],
-  "Sat": [],
-  "Sun": [],
+const blankDay = (dayOfWeek: string): DoctorAvailabilityDay => ({
+  dayOfWeek,
+  isAvailable: false,
+  startTime: "",
+  endTime: "",
+  breakStartTime: "",
+  breakEndTime: "",
+  maxAppointments: null,
+});
+
+const normalizeInputDay = (day: DoctorAvailabilityDay): DoctorAvailabilityDay => ({
+  ...day,
+  startTime: day.startTime ?? "",
+  endTime: day.endTime ?? "",
+  breakStartTime: day.breakStartTime ?? "",
+  breakEndTime: day.breakEndTime ?? "",
+  maxAppointments: day.maxAppointments ?? null,
+});
+
+const toNullableTime = (value?: string | null) => {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
 };
 
 const DoctorSchedule = () => {
-  const [doctor] = useState({ name: "Dr. Sarah Johnson", specialty: "Cardiologist" });
+  const profileQuery = useDoctorProfileQuery();
+  const professionalQuery = useDoctorProfessionalProfileQuery();
+  const availabilityQuery = useDoctorAvailabilityQuery();
+  const updateAvailabilityMutation = useUpdateDoctorAvailabilityMutation();
 
-  const getAppointment = (day: string, time: string) => {
-    const daySchedule = scheduleData[day as keyof typeof scheduleData] || [];
-    return daySchedule.find(apt => apt.time === time);
+  const [availabilityForm, setAvailabilityForm] = useState({
+    timezone: "",
+    appointmentDurationMinutes: "",
+    bufferBetweenAppointmentsMinutes: "",
+    notes: "",
+    weeklySchedule: [] as DoctorAvailabilityDay[],
+  });
+
+  useEffect(() => {
+    if (!availabilityQuery.data) return;
+
+    setAvailabilityForm({
+      timezone: availabilityQuery.data.timezone ?? "",
+      appointmentDurationMinutes:
+        availabilityQuery.data.appointmentDurationMinutes?.toString() ?? "",
+      bufferBetweenAppointmentsMinutes:
+        availabilityQuery.data.bufferBetweenAppointmentsMinutes?.toString() ?? "",
+      notes: availabilityQuery.data.notes ?? "",
+      weeklySchedule:
+        availabilityQuery.data.weeklySchedule.length > 0
+          ? availabilityQuery.data.weeklySchedule.map(normalizeInputDay)
+          : weekDays.map(blankDay),
+    });
+  }, [availabilityQuery.data]);
+
+  const doctorName = getDisplayName(profileQuery.data ?? {});
+  const doctorSubtitle =
+    professionalQuery.data?.specialty ??
+    profileQuery.data?.bio ??
+    "Doctor account";
+
+  const availableDays = useMemo(
+    () => availabilityForm.weeklySchedule.filter((day) => day.isAvailable),
+    [availabilityForm.weeklySchedule],
+  );
+
+  const totalWeeklySlots = useMemo(
+    () =>
+      availableDays.reduce((total, day) => {
+        const maxAppointments = day.maxAppointments ?? 0;
+        return total + Math.max(maxAppointments, 0);
+      }, 0),
+    [availableDays],
+  );
+
+  const updateDay = (
+    index: number,
+    updater: (current: DoctorAvailabilityDay) => DoctorAvailabilityDay,
+  ) => {
+    setAvailabilityForm((current) => ({
+      ...current,
+      weeklySchedule: current.weeklySchedule.map((day, dayIndex) =>
+        dayIndex === index ? updater(day) : day,
+      ),
+    }));
+  };
+
+  const handleSave = () => {
+    const payload: UpdateDoctorAvailabilityRequest = {
+      timezone: availabilityForm.timezone || undefined,
+      appointmentDurationMinutes: availabilityForm.appointmentDurationMinutes
+        ? Number(availabilityForm.appointmentDurationMinutes)
+        : null,
+      bufferBetweenAppointmentsMinutes: availabilityForm.bufferBetweenAppointmentsMinutes
+        ? Number(availabilityForm.bufferBetweenAppointmentsMinutes)
+        : null,
+      notes: availabilityForm.notes || null,
+      weeklySchedule: availabilityForm.weeklySchedule.map((day) => ({
+        dayOfWeek: day.dayOfWeek,
+        isAvailable: day.isAvailable,
+        startTime: day.isAvailable ? toNullableTime(day.startTime) : null,
+        endTime: day.isAvailable ? toNullableTime(day.endTime) : null,
+        breakStartTime: day.isAvailable ? toNullableTime(day.breakStartTime) : null,
+        breakEndTime: day.isAvailable ? toNullableTime(day.breakEndTime) : null,
+        maxAppointments: day.isAvailable ? day.maxAppointments ?? null : null,
+      })),
+    };
+
+    updateAvailabilityMutation.mutate(payload, {
+      onSuccess: () => toast.success("Availability updated successfully"),
+      onError: (error: Error) => toast.error(error.message),
+    });
   };
 
   return (
     <DashboardLayout
       userRole="doctor"
-      userName={doctor.name}
-      userSubtitle={doctor.specialty}
+      userName={doctorName}
+      userSubtitle={doctorSubtitle}
       navItems={navItems}
       userIcon={Stethoscope}
     >
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+      <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold mb-2">Weekly Schedule</h1>
-          <p className="text-muted-foreground">Manage your availability and appointments</p>
+          <h1 className="mb-2 text-2xl font-bold md:text-3xl">Availability</h1>
+          <p className="text-muted-foreground">
+            Manage working hours from `/api/v1/doctors/me/availability`.
+          </p>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 bg-muted rounded-lg p-1">
-            <Button variant="ghost" size="icon">
-              <ChevronLeft className="h-4 w-4" />
+
+        <Button onClick={handleSave} disabled={updateAvailabilityMutation.isPending}>
+          <Save className="mr-2 h-4 w-4" />
+          {updateAvailabilityMutation.isPending ? "Saving..." : "Save Availability"}
+        </Button>
+      </div>
+
+      {availabilityQuery.isLoading ? (
+        <div className="space-y-6">
+          <Skeleton className="h-40 w-full" />
+          <Skeleton className="h-96 w-full" />
+        </div>
+      ) : availabilityQuery.isError ? (
+        <Alert variant="destructive">
+          <AlertTitle>Unable to load availability</AlertTitle>
+          <AlertDescription>
+            {(availabilityQuery.error as Error).message}
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-3"
+              onClick={() => void availabilityQuery.refetch()}
+            >
+              Retry
             </Button>
-            <span className="px-4 font-medium">Dec 9 - 15, 2024</span>
-            <Button variant="ghost" size="icon">
-              <ChevronRight className="h-4 w-4" />
-            </Button>
+          </AlertDescription>
+        </Alert>
+      ) : (
+        <div className="space-y-6">
+          <div className="grid gap-6 lg:grid-cols-3">
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle>Schedule Settings</CardTitle>
+                <CardDescription>
+                  Core availability preferences that affect bookable time windows.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="availability-timezone">Timezone</Label>
+                  <Input
+                    id="availability-timezone"
+                    value={availabilityForm.timezone}
+                    onChange={(event) =>
+                      setAvailabilityForm((current) => ({
+                        ...current,
+                        timezone: event.target.value,
+                      }))
+                    }
+                    placeholder="Africa/Cairo"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="availability-duration">Appointment Duration (minutes)</Label>
+                  <Input
+                    id="availability-duration"
+                    type="number"
+                    min="0"
+                    value={availabilityForm.appointmentDurationMinutes}
+                    onChange={(event) =>
+                      setAvailabilityForm((current) => ({
+                        ...current,
+                        appointmentDurationMinutes: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="availability-buffer">Buffer Between Appointments (minutes)</Label>
+                  <Input
+                    id="availability-buffer"
+                    type="number"
+                    min="0"
+                    value={availabilityForm.bufferBetweenAppointmentsMinutes}
+                    onChange={(event) =>
+                      setAvailabilityForm((current) => ({
+                        ...current,
+                        bufferBetweenAppointmentsMinutes: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="availability-notes">Availability Notes</Label>
+                  <Textarea
+                    id="availability-notes"
+                    rows={3}
+                    value={availabilityForm.notes}
+                    onChange={(event) =>
+                      setAvailabilityForm((current) => ({
+                        ...current,
+                        notes: event.target.value,
+                      }))
+                    }
+                    placeholder="Optional internal scheduling notes"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>This Week</CardTitle>
+                <CardDescription>Real-time summary derived from the loaded availability.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Available Days</span>
+                  <span className="text-2xl font-bold">{availableDays.length}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Potential Slots</span>
+                  <span className="text-2xl font-bold">{totalWeeklySlots}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Timezone</span>
+                  <span className="font-medium">
+                    {availabilityForm.timezone || "Not set"}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
           </div>
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            Block Time
-          </Button>
-        </div>
-      </div>
 
-      <Card>
-        <CardContent className="p-0 overflow-x-auto">
-          <table className="w-full min-w-[800px]">
-            <thead>
-              <tr className="border-b">
-                <th className="p-4 text-left font-medium text-muted-foreground w-24">Time</th>
-                {weekDays.map((day) => (
-                  <th key={day} className="p-4 text-center font-medium">
-                    <div>{day}</div>
-                    <div className="text-xs text-muted-foreground font-normal">
-                      {day === "Mon" ? "Dec 9" : 
-                       day === "Tue" ? "Dec 10" :
-                       day === "Wed" ? "Dec 11" :
-                       day === "Thu" ? "Dec 12" :
-                       day === "Fri" ? "Dec 13" :
-                       day === "Sat" ? "Dec 14" : "Dec 15"}
+          <Card>
+            <CardHeader>
+              <CardTitle>Weekly Schedule</CardTitle>
+              <CardDescription>
+                Toggle each day on or off, then set working hours and optional break windows.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {availabilityForm.weeklySchedule.length === 0 ? (
+                <Alert>
+                  <AlertTitle>No availability data returned</AlertTitle>
+                  <AlertDescription>
+                    The backend did not return any schedule rows yet. Save once after configuring the
+                    schedule to initialize it.
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                availabilityForm.weeklySchedule.map((day, index) => (
+                  <div key={day.dayOfWeek || index} className="rounded-xl border p-4">
+                    <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <p className="font-semibold">{day.dayOfWeek || `Day ${index + 1}`}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Control booking windows for this day.
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <Label htmlFor={`availability-switch-${index}`}>Available</Label>
+                        <Switch
+                          id={`availability-switch-${index}`}
+                          checked={day.isAvailable}
+                          onCheckedChange={(checked) =>
+                            updateDay(index, (current) => ({
+                              ...current,
+                              isAvailable: checked,
+                              ...(checked
+                                ? {}
+                                : {
+                                    startTime: "",
+                                    endTime: "",
+                                    breakStartTime: "",
+                                    breakEndTime: "",
+                                    maxAppointments: null,
+                                  }),
+                            }))
+                          }
+                        />
+                      </div>
                     </div>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {timeSlots.map((time) => (
-                <tr key={time} className="border-b">
-                  <td className="p-4 text-sm text-muted-foreground">{time}</td>
-                  {weekDays.map((day) => {
-                    const apt = getAppointment(day, time);
-                    return (
-                      <td key={day} className="p-2">
-                        {apt ? (
-                          <div className="p-2 bg-primary/10 rounded-lg text-center">
-                            <p className="text-sm font-medium truncate">{apt.patient}</p>
-                            <Badge variant="outline" className="text-xs mt-1">
-                              {apt.type}
-                            </Badge>
-                          </div>
-                        ) : (
-                          <div className="h-16 hover:bg-muted/50 rounded-lg cursor-pointer transition-colors" />
-                        )}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </CardContent>
-      </Card>
 
-      <div className="grid md:grid-cols-3 gap-6 mt-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Working Hours</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Monday - Friday</span>
-              <span>9:00 AM - 5:00 PM</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Saturday</span>
-              <span>Closed</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Sunday</span>
-              <span>Closed</span>
-            </div>
-            <Button variant="outline" className="w-full mt-4">Edit Hours</Button>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">This Week Summary</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Total Appointments</span>
-              <span className="text-2xl font-bold">12</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Video Calls</span>
-              <span className="text-2xl font-bold">2</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Available Slots</span>
-              <span className="text-2xl font-bold text-green-600">28</span>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+                    <div className="grid gap-4 md:grid-cols-5">
+                      <div className="space-y-2">
+                        <Label htmlFor={`start-time-${index}`}>Start</Label>
+                        <Input
+                          id={`start-time-${index}`}
+                          type="time"
+                          value={day.startTime ?? ""}
+                          disabled={!day.isAvailable}
+                          onChange={(event) =>
+                            updateDay(index, (current) => ({
+                              ...current,
+                              startTime: event.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`end-time-${index}`}>End</Label>
+                        <Input
+                          id={`end-time-${index}`}
+                          type="time"
+                          value={day.endTime ?? ""}
+                          disabled={!day.isAvailable}
+                          onChange={(event) =>
+                            updateDay(index, (current) => ({
+                              ...current,
+                              endTime: event.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`break-start-${index}`}>Break Start</Label>
+                        <Input
+                          id={`break-start-${index}`}
+                          type="time"
+                          value={day.breakStartTime ?? ""}
+                          disabled={!day.isAvailable}
+                          onChange={(event) =>
+                            updateDay(index, (current) => ({
+                              ...current,
+                              breakStartTime: event.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`break-end-${index}`}>Break End</Label>
+                        <Input
+                          id={`break-end-${index}`}
+                          type="time"
+                          value={day.breakEndTime ?? ""}
+                          disabled={!day.isAvailable}
+                          onChange={(event) =>
+                            updateDay(index, (current) => ({
+                              ...current,
+                              breakEndTime: event.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`max-appointments-${index}`}>Max Appointments</Label>
+                        <Input
+                          id={`max-appointments-${index}`}
+                          type="number"
+                          min="0"
+                          value={day.maxAppointments ?? ""}
+                          disabled={!day.isAvailable}
+                          onChange={(event) =>
+                            updateDay(index, (current) => ({
+                              ...current,
+                              maxAppointments: event.target.value
+                                ? Number(event.target.value)
+                                : null,
+                            }))
+                          }
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </DashboardLayout>
   );
 };
