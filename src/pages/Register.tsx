@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { FieldError } from "@/components/ui/field-error";
 import logo from "@/assets/logo.png";
 import { useAuth, useRegisterMutation } from "@/hooks/useAuth";
-import { routeByRole } from "@/services/auth.service";
+import { routeByRole } from "@/lib/auth";
 import {
   PASSWORD_POLICY_MESSAGE,
   PASSWORDS_DO_NOT_MATCH_MESSAGE,

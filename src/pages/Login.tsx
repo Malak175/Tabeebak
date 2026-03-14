@@ -9,8 +9,9 @@ import { UserRound, Stethoscope, FlaskConical, Eye, EyeOff, ArrowLeft } from "lu
 import { toast } from "sonner";
 import { FieldError } from "@/components/ui/field-error";
 import logo from "@/assets/logo.png";
-import { routeByRole } from "@/services/auth.service";
+import { routeByRole } from "@/lib/auth";
 import { useAuth, useSignInMutation } from "@/hooks/useAuth";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 type LoginRole = "patient" | "doctor" | "laboratory";
 const IS_DEV = import.meta.env.DEV;
@@ -22,11 +23,10 @@ type FieldErrors = {
 
 const Login = () => {
   const navigate = useNavigate();
-  const { isAuthenticated, user, logout } = useAuth();
+  const { authBootstrapError, isAuthenticated, isBootstrappingAuth, user, logout } = useAuth();
   const signInMutation = useSignInMutation();
   const [selectedRole, setSelectedRole] = useState<LoginRole>("patient");
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [formData, setFormData] = useState({
     email: "",
@@ -84,11 +84,10 @@ const Login = () => {
       return;
     }
 
-    setIsLoading(true);
     signInMutation.mutate(
       { email: formData.email.trim(), password: formData.password },
       {
-        onSuccess: (response) => {
+        onSuccess: (me) => {
           const selectedRoleMap: Record<LoginRole, "Patient" | "Doctor" | "Lab"> = {
             patient: "Patient",
             doctor: "Doctor",
@@ -96,19 +95,18 @@ const Login = () => {
           };
 
           const requestedRole = selectedRoleMap[selectedRole];
-          if (response.user.role !== requestedRole) {
+          if (me.role !== requestedRole) {
             logout();
             toast.error(`This account is not a ${selectedRole} account.`);
             return;
           }
 
           toast.success("Welcome back!");
-          navigate(routeByRole(response.user.role));
+          navigate(routeByRole(me.role));
         },
         onError: (error: Error) => {
           toast.error(error.message);
         },
-        onSettled: () => setIsLoading(false),
       },
     );
   };
@@ -200,6 +198,12 @@ const Login = () => {
               </Tabs>
 
               <form onSubmit={handleSubmit} className="space-y-4">
+                {authBootstrapError && !isBootstrappingAuth && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{authBootstrapError.message}</AlertDescription>
+                  </Alert>
+                )}
+
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
                   <Input
@@ -249,8 +253,16 @@ const Login = () => {
                   </Link>
                 </div>
 
-                <Button type="submit" variant="hero" className="w-full" size="lg" disabled={isLoading || hasErrors}>
-                  {isLoading ? "Signing in..." : `Sign In as ${selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1)}`}
+                <Button
+                  type="submit"
+                  variant="hero"
+                  className="w-full"
+                  size="lg"
+                  disabled={signInMutation.isPending || hasErrors}
+                >
+                  {signInMutation.isPending
+                    ? "Signing in..."
+                    : `Sign In as ${selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1)}`}
                 </Button>
               </form>
 
