@@ -700,7 +700,7 @@ export const patientService = {
     return normalizeMedicalHistorySummary(response);
   },
 
-  getAppointments: async (
+  getPatientAppointments: async (
     params?: AppointmentFilterParams,
   ): Promise<PaginatedResponse<Appointment>> => {
     const response = await apiRequest<unknown>("/api/v1/patients/me/appointments", {
@@ -712,7 +712,7 @@ export const patientService = {
     return normalizePaginatedResponse(response, normalizeAppointment);
   },
 
-  getUpcomingAppointments: async (): Promise<Appointment[]> => {
+  getUpcomingPatientAppointments: async (): Promise<Appointment[]> => {
     const response = await apiRequest<unknown>("/api/v1/patients/me/appointments/upcoming", {
       method: "GET",
       auth: true,
@@ -721,7 +721,7 @@ export const patientService = {
     return getListEnvelope(response).items.map(normalizeAppointment);
   },
 
-  getAppointmentById: async (appointmentId: string): Promise<Appointment> => {
+  getPatientAppointmentById: async (appointmentId: string): Promise<Appointment> => {
     const response = await apiRequest<unknown>(`/api/v1/patients/me/appointments/${appointmentId}`, {
       method: "GET",
       auth: true,
@@ -730,7 +730,7 @@ export const patientService = {
     return normalizeAppointment(response);
   },
 
-  getPrescriptions: async (
+  getPatientPrescriptions: async (
     params?: PrescriptionFilterParams,
   ): Promise<PaginatedResponse<Prescription>> => {
     const response = await apiRequest<unknown>("/api/v1/patients/me/prescriptions", {
@@ -742,7 +742,7 @@ export const patientService = {
     return normalizePaginatedResponse(response, normalizePrescription);
   },
 
-  getPrescriptionById: async (prescriptionId: string): Promise<Prescription> => {
+  getPatientPrescriptionById: async (prescriptionId: string): Promise<Prescription> => {
     const response = await apiRequest<unknown>(`/api/v1/patients/me/prescriptions/${prescriptionId}`, {
       method: "GET",
       auth: true,
@@ -751,7 +751,9 @@ export const patientService = {
     return normalizePrescription(response);
   },
 
-  getLabOrders: async (params?: LabOrderFilterParams): Promise<PaginatedResponse<LabOrder>> => {
+  getPatientLabOrders: async (
+    params?: LabOrderFilterParams,
+  ): Promise<PaginatedResponse<LabOrder>> => {
     const response = await apiRequest<unknown>("/api/v1/patients/me/lab-orders", {
       method: "GET",
       params: buildQueryParams(params),
@@ -761,7 +763,7 @@ export const patientService = {
     return normalizePaginatedResponse(response, normalizeLabOrder);
   },
 
-  getLabResults: async (
+  getPatientLabResults: async (
     params?: LabResultFilterParams,
   ): Promise<PaginatedResponse<LabResult>> => {
     const response = await apiRequest<unknown>("/api/v1/patients/me/lab-results", {
@@ -773,7 +775,7 @@ export const patientService = {
     return normalizePaginatedResponse(response, normalizeLabResult);
   },
 
-  getLabResultById: async (resultId: string): Promise<LabResult> => {
+  getPatientLabResultById: async (resultId: string): Promise<LabResult> => {
     const response = await apiRequest<unknown>(`/api/v1/patients/me/lab-results/${resultId}`, {
       method: "GET",
       auth: true,

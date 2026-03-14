@@ -146,7 +146,7 @@ export const usePatientAppointmentsQuery = (
 ) =>
   useQuery({
     queryKey: patientQueryKeys.appointments(params),
-    queryFn: () => patientService.getAppointments(params),
+    queryFn: () => patientService.getPatientAppointments(params),
     enabled,
     placeholderData: (previousData) => previousData,
   });
@@ -154,7 +154,7 @@ export const usePatientAppointmentsQuery = (
 export const useUpcomingPatientAppointmentsQuery = (enabled = true) =>
   useQuery({
     queryKey: patientQueryKeys.upcomingAppointments(),
-    queryFn: patientService.getUpcomingAppointments,
+    queryFn: patientService.getUpcomingPatientAppointments,
     enabled,
   });
 
@@ -164,7 +164,7 @@ export const usePatientAppointmentDetailsQuery = (
 ) =>
   useQuery({
     queryKey: patientQueryKeys.appointmentDetails(appointmentId ?? ""),
-    queryFn: () => patientService.getAppointmentById(appointmentId ?? ""),
+    queryFn: () => patientService.getPatientAppointmentById(appointmentId ?? ""),
     enabled: enabled && Boolean(appointmentId),
   });
 
@@ -174,7 +174,7 @@ export const usePatientPrescriptionsQuery = (
 ) =>
   useQuery({
     queryKey: patientQueryKeys.prescriptions(params),
-    queryFn: () => patientService.getPrescriptions(params),
+    queryFn: () => patientService.getPatientPrescriptions(params),
     enabled,
     placeholderData: (previousData) => previousData,
   });
@@ -185,7 +185,7 @@ export const usePatientPrescriptionDetailsQuery = (
 ) =>
   useQuery({
     queryKey: patientQueryKeys.prescriptionDetails(prescriptionId ?? ""),
-    queryFn: () => patientService.getPrescriptionById(prescriptionId ?? ""),
+    queryFn: () => patientService.getPatientPrescriptionById(prescriptionId ?? ""),
     enabled: enabled && Boolean(prescriptionId),
   });
 
@@ -195,7 +195,7 @@ export const usePatientLabOrdersQuery = (
 ) =>
   useQuery({
     queryKey: patientQueryKeys.labOrders(params),
-    queryFn: () => patientService.getLabOrders(params),
+    queryFn: () => patientService.getPatientLabOrders(params),
     enabled,
     placeholderData: (previousData) => previousData,
   });
@@ -206,7 +206,7 @@ export const usePatientLabResultsQuery = (
 ) =>
   useQuery({
     queryKey: patientQueryKeys.labResults(params),
-    queryFn: () => patientService.getLabResults(params),
+    queryFn: () => patientService.getPatientLabResults(params),
     enabled,
     placeholderData: (previousData) => previousData,
   });
@@ -217,6 +217,6 @@ export const usePatientLabResultDetailsQuery = (
 ) =>
   useQuery({
     queryKey: patientQueryKeys.labResultDetails(resultId ?? ""),
-    queryFn: () => patientService.getLabResultById(resultId ?? ""),
+    queryFn: () => patientService.getPatientLabResultById(resultId ?? ""),
     enabled: enabled && Boolean(resultId),
   });
