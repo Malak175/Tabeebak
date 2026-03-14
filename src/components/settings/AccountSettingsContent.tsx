@@ -4,6 +4,7 @@ import {
   Building2,
   Calendar,
   CheckCircle,
+  ClipboardList,
   Clock,
   FlaskConical,
   HelpCircle,
@@ -179,6 +180,7 @@ const SettingsEditor = <T extends Record<string, string | number | boolean | nul
 export const patientNavItems = [
   { title: "Dashboard", url: "/patient/dashboard", icon: Home },
   { title: "Appointments", url: "/patient/appointments", icon: Calendar },
+  { title: "Prescriptions", url: "/patient/prescriptions", icon: ClipboardList },
   { title: "Lab Results", url: "/patient/lab-results", icon: FlaskConical },
   { title: "Health Tips", url: "/patient/tips", icon: Heart },
   { title: "Settings", url: "/patient/settings", icon: Settings },
