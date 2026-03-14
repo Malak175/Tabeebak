@@ -1,0 +1,445 @@
+import { apiRequest } from "@/services/api";
+import {
+  DoctorAvailability,
+  DoctorAvailabilityDay,
+  DoctorDashboardSummary,
+  DoctorProfessionalProfile,
+  DoctorProfile,
+  UpdateDoctorAvailabilityRequest,
+  UpdateDoctorProfessionalProfileRequest,
+  UpdateDoctorProfileRequest,
+} from "@/types/doctor-profile.types";
+
+const WEEK_DAY_ORDER = [
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
+] as const;
+
+const WEEK_DAY_LABELS: Record<(typeof WEEK_DAY_ORDER)[number], string> = {
+  monday: "Monday",
+  tuesday: "Tuesday",
+  wednesday: "Wednesday",
+  thursday: "Thursday",
+  friday: "Friday",
+  saturday: "Saturday",
+  sunday: "Sunday",
+};
+
+const asRecord = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+
+const mergeRecords = (...values: unknown[]) =>
+  values.reduce<Record<string, unknown>>((result, value) => {
+    Object.assign(result, asRecord(value));
+    return result;
+  }, {});
+
+const unwrapPayload = (payload: unknown): Record<string, unknown> => {
+  const record = asRecord(payload);
+
+  if (record.data && typeof record.data === "object" && !Array.isArray(record.data)) {
+    return asRecord(record.data);
+  }
+
+  return record;
+};
+
+const pickString = (record: Record<string, unknown>, keys: string[]) => {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  return undefined;
+};
+
+const pickNullableString = (record: Record<string, unknown>, keys: string[]) => {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === "string") {
+      const normalized = value.trim();
+      return normalized || null;
+    }
+  }
+
+  return null;
+};
+
+const pickNumber = (record: Record<string, unknown>, keys: string[]) => {
+  for (const key of keys) {
+    const value = record[key];
+
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+
+    if (typeof value === "string" && value.trim()) {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+  }
+
+  return undefined;
+};
+
+const pickNullableNumber = (record: Record<string, unknown>, keys: string[]) => {
+  const value = pickNumber(record, keys);
+  return value ?? null;
+};
+
+const pickBoolean = (record: Record<string, unknown>, keys: string[]) => {
+  for (const key of keys) {
+    const value = record[key];
+
+    if (typeof value === "boolean") {
+      return value;
+    }
+
+    if (typeof value === "string") {
+      if (value.toLowerCase() === "true") return true;
+      if (value.toLowerCase() === "false") return false;
+    }
+
+    if (typeof value === "number") {
+      if (value === 1) return true;
+      if (value === 0) return false;
+    }
+  }
+
+  return undefined;
+};
+
+const pickStringArray = (record: Record<string, unknown>, keys: string[]) => {
+  for (const key of keys) {
+    const value = record[key];
+
+    if (Array.isArray(value)) {
+      return value
+        .map((item) => (typeof item === "string" ? item.trim() : ""))
+        .filter(Boolean);
+    }
+
+    if (typeof value === "string" && value.trim()) {
+      return value
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+  }
+
+  return [];
+};
+
+const pickRecord = (record: Record<string, unknown>, keys: string[]) => {
+  for (const key of keys) {
+    const value = record[key];
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      return asRecord(value);
+    }
+  }
+
+  return {};
+};
+
+const normalizeDayName = (value: string | null | undefined) => {
+  const normalized = value?.trim().toLowerCase();
+  if (!normalized) return "";
+
+  if (normalized.length === 3) {
+    const matched = WEEK_DAY_ORDER.find((day) => day.startsWith(normalized));
+    return matched ? WEEK_DAY_LABELS[matched] : normalized;
+  }
+
+  return WEEK_DAY_LABELS[normalized as (typeof WEEK_DAY_ORDER)[number]] ?? normalized;
+};
+
+const normalizeDoctorDashboardSummary = (payload: unknown): DoctorDashboardSummary => {
+  const raw = unwrapPayload(payload);
+  const professional = mergeRecords(
+    pickRecord(raw, ["professionalProfile", "professional_profile"]),
+    pickRecord(raw, ["doctorProfile", "doctor_profile"]),
+  );
+
+  return {
+    doctorId: pickString(raw, ["doctorId", "id", "_id", "userId"]),
+    firstName: pickString(raw, ["firstName", "first_name"]),
+    lastName: pickString(raw, ["lastName", "last_name"]),
+    displayName: pickString(raw, ["displayName", "display_name", "fullName", "full_name", "name"]),
+    email: pickString(raw, ["email"]),
+    specialty:
+      pickString(raw, ["specialty", "specialization"]) ??
+      pickString(professional, ["specialty", "specialization"]),
+    subspecialty:
+      pickNullableString(raw, ["subspecialty", "sub_specialty"]) ??
+      pickNullableString(professional, ["subspecialty", "sub_specialty"]),
+    clinicName:
+      pickNullableString(raw, ["clinicName", "clinic_name"]) ??
+      pickNullableString(professional, ["clinicName", "clinic_name"]),
+    yearsOfExperience:
+      pickNullableNumber(raw, ["yearsOfExperience", "years_of_experience", "experienceYears"]) ??
+      pickNullableNumber(professional, ["yearsOfExperience", "years_of_experience", "experienceYears"]),
+    rating: pickNullableNumber(raw, ["rating", "averageRating", "average_rating"]),
+    totalPatientsCount: pickNullableNumber(raw, [
+      "totalPatientsCount",
+      "total_patients_count",
+      "patientsCount",
+      "patientCount",
+    ]),
+    totalAppointmentsToday: pickNullableNumber(raw, [
+      "totalAppointmentsToday",
+      "total_appointments_today",
+      "appointmentsToday",
+    ]),
+    completedAppointmentsToday: pickNullableNumber(raw, [
+      "completedAppointmentsToday",
+      "completed_appointments_today",
+    ]),
+    upcomingAppointmentsToday: pickNullableNumber(raw, [
+      "upcomingAppointmentsToday",
+      "upcoming_appointments_today",
+    ]),
+    pendingAppointmentRequestsCount: pickNullableNumber(raw, [
+      "pendingAppointmentRequestsCount",
+      "pending_appointment_requests_count",
+      "pendingRequestsCount",
+    ]),
+    nextAvailableSlot: pickNullableString(raw, [
+      "nextAvailableSlot",
+      "next_available_slot",
+      "nextAvailability",
+    ]),
+    profileCompletionPercentage: pickNullableNumber(raw, [
+      "profileCompletionPercentage",
+      "profile_completion_percentage",
+      "completionPercentage",
+    ]),
+  };
+};
+
+const normalizeDoctorProfile = (payload: unknown): DoctorProfile => {
+  const raw = unwrapPayload(payload);
+
+  return {
+    id: pickString(raw, ["id", "_id", "doctorId", "userId"]),
+    email: pickString(raw, ["email"]),
+    firstName: pickString(raw, ["firstName", "first_name"]),
+    lastName: pickString(raw, ["lastName", "last_name"]),
+    displayName: pickString(raw, ["displayName", "display_name", "fullName", "full_name", "name"]),
+    phone: pickString(raw, ["phone", "phoneNumber", "mobile"]),
+    alternatePhone: pickString(raw, ["alternatePhone", "alternate_phone", "secondaryPhone"]),
+    dateOfBirth: pickString(raw, ["dateOfBirth", "date_of_birth", "dob"]),
+    gender: pickString(raw, ["gender"]),
+    addressLine1: pickString(raw, ["addressLine1", "address_line_1", "address1"]),
+    addressLine2: pickString(raw, ["addressLine2", "address_line_2", "address2"]),
+    city: pickString(raw, ["city"]),
+    state: pickString(raw, ["state", "province"]),
+    country: pickString(raw, ["country"]),
+    postalCode: pickString(raw, ["postalCode", "postal_code", "zipCode", "zip_code"]),
+    bio: pickString(raw, ["bio", "about"]),
+    avatarUrl: pickNullableString(raw, ["avatarUrl", "avatar", "profileImageUrl", "imageUrl"]),
+  };
+};
+
+const normalizeDoctorProfessionalProfile = (payload: unknown): DoctorProfessionalProfile => {
+  const raw = unwrapPayload(payload);
+
+  return {
+    specialty: pickString(raw, ["specialty", "specialization"]),
+    subspecialty: pickNullableString(raw, ["subspecialty", "sub_specialty"]),
+    licenseNumber: pickString(raw, ["licenseNumber", "license_number", "registrationNumber"]),
+    yearsOfExperience: pickNullableNumber(raw, [
+      "yearsOfExperience",
+      "years_of_experience",
+      "experienceYears",
+    ]),
+    consultationFee: pickNullableNumber(raw, [
+      "consultationFee",
+      "consultation_fee",
+      "fee",
+      "consultationPrice",
+    ]),
+    about: pickString(raw, ["about", "bio", "summary"]),
+    education: pickStringArray(raw, ["education", "degrees"]),
+    certifications: pickStringArray(raw, ["certifications", "licenses"]),
+    languages: pickStringArray(raw, ["languages", "spokenLanguages", "spoken_languages"]),
+    clinicName: pickString(raw, ["clinicName", "clinic_name"]),
+    clinicAddress: pickString(raw, ["clinicAddress", "clinic_address", "address"]),
+    hospitalAffiliations: pickStringArray(raw, [
+      "hospitalAffiliations",
+      "hospital_affiliations",
+      "affiliations",
+    ]),
+    servicesOffered: pickStringArray(raw, [
+      "servicesOffered",
+      "services_offered",
+      "services",
+    ]),
+  };
+};
+
+const normalizeAvailabilityDay = (payload: unknown, fallbackDay?: string): DoctorAvailabilityDay => {
+  const raw = asRecord(payload);
+  const dayOfWeek = normalizeDayName(
+    pickString(raw, ["dayOfWeek", "day_of_week", "day", "weekday"]) ?? fallbackDay,
+  );
+
+  return {
+    dayOfWeek,
+    isAvailable:
+      pickBoolean(raw, ["isAvailable", "is_available", "available", "enabled"]) ?? false,
+    startTime: pickNullableString(raw, ["startTime", "start_time", "from"]),
+    endTime: pickNullableString(raw, ["endTime", "end_time", "to"]),
+    breakStartTime: pickNullableString(raw, ["breakStartTime", "break_start_time", "breakFrom"]),
+    breakEndTime: pickNullableString(raw, ["breakEndTime", "break_end_time", "breakTo"]),
+    maxAppointments: pickNullableNumber(raw, [
+      "maxAppointments",
+      "max_appointments",
+      "capacity",
+    ]),
+  };
+};
+
+const normalizeDoctorAvailability = (payload: unknown): DoctorAvailability => {
+  const raw = unwrapPayload(payload);
+  const scheduleContainer = mergeRecords(
+    pickRecord(raw, ["weeklySchedule", "weekly_schedule"]),
+    pickRecord(raw, ["schedule"]),
+  );
+
+  const daysSource =
+    (Array.isArray(raw.weeklySchedule) && raw.weeklySchedule) ||
+    (Array.isArray(raw.weekly_schedule) && raw.weekly_schedule) ||
+    (Array.isArray(raw.days) && raw.days) ||
+    (Array.isArray(scheduleContainer.days) && scheduleContainer.days) ||
+    null;
+
+  const weeklySchedule = daysSource
+    ? (daysSource as unknown[]).map((item) => normalizeAvailabilityDay(item))
+    : WEEK_DAY_ORDER.map((day) =>
+        normalizeAvailabilityDay(
+          scheduleContainer[day] ?? raw[day] ?? {},
+          WEEK_DAY_LABELS[day],
+        ),
+      );
+
+  return {
+    timezone:
+      pickString(raw, ["timezone", "timeZone"]) ??
+      pickString(scheduleContainer, ["timezone", "timeZone"]),
+    appointmentDurationMinutes:
+      pickNullableNumber(raw, [
+        "appointmentDurationMinutes",
+        "appointment_duration_minutes",
+        "slotDurationMinutes",
+      ]) ??
+      pickNullableNumber(scheduleContainer, [
+        "appointmentDurationMinutes",
+        "appointment_duration_minutes",
+        "slotDurationMinutes",
+      ]),
+    bufferBetweenAppointmentsMinutes:
+      pickNullableNumber(raw, [
+        "bufferBetweenAppointmentsMinutes",
+        "buffer_between_appointments_minutes",
+        "bufferMinutes",
+      ]) ??
+      pickNullableNumber(scheduleContainer, [
+        "bufferBetweenAppointmentsMinutes",
+        "buffer_between_appointments_minutes",
+        "bufferMinutes",
+      ]),
+    notes:
+      pickNullableString(raw, ["notes", "availabilityNotes", "availability_notes"]) ??
+      pickNullableString(scheduleContainer, ["notes", "availabilityNotes", "availability_notes"]),
+    weeklySchedule: weeklySchedule
+      .filter((day) => Boolean(day.dayOfWeek))
+      .sort(
+        (left, right) =>
+          WEEK_DAY_ORDER.indexOf(left.dayOfWeek.toLowerCase() as (typeof WEEK_DAY_ORDER)[number]) -
+          WEEK_DAY_ORDER.indexOf(right.dayOfWeek.toLowerCase() as (typeof WEEK_DAY_ORDER)[number]),
+      ),
+  };
+};
+
+export const doctorProfileService = {
+  getDashboardSummary: async (): Promise<DoctorDashboardSummary> => {
+    const response = await apiRequest<unknown>("/api/v1/doctors/me/dashboard-summary", {
+      method: "GET",
+      auth: true,
+    });
+
+    return normalizeDoctorDashboardSummary(response);
+  },
+
+  getProfile: async (): Promise<DoctorProfile> => {
+    const response = await apiRequest<unknown>("/api/v1/doctors/me/profile", {
+      method: "GET",
+      auth: true,
+    });
+
+    return normalizeDoctorProfile(response);
+  },
+
+  updateProfile: async (payload: UpdateDoctorProfileRequest): Promise<DoctorProfile> => {
+    const response = await apiRequest<unknown>("/api/v1/doctors/me/profile", {
+      method: "PATCH",
+      body: payload,
+      auth: true,
+    });
+
+    return normalizeDoctorProfile(response);
+  },
+
+  getProfessionalProfile: async (): Promise<DoctorProfessionalProfile> => {
+    const response = await apiRequest<unknown>("/api/v1/doctors/me/professional-profile", {
+      method: "GET",
+      auth: true,
+    });
+
+    return normalizeDoctorProfessionalProfile(response);
+  },
+
+  updateProfessionalProfile: async (
+    payload: UpdateDoctorProfessionalProfileRequest,
+  ): Promise<DoctorProfessionalProfile> => {
+    const response = await apiRequest<unknown>("/api/v1/doctors/me/professional-profile", {
+      method: "PATCH",
+      body: payload,
+      auth: true,
+    });
+
+    return normalizeDoctorProfessionalProfile(response);
+  },
+
+  getAvailability: async (): Promise<DoctorAvailability> => {
+    const response = await apiRequest<unknown>("/api/v1/doctors/me/availability", {
+      method: "GET",
+      auth: true,
+    });
+
+    return normalizeDoctorAvailability(response);
+  },
+
+  updateAvailability: async (
+    payload: UpdateDoctorAvailabilityRequest,
+  ): Promise<DoctorAvailability> => {
+    const response = await apiRequest<unknown>("/api/v1/doctors/me/availability", {
+      method: "PUT",
+      body: payload,
+      auth: true,
+    });
+
+    return normalizeDoctorAvailability(response);
+  },
+};
