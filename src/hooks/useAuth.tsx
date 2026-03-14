@@ -22,6 +22,7 @@ import {
 import { ApiError } from "@/types/api.types";
 import { MeResponse } from "@/types/me.types";
 import { myAccountQueryKeys } from "@/hooks/useMyAccount";
+import { patientQueryKeys } from "@/hooks/usePatientProfile";
 
 const IS_DEV = import.meta.env.DEV;
 
@@ -67,6 +68,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const clearRelatedQueries = useCallback(() => {
     queryClient.removeQueries({ queryKey: authQueryKeys.all });
     queryClient.removeQueries({ queryKey: myAccountQueryKeys.all });
+    queryClient.removeQueries({ queryKey: patientQueryKeys.all });
   }, [queryClient]);
 
   const setBootstrappedUser = useCallback(
