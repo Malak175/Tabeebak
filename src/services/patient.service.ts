@@ -1,5 +1,17 @@
 import { apiRequest } from "@/services/api";
 import {
+  Appointment,
+  AppointmentFilterParams,
+  LabOrder,
+  LabOrderFilterParams,
+  LabResult,
+  LabResultFilterParams,
+  LabResultMeasurement,
+  PaginatedResponse,
+  Prescription,
+  PrescriptionFilterParams,
+} from "@/types/patient-records.types";
+import {
   EmergencyContact,
   InsuranceInfo,
   MedicalHistorySummary,
@@ -13,12 +25,20 @@ import {
 } from "@/types/patient-profile.types";
 
 const asRecord = (value: unknown): Record<string, unknown> =>
-  value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+
+const mergeRecords = (...values: unknown[]) =>
+  values.reduce<Record<string, unknown>>((result, value) => {
+    Object.assign(result, asRecord(value));
+    return result;
+  }, {});
 
 const unwrapPayload = (payload: unknown): Record<string, unknown> => {
   const record = asRecord(payload);
 
-  if (record.data && typeof record.data === "object") {
+  if (record.data && typeof record.data === "object" && !Array.isArray(record.data)) {
     return asRecord(record.data);
   }
 
@@ -29,7 +49,29 @@ const pickString = (record: Record<string, unknown>, keys: string[]) => {
   for (const key of keys) {
     const value = record[key];
     if (typeof value === "string" && value.trim()) {
-      return value;
+      return value.trim();
+    }
+  }
+
+  return undefined;
+};
+
+const pickText = (record: Record<string, unknown>, keys: string[]) => {
+  for (const key of keys) {
+    const value = record[key];
+
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+
+    if (Array.isArray(value)) {
+      const values = value
+        .map((item) => (typeof item === "string" ? item.trim() : ""))
+        .filter(Boolean);
+
+      if (values.length > 0) {
+        return values.join(", ");
+      }
     }
   }
 
@@ -40,7 +82,8 @@ const pickNullableString = (record: Record<string, unknown>, keys: string[]) => 
   for (const key of keys) {
     const value = record[key];
     if (typeof value === "string") {
-      return value.trim() || null;
+      const normalized = value.trim();
+      return normalized || null;
     }
   }
 
@@ -70,6 +113,28 @@ const pickNullableNumber = (record: Record<string, unknown>, keys: string[]) => 
   return value ?? null;
 };
 
+const pickBoolean = (record: Record<string, unknown>, keys: string[]) => {
+  for (const key of keys) {
+    const value = record[key];
+
+    if (typeof value === "boolean") {
+      return value;
+    }
+
+    if (typeof value === "string") {
+      if (value.toLowerCase() === "true") return true;
+      if (value.toLowerCase() === "false") return false;
+    }
+
+    if (typeof value === "number") {
+      if (value === 1) return true;
+      if (value === 0) return false;
+    }
+  }
+
+  return undefined;
+};
+
 const pickStringArray = (record: Record<string, unknown>, keys: string[]) => {
   for (const key of keys) {
     const value = record[key];
@@ -89,6 +154,132 @@ const pickStringArray = (record: Record<string, unknown>, keys: string[]) => {
   }
 
   return [];
+};
+
+const pickRecord = (record: Record<string, unknown>, keys: string[]) => {
+  for (const key of keys) {
+    const value = record[key];
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      return asRecord(value);
+    }
+  }
+
+  return {};
+};
+
+const buildDateTime = (record: Record<string, unknown>, dateKeys: string[], timeKeys: string[]) => {
+  const explicit = pickString(record, [
+    "scheduledAt",
+    "appointmentDateTime",
+    "appointment_datetime",
+    "startAt",
+    "start_at",
+    "dateTime",
+    "datetime",
+    ...dateKeys,
+  ]);
+
+  if (explicit && explicit.includes("T")) {
+    return explicit;
+  }
+
+  const date = pickString(record, dateKeys);
+  const time = pickString(record, timeKeys);
+
+  if (date && time) {
+    return `${date}T${time}`;
+  }
+
+  return explicit ?? date ?? null;
+};
+
+const getListEnvelope = (payload: unknown) => {
+  if (Array.isArray(payload)) {
+    return {
+      items: payload,
+      meta: {},
+    };
+  }
+
+  const raw = asRecord(payload);
+  const data = raw.data;
+
+  if (Array.isArray(data)) {
+    return {
+      items: data,
+      meta: mergeRecords(raw, raw.meta, raw.pagination),
+    };
+  }
+
+  const container = asRecord(data);
+  const candidates = [
+    container.items,
+    container.results,
+    container.records,
+    container.appointments,
+    container.prescriptions,
+    container.labOrders,
+    container.lab_orders,
+    container.labResults,
+    container.lab_results,
+    raw.items,
+    raw.results,
+    raw.records,
+    raw.appointments,
+    raw.prescriptions,
+    raw.labOrders,
+    raw.lab_orders,
+    raw.labResults,
+    raw.lab_results,
+  ];
+
+  const items = candidates.find(Array.isArray) as unknown[] | undefined;
+
+  return {
+    items: items ?? [],
+    meta: mergeRecords(raw, raw.meta, raw.pagination, container, container.meta, container.pagination),
+  };
+};
+
+const normalizePaginatedResponse = <T>(
+  payload: unknown,
+  mapItem: (value: unknown) => T,
+): PaginatedResponse<T> => {
+  const { items, meta } = getListEnvelope(payload);
+  const page = pickNumber(meta, ["page", "currentPage", "pageNumber"]) ?? 1;
+  const limit =
+    pickNumber(meta, ["limit", "perPage", "pageSize", "size"]) ??
+    (items.length > 0 ? items.length : 10);
+  const total = pickNumber(meta, ["total", "totalCount", "totalItems", "count"]) ?? items.length;
+  const totalPages =
+    pickNumber(meta, ["totalPages", "pageCount", "pages"]) ??
+    Math.max(1, Math.ceil(total / Math.max(limit, 1)));
+  const hasNextPage =
+    pickBoolean(meta, ["hasNextPage", "hasMore", "has_next_page"]) ?? page < totalPages;
+  const hasPreviousPage =
+    pickBoolean(meta, ["hasPreviousPage", "hasPrevPage", "has_previous_page"]) ?? page > 1;
+
+  return {
+    data: items.map(mapItem),
+    page,
+    limit,
+    total,
+    totalPages,
+    hasNextPage,
+    hasPreviousPage,
+  };
+};
+
+const buildQueryParams = <T extends Record<string, unknown>>(params?: T) => {
+  if (!params) return undefined;
+
+  return Object.fromEntries(
+    Object.entries(params).filter(([, value]) => {
+      if (value === undefined || value === null) return false;
+      if (typeof value === "string") return value.trim().length > 0;
+      return true;
+    }),
+  );
 };
 
 const normalizePatientProfile = (payload: unknown): PatientProfile => {
@@ -236,6 +427,180 @@ const normalizeMedicalHistorySummary = (payload: unknown): MedicalHistorySummary
   };
 };
 
+const normalizeAppointment = (payload: unknown): Appointment => {
+  const raw = unwrapPayload(payload);
+  const doctor = mergeRecords(
+    pickRecord(raw, ["doctor", "physician", "provider"]),
+    pickRecord(raw, ["doctorProfile"]),
+    pickRecord(raw, ["doctorDetails"]),
+  );
+
+  return {
+    id: pickString(raw, ["id", "_id", "appointmentId", "appointment_id"]) ?? "",
+    appointmentNumber: pickNullableString(raw, [
+      "appointmentNumber",
+      "appointment_number",
+      "referenceNumber",
+    ]),
+    doctorId: pickNullableString(doctor, ["id", "_id", "doctorId", "doctor_id"]),
+    doctorName:
+      pickString(raw, ["doctorName", "doctor_name", "providerName"]) ??
+      pickString(doctor, ["displayName", "name", "fullName", "full_name"]) ??
+      "Doctor not assigned",
+    doctorSpecialty:
+      pickNullableString(raw, ["doctorSpecialty", "specialty", "doctor_specialty"]) ??
+      pickNullableString(doctor, ["specialty", "specialization"]),
+    doctorAvatarUrl:
+      pickNullableString(doctor, ["avatarUrl", "avatar", "profileImageUrl"]) ??
+      pickNullableString(raw, ["doctorAvatarUrl", "doctor_avatar_url"]),
+    scheduledAt: buildDateTime(
+      raw,
+      ["scheduledAt", "appointmentDate", "appointment_date", "date", "startDate", "start_date"],
+      ["appointmentTime", "appointment_time", "time", "startTime", "start_time"],
+    ),
+    endAt: buildDateTime(raw, ["endAt", "endDate", "end_date"], ["endTime", "end_time"]),
+    status: pickString(raw, ["status", "appointmentStatus", "appointment_status"]) ?? "scheduled",
+    type: pickNullableString(raw, ["type", "appointmentType", "appointment_type", "visitType"]),
+    mode: pickNullableString(raw, ["mode", "consultationMode", "consultation_mode"]),
+    location:
+      pickNullableString(raw, ["location", "clinicName", "hospitalName", "room"]) ??
+      pickNullableString(pickRecord(raw, ["locationDetails", "clinic"]), ["name", "address"]),
+    reason: pickNullableString(raw, ["reason", "chiefComplaint", "chief_complaint"]),
+    notes: pickNullableString(raw, ["notes", "summary", "patientNotes", "patient_notes"]),
+    joinUrl: pickNullableString(raw, ["joinUrl", "meetingUrl", "videoCallUrl"]),
+    canJoinOnline:
+      pickBoolean(raw, ["canJoinOnline", "isJoinable", "joinable"]) ??
+      Boolean(pickString(raw, ["joinUrl", "meetingUrl", "videoCallUrl"])),
+    createdAt: pickNullableString(raw, ["createdAt", "created_at"]),
+    updatedAt: pickNullableString(raw, ["updatedAt", "updated_at"]),
+  };
+};
+
+const normalizePrescription = (payload: unknown): Prescription => {
+  const raw = unwrapPayload(payload);
+  const medication = mergeRecords(pickRecord(raw, ["medication", "drug"]));
+  const prescriber = mergeRecords(pickRecord(raw, ["doctor", "prescriber"]));
+
+  return {
+    id: pickString(raw, ["id", "_id", "prescriptionId", "prescription_id"]) ?? "",
+    prescriptionNumber: pickNullableString(raw, [
+      "prescriptionNumber",
+      "prescription_number",
+      "referenceNumber",
+    ]),
+    medicationName:
+      pickString(raw, ["medicationName", "medication_name", "drugName", "drug_name"]) ??
+      pickString(medication, ["name", "displayName"]) ??
+      "Medication",
+    dosage: pickNullableString(raw, ["dosage", "dose"]),
+    frequency: pickNullableString(raw, ["frequency"]),
+    duration: pickNullableString(raw, ["duration"]),
+    quantity: pickNullableString(raw, ["quantity"]),
+    instructions: pickText(raw, ["instructions", "direction", "directions"]) ?? null,
+    status: pickString(raw, ["status", "prescriptionStatus", "prescription_status"]) ?? "active",
+    prescribedAt: pickNullableString(raw, ["prescribedAt", "issuedAt", "createdAt", "date"]),
+    expiresAt: pickNullableString(raw, ["expiresAt", "expiryDate", "endDate"]),
+    refillsRemaining: pickNullableNumber(raw, [
+      "refillsRemaining",
+      "refillCount",
+      "remainingRefills",
+    ]),
+    prescriberName:
+      pickNullableString(raw, ["prescriberName", "doctorName", "doctor_name"]) ??
+      pickNullableString(prescriber, ["displayName", "name", "fullName"]),
+    diagnosis: pickNullableString(raw, ["diagnosis"]),
+    notes: pickNullableString(raw, ["notes", "note"]),
+  };
+};
+
+const normalizeLabOrder = (payload: unknown): LabOrder => {
+  const raw = unwrapPayload(payload);
+  const laboratory = mergeRecords(pickRecord(raw, ["laboratory", "lab"]));
+  const doctor = mergeRecords(pickRecord(raw, ["doctor", "orderingDoctor", "provider"]));
+  const test = mergeRecords(pickRecord(raw, ["test", "panel"]));
+
+  return {
+    id: pickString(raw, ["id", "_id", "labOrderId", "lab_order_id", "orderId", "order_id"]) ?? "",
+    orderNumber: pickNullableString(raw, ["orderNumber", "order_number", "referenceNumber"]),
+    testName:
+      pickString(raw, ["testName", "test_name", "name"]) ??
+      pickString(test, ["name", "displayName"]) ??
+      "Lab test",
+    category:
+      pickNullableString(raw, ["category", "testCategory", "test_category"]) ??
+      pickNullableString(test, ["category"]),
+    status: pickString(raw, ["status", "orderStatus", "order_status"]) ?? "pending",
+    orderedAt: pickNullableString(raw, ["orderedAt", "createdAt", "dateOrdered", "date"]),
+    scheduledAt: pickNullableString(raw, ["scheduledAt", "scheduledFor", "appointmentDate"]),
+    laboratoryName:
+      pickNullableString(raw, ["laboratoryName", "labName", "lab_name"]) ??
+      pickNullableString(laboratory, ["name", "displayName"]),
+    orderingDoctorName:
+      pickNullableString(raw, ["orderingDoctorName", "doctorName", "doctor_name"]) ??
+      pickNullableString(doctor, ["displayName", "name", "fullName"]),
+    instructions: pickText(raw, ["instructions", "notes"]) ?? null,
+  };
+};
+
+const normalizeLabResultMeasurement = (payload: unknown): LabResultMeasurement => {
+  const raw = asRecord(payload);
+
+  return {
+    name: pickString(raw, ["name", "parameter", "label", "testName"]) ?? "Measurement",
+    value: pickNullableString(raw, ["value", "result"]),
+    unit: pickNullableString(raw, ["unit"]),
+    referenceRange: pickNullableString(raw, ["referenceRange", "range", "normalRange"]),
+    status: pickNullableString(raw, ["status", "flag"]),
+  };
+};
+
+const normalizeLabResult = (payload: unknown): LabResult => {
+  const raw = unwrapPayload(payload);
+  const laboratory = mergeRecords(pickRecord(raw, ["laboratory", "lab"]));
+  const doctor = mergeRecords(pickRecord(raw, ["doctor", "orderingDoctor", "provider"]));
+  const test = mergeRecords(pickRecord(raw, ["test", "panel"]));
+
+  const measurementsSource =
+    (getListEnvelope(raw.measurements).items.length > 0 && getListEnvelope(raw.measurements).items) ||
+    (getListEnvelope(raw.values).items.length > 0 && getListEnvelope(raw.values).items) ||
+    (getListEnvelope(raw.components).items.length > 0 && getListEnvelope(raw.components).items) ||
+    [];
+
+  const attachments = [
+    ...pickStringArray(raw, ["attachments"]),
+    ...pickStringArray(raw, ["files"]),
+  ];
+
+  return {
+    id: pickString(raw, ["id", "_id", "resultId", "result_id", "labResultId", "lab_result_id"]) ?? "",
+    resultNumber: pickNullableString(raw, ["resultNumber", "result_number", "referenceNumber"]),
+    testName:
+      pickString(raw, ["testName", "test_name", "name"]) ??
+      pickString(test, ["name", "displayName"]) ??
+      "Lab result",
+    category:
+      pickNullableString(raw, ["category", "testCategory", "test_category"]) ??
+      pickNullableString(test, ["category"]),
+    status: pickString(raw, ["status", "resultStatus", "result_status"]) ?? "completed",
+    orderedAt: pickNullableString(raw, ["orderedAt", "createdAt", "dateOrdered"]),
+    collectedAt: pickNullableString(raw, ["collectedAt", "sampleCollectedAt"]),
+    reportedAt: pickNullableString(raw, ["reportedAt", "completedAt", "issuedAt", "date"]),
+    laboratoryName:
+      pickNullableString(raw, ["laboratoryName", "labName", "lab_name"]) ??
+      pickNullableString(laboratory, ["name", "displayName"]),
+    orderingDoctorName:
+      pickNullableString(raw, ["orderingDoctorName", "doctorName", "doctor_name"]) ??
+      pickNullableString(doctor, ["displayName", "name", "fullName"]),
+    interpretation: pickNullableString(raw, ["interpretation", "summary"]),
+    conclusion: pickNullableString(raw, ["conclusion", "impression"]),
+    notes: pickNullableString(raw, ["notes", "comment"]),
+    reportUrl: pickNullableString(raw, ["reportUrl", "pdfUrl", "downloadUrl"]),
+    isAbnormal: pickBoolean(raw, ["isAbnormal", "abnormal"]) ?? false,
+    measurements: measurementsSource.map(normalizeLabResultMeasurement),
+    attachments,
+  };
+};
+
 export const patientService = {
   getDashboardSummary: async (): Promise<PatientDashboardSummary> => {
     const response = await apiRequest<unknown>("/api/v1/patients/me/dashboard-summary", {
@@ -333,5 +698,87 @@ export const patientService = {
     });
 
     return normalizeMedicalHistorySummary(response);
+  },
+
+  getAppointments: async (
+    params?: AppointmentFilterParams,
+  ): Promise<PaginatedResponse<Appointment>> => {
+    const response = await apiRequest<unknown>("/api/v1/patients/me/appointments", {
+      method: "GET",
+      params: buildQueryParams(params),
+      auth: true,
+    });
+
+    return normalizePaginatedResponse(response, normalizeAppointment);
+  },
+
+  getUpcomingAppointments: async (): Promise<Appointment[]> => {
+    const response = await apiRequest<unknown>("/api/v1/patients/me/appointments/upcoming", {
+      method: "GET",
+      auth: true,
+    });
+
+    return getListEnvelope(response).items.map(normalizeAppointment);
+  },
+
+  getAppointmentById: async (appointmentId: string): Promise<Appointment> => {
+    const response = await apiRequest<unknown>(`/api/v1/patients/me/appointments/${appointmentId}`, {
+      method: "GET",
+      auth: true,
+    });
+
+    return normalizeAppointment(response);
+  },
+
+  getPrescriptions: async (
+    params?: PrescriptionFilterParams,
+  ): Promise<PaginatedResponse<Prescription>> => {
+    const response = await apiRequest<unknown>("/api/v1/patients/me/prescriptions", {
+      method: "GET",
+      params: buildQueryParams(params),
+      auth: true,
+    });
+
+    return normalizePaginatedResponse(response, normalizePrescription);
+  },
+
+  getPrescriptionById: async (prescriptionId: string): Promise<Prescription> => {
+    const response = await apiRequest<unknown>(`/api/v1/patients/me/prescriptions/${prescriptionId}`, {
+      method: "GET",
+      auth: true,
+    });
+
+    return normalizePrescription(response);
+  },
+
+  getLabOrders: async (params?: LabOrderFilterParams): Promise<PaginatedResponse<LabOrder>> => {
+    const response = await apiRequest<unknown>("/api/v1/patients/me/lab-orders", {
+      method: "GET",
+      params: buildQueryParams(params),
+      auth: true,
+    });
+
+    return normalizePaginatedResponse(response, normalizeLabOrder);
+  },
+
+  getLabResults: async (
+    params?: LabResultFilterParams,
+  ): Promise<PaginatedResponse<LabResult>> => {
+    const response = await apiRequest<unknown>("/api/v1/patients/me/lab-results", {
+      method: "GET",
+      params: buildQueryParams(params),
+      auth: true,
+    });
+
+    return normalizePaginatedResponse(response, normalizeLabResult);
+  },
+
+  getLabResultById: async (resultId: string): Promise<LabResult> => {
+    const response = await apiRequest<unknown>(`/api/v1/patients/me/lab-results/${resultId}`, {
+      method: "GET",
+      auth: true,
+    });
+
+    return normalizeLabResult(response);
   },
 };
