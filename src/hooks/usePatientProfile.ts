@@ -2,11 +2,26 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { myAccountQueryKeys } from "@/hooks/useMyAccount";
 import { patientService } from "@/services/patient.service";
 import {
+  AppointmentFilterParams,
+  LabOrderFilterParams,
+  LabResultFilterParams,
+  PrescriptionFilterParams,
+} from "@/types/patient-records.types";
+import {
   UpdateEmergencyContactRequest,
   UpdateInsuranceInfoRequest,
   UpdatePatientMedicalProfileRequest,
   UpdatePatientProfileRequest,
 } from "@/types/patient-profile.types";
+
+const normalizeListParams = <T extends Record<string, unknown>>(params?: T) =>
+  Object.fromEntries(
+    Object.entries(params ?? {}).filter(([, value]) => {
+      if (value === undefined || value === null) return false;
+      if (typeof value === "string") return value.trim().length > 0;
+      return true;
+    }),
+  ) as T;
 
 export const patientQueryKeys = {
   all: ["patient"] as const,
@@ -16,6 +31,21 @@ export const patientQueryKeys = {
   emergencyContact: () => ["patient", "emergency-contact"] as const,
   insurance: () => ["patient", "insurance"] as const,
   medicalHistorySummary: () => ["patient", "medical-history-summary"] as const,
+  appointments: (params?: AppointmentFilterParams) =>
+    ["patient", "appointments", normalizeListParams(params)] as const,
+  upcomingAppointments: () => ["patient", "appointments", "upcoming"] as const,
+  appointmentDetails: (appointmentId: string) =>
+    ["patient", "appointments", "detail", appointmentId] as const,
+  prescriptions: (params?: PrescriptionFilterParams) =>
+    ["patient", "prescriptions", normalizeListParams(params)] as const,
+  prescriptionDetails: (prescriptionId: string) =>
+    ["patient", "prescriptions", "detail", prescriptionId] as const,
+  labOrders: (params?: LabOrderFilterParams) =>
+    ["patient", "lab-orders", normalizeListParams(params)] as const,
+  labResults: (params?: LabResultFilterParams) =>
+    ["patient", "lab-results", normalizeListParams(params)] as const,
+  labResultDetails: (resultId: string) =>
+    ["patient", "lab-results", "detail", resultId] as const,
 };
 
 export const usePatientDashboardSummaryQuery = (enabled = true) =>
@@ -108,4 +138,85 @@ export const useMedicalHistorySummaryQuery = (enabled = true) =>
     queryKey: patientQueryKeys.medicalHistorySummary(),
     queryFn: patientService.getMedicalHistorySummary,
     enabled,
+  });
+
+export const usePatientAppointmentsQuery = (
+  params?: AppointmentFilterParams,
+  enabled = true,
+) =>
+  useQuery({
+    queryKey: patientQueryKeys.appointments(params),
+    queryFn: () => patientService.getAppointments(params),
+    enabled,
+    placeholderData: (previousData) => previousData,
+  });
+
+export const useUpcomingPatientAppointmentsQuery = (enabled = true) =>
+  useQuery({
+    queryKey: patientQueryKeys.upcomingAppointments(),
+    queryFn: patientService.getUpcomingAppointments,
+    enabled,
+  });
+
+export const usePatientAppointmentDetailsQuery = (
+  appointmentId: string | undefined,
+  enabled = true,
+) =>
+  useQuery({
+    queryKey: patientQueryKeys.appointmentDetails(appointmentId ?? ""),
+    queryFn: () => patientService.getAppointmentById(appointmentId ?? ""),
+    enabled: enabled && Boolean(appointmentId),
+  });
+
+export const usePatientPrescriptionsQuery = (
+  params?: PrescriptionFilterParams,
+  enabled = true,
+) =>
+  useQuery({
+    queryKey: patientQueryKeys.prescriptions(params),
+    queryFn: () => patientService.getPrescriptions(params),
+    enabled,
+    placeholderData: (previousData) => previousData,
+  });
+
+export const usePatientPrescriptionDetailsQuery = (
+  prescriptionId: string | undefined,
+  enabled = true,
+) =>
+  useQuery({
+    queryKey: patientQueryKeys.prescriptionDetails(prescriptionId ?? ""),
+    queryFn: () => patientService.getPrescriptionById(prescriptionId ?? ""),
+    enabled: enabled && Boolean(prescriptionId),
+  });
+
+export const usePatientLabOrdersQuery = (
+  params?: LabOrderFilterParams,
+  enabled = true,
+) =>
+  useQuery({
+    queryKey: patientQueryKeys.labOrders(params),
+    queryFn: () => patientService.getLabOrders(params),
+    enabled,
+    placeholderData: (previousData) => previousData,
+  });
+
+export const usePatientLabResultsQuery = (
+  params?: LabResultFilterParams,
+  enabled = true,
+) =>
+  useQuery({
+    queryKey: patientQueryKeys.labResults(params),
+    queryFn: () => patientService.getLabResults(params),
+    enabled,
+    placeholderData: (previousData) => previousData,
+  });
+
+export const usePatientLabResultDetailsQuery = (
+  resultId: string | undefined,
+  enabled = true,
+) =>
+  useQuery({
+    queryKey: patientQueryKeys.labResultDetails(resultId ?? ""),
+    queryFn: () => patientService.getLabResultById(resultId ?? ""),
+    enabled: enabled && Boolean(resultId),
   });
