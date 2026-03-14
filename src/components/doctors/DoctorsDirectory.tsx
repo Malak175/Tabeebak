@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Search, MapPin, Star, Calendar, Clock, Navigation } from "lucide-react";
 import { toast } from "sonner";
@@ -23,6 +23,7 @@ const DoctorsDirectory = ({ mode = "public" }: DoctorsDirectoryProps) => {
   const doctorsQuery = useDoctorsQuery();
   const nearbyQuery = useNearbyDoctorsQuery(nearbyParams);
   const sourceDoctors = nearbyParams ? nearbyQuery.data ?? [] : doctorsQuery.data ?? [];
+  const isPatient = user?.role === "Patient";
   const bookingHref = user?.role === "Patient" || mode === "patient" ? "/patient/help" : "/register";
   const bookingLabel = user?.role === "Patient" || mode === "patient" ? "Booking Help" : "Book Now";
 
@@ -44,7 +45,24 @@ const DoctorsDirectory = ({ mode = "public" }: DoctorsDirectoryProps) => {
   const loading = doctorsQuery.isLoading || nearbyQuery.isLoading;
   const error = (nearbyParams ? nearbyQuery.error : doctorsQuery.error) as Error | null;
 
+  useEffect(() => {
+    if (!nearbyQuery.isError || !nearbyParams) {
+      return;
+    }
+
+    const message = (nearbyQuery.error as Error).message.toLowerCase();
+    if (message.includes("authorization")) {
+      toast.info("Near Me is available only after signing in as a patient.");
+      setNearbyParams(null);
+    }
+  }, [nearbyParams, nearbyQuery.error, nearbyQuery.isError]);
+
   const handleUseNearby = () => {
+    if (!isPatient) {
+      toast.info("Sign in as a patient to use Near Me.");
+      return;
+    }
+
     if (!navigator.geolocation) {
       toast.error("Geolocation is not supported by your browser.");
       return;

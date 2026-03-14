@@ -55,6 +55,7 @@ export const doctorsService = {
 
     const response = await apiRequest<unknown>(`/doctors/near?${query.toString()}`, {
       method: "GET",
+      auth: true,
     });
 
     return normalizeDoctors(response);
