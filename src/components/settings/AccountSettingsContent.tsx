@@ -1,4 +1,4 @@
-import { ChangeEvent, useEffect, useState } from "react";
+import { ChangeEvent, ReactNode, useEffect, useState } from "react";
 import {
   Bell,
   Building2,
@@ -60,6 +60,7 @@ interface AccountSettingsContentProps {
   description: string;
   navItems: NavItem[];
   layoutIcon: LucideIcon;
+  children?: ReactNode;
 }
 
 const prettifyKey = (value: string) =>
@@ -210,6 +211,7 @@ export const AccountSettingsContent = ({
   description,
   navItems,
   layoutIcon,
+  children,
 }: AccountSettingsContentProps) => {
   const { user, setBootstrappedUser } = useAuth();
   const profileQuery = useMyProfileQuery(Boolean(user));
@@ -620,6 +622,8 @@ export const AccountSettingsContent = ({
             })
           }
         />
+
+        {children}
       </div>
     </DashboardLayout>
   );
