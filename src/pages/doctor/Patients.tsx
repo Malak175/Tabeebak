@@ -1,184 +1,309 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { format, isValid, parseISO } from "date-fns";
+import { Link } from "react-router-dom";
+import { Search, Stethoscope, UserRound, Users } from "lucide-react";
+import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import { doctorNavItems } from "@/components/settings/AccountSettingsContent";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Calendar,
-  Users,
-  Clock,
-  Stethoscope,
-  Home,
-  Settings,
-  HelpCircle,
-  MessageSquare,
-  Search,
-  Phone,
-  Mail,
-  ChevronRight,
-} from "lucide-react";
+  useDoctorPatientSummaryQuery,
+  useDoctorPatientsQuery,
+} from "@/hooks/useDoctorWorkflow";
+import { useAuth } from "@/hooks/useAuth";
+import { getDisplayName, getInitials } from "@/lib/auth";
 
-const navItems = [
-  { title: "Dashboard", url: "/doctor/dashboard", icon: Home },
-  { title: "Appointments", url: "/doctor/appointments", icon: Calendar },
-  { title: "Patients", url: "/doctor/patients", icon: Users },
-  { title: "Schedule", url: "/doctor/schedule", icon: Clock },
-  { title: "Settings", url: "/doctor/settings", icon: Settings },
-  { title: "Help", url: "/doctor/help", icon: HelpCircle },
-];
+const formatDateTime = (value?: string | null) => {
+  if (!value) return "Not available";
 
-const patients = [
-  { id: 1, name: "Ahmed Ali", age: 45, gender: "Male", phone: "+1 234 567 8901", email: "ahmed@email.com", lastVisit: "Dec 10, 2024", condition: "Stable", avatar: "AA", diagnosis: "Hypertension" },
-  { id: 2, name: "Fatima Hassan", age: 32, gender: "Female", phone: "+1 234 567 8902", email: "fatima@email.com", lastVisit: "Dec 10, 2024", condition: "Improving", avatar: "FH", diagnosis: "Arrhythmia" },
-  { id: 3, name: "Mohammed Said", age: 58, gender: "Male", phone: "+1 234 567 8903", email: "mohammed@email.com", lastVisit: "Dec 8, 2024", condition: "Critical", avatar: "MS", diagnosis: "Heart Failure" },
-  { id: 4, name: "Sara Ahmed", age: 28, gender: "Female", phone: "+1 234 567 8904", email: "sara@email.com", lastVisit: "Dec 5, 2024", condition: "Stable", avatar: "SA", diagnosis: "Preventive Care" },
-  { id: 5, name: "Omar Khan", age: 52, gender: "Male", phone: "+1 234 567 8905", email: "omar@email.com", lastVisit: "Dec 3, 2024", condition: "Stable", avatar: "OK", diagnosis: "Post-Surgery" },
-  { id: 6, name: "Layla Mahmoud", age: 40, gender: "Female", phone: "+1 234 567 8906", email: "layla@email.com", lastVisit: "Nov 28, 2024", condition: "Improving", avatar: "LM", diagnosis: "Coronary Disease" },
-];
+  const parsed = parseISO(value);
+  if (!isValid(parsed)) return value;
+
+  return format(parsed, "PPP");
+};
+
+const getConditionClassName = (value?: string | null) => {
+  switch ((value ?? "").toLowerCase()) {
+    case "stable":
+    case "good":
+      return "bg-green-100 text-green-700 border-green-200";
+    case "improving":
+      return "bg-blue-100 text-blue-700 border-blue-200";
+    case "critical":
+    case "urgent":
+      return "bg-red-100 text-red-700 border-red-200";
+    default:
+      return "bg-muted text-muted-foreground border-border";
+  }
+};
 
 const DoctorPatients = () => {
-  const [doctor] = useState({ name: "Dr. Sarah Johnson", specialty: "Cardiologist" });
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedPatient, setSelectedPatient] = useState<typeof patients[0] | null>(null);
+  const { user } = useAuth();
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [condition, setCondition] = useState("all");
+  const [selectedPatientId, setSelectedPatientId] = useState<string>();
+  const userName = getDisplayName(user ?? {});
 
-  const getConditionColor = (condition: string) => {
-    switch (condition) {
-      case "Stable": return "bg-green-100 text-green-700";
-      case "Improving": return "bg-blue-100 text-blue-700";
-      case "Critical": return "bg-red-100 text-red-700";
-      default: return "bg-muted text-muted-foreground";
-    }
-  };
-
-  const filteredPatients = patients.filter(p =>
-    p.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const filters = useMemo(
+    () => ({
+      page,
+      limit: 8,
+      search,
+      condition: condition === "all" ? undefined : condition,
+      sortBy: "lastVisitAt",
+      sortOrder: "desc" as const,
+    }),
+    [page, search, condition],
   );
+
+  const enabled = Boolean(user);
+  const patientsQuery = useDoctorPatientsQuery(filters, enabled);
+  const summaryQuery = useDoctorPatientSummaryQuery(selectedPatientId, enabled);
+
+  useEffect(() => {
+    if (!patientsQuery.data?.data.length) {
+      setSelectedPatientId(undefined);
+      return;
+    }
+
+    setSelectedPatientId((current) =>
+      current && patientsQuery.data.data.some((patient) => patient.id === current)
+        ? current
+        : patientsQuery.data.data[0].id,
+    );
+  }, [patientsQuery.data]);
 
   return (
     <DashboardLayout
       userRole="doctor"
-      userName={doctor.name}
-      userSubtitle={doctor.specialty}
-      navItems={navItems}
+      userName={userName}
+      userSubtitle="Doctor account"
+      navItems={doctorNavItems}
       userIcon={Stethoscope}
     >
       <div className="mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold mb-2">My Patients</h1>
-        <p className="text-muted-foreground">View and manage your patient records</p>
+        <h1 className="mb-2 text-2xl font-bold md:text-3xl">Patients</h1>
+        <p className="text-muted-foreground">
+          Review your paginated patient roster and live patient summary data from the backend.
+        </p>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <Input
-              placeholder="Search patients..."
-              className="pl-10"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-
-          <div className="space-y-3">
-            {filteredPatients.map((patient) => (
-              <Card
-                key={patient.id}
-                className={`cursor-pointer hover:border-primary/50 transition-colors ${
-                  selectedPatient?.id === patient.id ? "border-primary" : ""
-                }`}
-                onClick={() => setSelectedPatient(patient)}
+      <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Filters</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-4 md:grid-cols-3">
+              <div className="relative md:col-span-2">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  className="pl-9"
+                  value={search}
+                  onChange={(event) => {
+                    setPage(1);
+                    setSearch(event.target.value);
+                  }}
+                  placeholder="Search patients"
+                />
+              </div>
+              <Select
+                value={condition}
+                onValueChange={(value) => {
+                  setPage(1);
+                  setCondition(value);
+                }}
               >
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-4">
-                    <Avatar className="h-12 w-12">
-                      <AvatarFallback className="bg-primary/10 text-primary">{patient.avatar}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold">{patient.name}</h3>
-                        <span className="text-sm text-muted-foreground">
-                          {patient.age} yrs, {patient.gender}
-                        </span>
+                <SelectTrigger>
+                  <SelectValue placeholder="Condition" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All conditions</SelectItem>
+                  <SelectItem value="stable">Stable</SelectItem>
+                  <SelectItem value="improving">Improving</SelectItem>
+                  <SelectItem value="critical">Critical</SelectItem>
+                </SelectContent>
+              </Select>
+            </CardContent>
+          </Card>
+
+          {patientsQuery.isLoading ? (
+            <div className="space-y-4">
+              <Skeleton className="h-28 w-full" />
+              <Skeleton className="h-28 w-full" />
+              <Skeleton className="h-28 w-full" />
+            </div>
+          ) : patientsQuery.isError ? (
+            <Alert variant="destructive">
+              <AlertTitle>Unable to load patients</AlertTitle>
+              <AlertDescription>{(patientsQuery.error as Error).message}</AlertDescription>
+            </Alert>
+          ) : patientsQuery.data?.data.length ? (
+            <>
+              <div className="space-y-4">
+                {patientsQuery.data.data.map((patient) => (
+                  <Card
+                    key={patient.id}
+                    className={`cursor-pointer transition-colors hover:border-primary/50 ${
+                      patient.id === selectedPatientId ? "border-primary" : ""
+                    }`}
+                    onClick={() => setSelectedPatientId(patient.id)}
+                  >
+                    <CardContent className="flex flex-col gap-4 p-5 md:flex-row md:items-center">
+                      <div className="flex items-center gap-4">
+                        <Avatar className="h-12 w-12">
+                          <AvatarImage src={patient.avatarUrl ?? undefined} alt={patient.fullName} />
+                          <AvatarFallback>{getInitials(patient.fullName)}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-semibold">{patient.fullName}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {[patient.age ? `${patient.age} yrs` : null, patient.gender]
+                              .filter(Boolean)
+                              .join(" - ") || "Profile details pending"}
+                          </p>
+                        </div>
                       </div>
-                      <p className="text-sm text-muted-foreground">{patient.diagnosis}</p>
-                      <p className="text-xs text-muted-foreground mt-1">Last visit: {patient.lastVisit}</p>
-                    </div>
-                    <Badge className={getConditionColor(patient.condition)}>{patient.condition}</Badge>
-                    <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+
+                      <div className="flex-1 space-y-1">
+                        <p className="text-sm font-medium">{patient.diagnosis || "Diagnosis not returned"}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Last visit: {formatDateTime(patient.lastVisitAt)}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Next appointment: {formatDateTime(patient.upcomingAppointmentAt)}
+                        </p>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge className={getConditionClassName(patient.condition)}>
+                          {patient.condition || "Unknown"}
+                        </Badge>
+                        <Button asChild variant="outline" onClick={(event) => event.stopPropagation()}>
+                          <Link to={`/doctor/patients/${patient.id}`}>Open summary</Link>
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              <div className="flex flex-col gap-3 rounded-lg border bg-card p-4 md:flex-row md:items-center md:justify-between">
+                <p className="text-sm text-muted-foreground">
+                  Page {patientsQuery.data.page} of {patientsQuery.data.totalPages} with{" "}
+                  {patientsQuery.data.total} total patients
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    disabled={!patientsQuery.data.hasPreviousPage}
+                    onClick={() => setPage((current) => Math.max(1, current - 1))}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    disabled={!patientsQuery.data.hasNextPage}
+                    onClick={() => setPage((current) => current + 1)}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <Card>
+              <CardContent className="flex flex-col items-center gap-3 p-8 text-center text-muted-foreground">
+                <Users className="h-10 w-10" />
+                <p>No patients matched your current filters.</p>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         <div>
-          {selectedPatient ? (
+          {summaryQuery.isLoading ? (
+            <Card>
+              <CardContent className="space-y-4 p-6">
+                <Skeleton className="h-16 w-16 rounded-full" />
+                <Skeleton className="h-5 w-40" />
+                <Skeleton className="h-24 w-full" />
+              </CardContent>
+            </Card>
+          ) : summaryQuery.isError ? (
+            <Alert variant="destructive">
+              <AlertTitle>Unable to load patient summary</AlertTitle>
+              <AlertDescription>{(summaryQuery.error as Error).message}</AlertDescription>
+            </Alert>
+          ) : summaryQuery.data ? (
             <Card>
               <CardHeader>
+                <CardTitle>Patient Summary</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-5">
                 <div className="flex items-center gap-4">
                   <Avatar className="h-16 w-16">
-                    <AvatarFallback className="bg-primary/10 text-primary text-xl">
-                      {selectedPatient.avatar}
-                    </AvatarFallback>
+                    <AvatarImage
+                      src={summaryQuery.data.avatarUrl ?? undefined}
+                      alt={summaryQuery.data.fullName}
+                    />
+                    <AvatarFallback>{getInitials(summaryQuery.data.fullName)}</AvatarFallback>
                   </Avatar>
                   <div>
-                    <CardTitle>{selectedPatient.name}</CardTitle>
+                    <p className="text-lg font-semibold">{summaryQuery.data.fullName}</p>
                     <p className="text-sm text-muted-foreground">
-                      {selectedPatient.age} years, {selectedPatient.gender}
+                      {[summaryQuery.data.age ? `${summaryQuery.data.age} yrs` : null, summaryQuery.data.gender]
+                        .filter(Boolean)
+                        .join(" - ")}
                     </p>
                   </div>
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
+
+                <div className="space-y-2 rounded-lg border bg-muted/20 p-4 text-sm">
+                  <p>Email: {summaryQuery.data.email || "Not available"}</p>
+                  <p>Phone: {summaryQuery.data.phone || "Not available"}</p>
+                  <p>Blood type: {summaryQuery.data.bloodType || "Not available"}</p>
+                  <p>Last visit: {formatDateTime(summaryQuery.data.lastVisitAt)}</p>
+                </div>
+
                 <div className="space-y-3">
-                  <div className="flex items-center gap-3 text-sm">
-                    <Phone className="h-4 w-4 text-muted-foreground" />
-                    <span>{selectedPatient.phone}</span>
+                  <div>
+                    <p className="text-sm font-medium">Allergies</p>
+                    <p className="text-sm text-muted-foreground">
+                      {summaryQuery.data.allergies.join(", ") || "No allergies returned"}
+                    </p>
                   </div>
-                  <div className="flex items-center gap-3 text-sm">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                    <span>{selectedPatient.email}</span>
+                  <div>
+                    <p className="text-sm font-medium">Chronic conditions</p>
+                    <p className="text-sm text-muted-foreground">
+                      {summaryQuery.data.chronicConditions.join(", ") || "No chronic conditions returned"}
+                    </p>
                   </div>
-                </div>
-
-                <div className="p-4 bg-muted/50 rounded-lg space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Diagnosis</span>
-                    <span className="font-medium">{selectedPatient.diagnosis}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Condition</span>
-                    <Badge className={getConditionColor(selectedPatient.condition)}>
-                      {selectedPatient.condition}
-                    </Badge>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Last Visit</span>
-                    <span className="font-medium">{selectedPatient.lastVisit}</span>
+                  <div>
+                    <p className="text-sm font-medium">Current medications</p>
+                    <p className="text-sm text-muted-foreground">
+                      {summaryQuery.data.currentMedications.join(", ") || "No current medications returned"}
+                    </p>
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Button className="w-full">View Full Record</Button>
-                  <Button variant="outline" className="w-full">
-                    <MessageSquare className="h-4 w-4 mr-2" />
-                    Send Message
-                  </Button>
-                  <Button variant="outline" className="w-full">
-                    <Calendar className="h-4 w-4 mr-2" />
-                    Schedule Appointment
-                  </Button>
-                </div>
+                <Button asChild className="w-full">
+                  <Link to={`/doctor/patients/${summaryQuery.data.id}`}>Open full summary</Link>
+                </Button>
               </CardContent>
             </Card>
           ) : (
             <Card className="bg-muted/30">
-              <CardContent className="p-8 text-center">
-                <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">Select a patient to view details</p>
+              <CardContent className="flex flex-col items-center gap-3 p-8 text-center text-muted-foreground">
+                <UserRound className="h-10 w-10" />
+                <p>Select a patient to load their summary.</p>
               </CardContent>
             </Card>
           )}
