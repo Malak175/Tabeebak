@@ -1,5 +1,6 @@
 export interface PatientDashboardSummary {
   patientId?: string;
+  name?: string;
   firstName?: string;
   lastName?: string;
   displayName?: string;

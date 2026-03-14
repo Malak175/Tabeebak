@@ -310,6 +310,7 @@ const normalizeDashboardSummary = (payload: unknown): PatientDashboardSummary =>
 
   return {
     patientId: pickString(raw, ["patientId", "id", "_id"]),
+    name: pickString(raw, ["name", "fullName", "full_name"]),
     firstName: pickString(raw, ["firstName", "first_name"]),
     lastName: pickString(raw, ["lastName", "last_name"]),
     displayName: pickString(raw, ["displayName", "display_name", "fullName", "full_name", "name"]),

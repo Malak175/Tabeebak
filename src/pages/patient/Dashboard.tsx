@@ -102,6 +102,7 @@ const PatientDashboard = () => {
 
   const summary = dashboardSummaryQuery.data;
   const userName = getDisplayName({
+    name: summary?.name ?? user?.name,
     displayName: summary?.displayName,
     firstName: summary?.firstName ?? user?.firstName,
     lastName: summary?.lastName ?? user?.lastName,
