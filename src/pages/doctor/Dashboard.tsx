@@ -4,31 +4,24 @@ import {
   Calendar,
   ChevronRight,
   Clock,
-  FileText,
-  HelpCircle,
-  Home,
-  Settings,
+  MessageSquareQuote,
   Star,
   Stethoscope,
   Users,
 } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import { doctorNavItems } from "@/components/settings/AccountSettingsContent";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useDoctorDashboardSummaryQuery } from "@/hooks/useDoctorProfile";
+import { useDoctorProfileQuery, useDoctorDashboardSummaryQuery } from "@/hooks/useDoctorProfile";
+import {
+  useDoctorReviewsSummaryQuery,
+  useDoctorTodayAppointmentsQuery,
+} from "@/hooks/useDoctorWorkflow";
 import { getDisplayName } from "@/lib/auth";
-
-const navItems = [
-  { title: "Dashboard", url: "/doctor/dashboard", icon: Home },
-  { title: "Appointments", url: "/doctor/appointments", icon: Calendar },
-  { title: "Patients", url: "/doctor/patients", icon: Users },
-  { title: "Schedule", url: "/doctor/schedule", icon: Clock },
-  { title: "Settings", url: "/doctor/settings", icon: Settings },
-  { title: "Help", url: "/doctor/help", icon: HelpCircle },
-];
 
 const statCards = (summary: ReturnType<typeof useDoctorDashboardSummaryQuery>["data"]) => [
   {
@@ -59,24 +52,39 @@ const statCards = (summary: ReturnType<typeof useDoctorDashboardSummaryQuery>["d
 
 const DoctorDashboard = () => {
   const summaryQuery = useDoctorDashboardSummaryQuery();
+  const profileQuery = useDoctorProfileQuery();
+  const todayQuery = useDoctorTodayAppointmentsQuery(
+    {
+      page: 1,
+      limit: 3,
+      sortBy: "scheduledAt",
+      sortOrder: "asc",
+    },
+    true,
+  );
+  const reviewsSummaryQuery = useDoctorReviewsSummaryQuery(true);
   const summary = summaryQuery.data;
-  const doctorName = getDisplayName(summary ?? {});
+  const doctorName = getDisplayName(profileQuery.data ?? summary ?? {});
   const userSubtitle = summary?.specialty ?? "Doctor account";
-  const firstName = summary?.firstName ?? doctorName.split(" ")[0] ?? "Doctor";
+  const firstName =
+    profileQuery.data?.firstName ??
+    summary?.firstName ??
+    doctorName.replace(/^Dr\.?\s*/i, "").split(" ")[0] ??
+    "Doctor";
 
   return (
     <DashboardLayout
       userRole="doctor"
       userName={doctorName}
       userSubtitle={userSubtitle}
-      navItems={navItems}
+      navItems={doctorNavItems}
       userIcon={Stethoscope}
     >
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="mb-2 text-2xl font-bold md:text-3xl">Welcome back, Dr. {firstName}</h1>
           <p className="text-muted-foreground">
-            Live dashboard data is now loaded from `/api/v1/doctors/me/dashboard-summary`.
+            Your appointments, patients, prescriptions, and reviews are now backed by doctor workflow APIs.
           </p>
         </div>
 
@@ -151,49 +159,51 @@ const DoctorDashboard = () => {
             <Card className="lg:col-span-2">
               <CardHeader className="flex flex-row items-start justify-between gap-4">
                 <div>
-                  <CardTitle>Doctor Snapshot</CardTitle>
+                  <CardTitle>Today&apos;s Queue</CardTitle>
                   <CardDescription>
-                    Core profile and scheduling indicators from the backend.
+                    Previewing the first live appointments from `/api/v1/doctors/me/appointments/today`.
                   </CardDescription>
                 </div>
-                <Link
-                  to="/doctor/settings"
-                  className="text-sm text-primary hover:underline"
-                >
-                  Edit profile
+                <Link to="/doctor/appointments" className="text-sm text-primary hover:underline">
+                  Open queue
                 </Link>
               </CardHeader>
-              <CardContent className="grid gap-4 md:grid-cols-2">
-                <div className="rounded-xl border bg-muted/30 p-4">
-                  <p className="text-sm text-muted-foreground">Specialty</p>
-                  <p className="text-lg font-semibold">
-                    {summary?.specialty ?? "Not added yet"}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {summary?.subspecialty ?? "No subspecialty provided"}
-                  </p>
-                </div>
-                <div className="rounded-xl border bg-muted/30 p-4">
-                  <p className="text-sm text-muted-foreground">Pending Requests</p>
-                  <p className="text-lg font-semibold">
-                    {summary?.pendingAppointmentRequestsCount ?? 0}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Appointment requests waiting for review
-                  </p>
-                </div>
-                <div className="rounded-xl border bg-muted/30 p-4">
-                  <p className="text-sm text-muted-foreground">Next Available Slot</p>
-                  <p className="text-lg font-semibold">
-                    {summary?.nextAvailableSlot ?? "Not available"}
-                  </p>
-                </div>
-                <div className="rounded-xl border bg-muted/30 p-4">
-                  <p className="text-sm text-muted-foreground">Profile Completion</p>
-                  <p className="text-lg font-semibold">
-                    {summary?.profileCompletionPercentage ?? 0}%
-                  </p>
-                </div>
+              <CardContent className="space-y-4">
+                {todayQuery.isLoading ? (
+                  <>
+                    <Skeleton className="h-20 w-full" />
+                    <Skeleton className="h-20 w-full" />
+                  </>
+                ) : todayQuery.isError ? (
+                  <Alert variant="destructive">
+                    <AlertTitle>Unable to load today&apos;s queue</AlertTitle>
+                    <AlertDescription>{(todayQuery.error as Error).message}</AlertDescription>
+                  </Alert>
+                ) : todayQuery.data?.data.length ? (
+                  todayQuery.data.data.map((appointment) => (
+                    <div
+                      key={appointment.id}
+                      className="flex flex-col gap-3 rounded-xl border p-4 md:flex-row md:items-center md:justify-between"
+                    >
+                      <div>
+                        <p className="font-semibold">{appointment.patientName}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {appointment.reason || appointment.complaint || "No visit reason returned"}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Badge variant="outline">{appointment.status}</Badge>
+                        <Link to={`/doctor/appointments/${appointment.id}`} className="text-sm text-primary hover:underline">
+                          View details
+                        </Link>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-xl border border-dashed p-6 text-sm text-muted-foreground">
+                    No appointments were returned for today&apos;s queue.
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -201,47 +211,76 @@ const DoctorDashboard = () => {
               <Card className="bg-gradient-to-br from-secondary/10 to-primary/5">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <FileText className="h-5 w-5" />
-                    Connected Areas
+                    <MessageSquareQuote className="h-5 w-5" />
+                    Reviews Snapshot
                   </CardTitle>
                   <CardDescription>
-                    These routes are now using live doctor profile APIs.
+                    Live ratings summary from the doctor reviews endpoints.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm">
-                  <div className="rounded-lg bg-background/70 p-3">
-                    Dashboard summary uses the doctor summary endpoint.
-                  </div>
-                  <div className="rounded-lg bg-background/70 p-3">
-                    Settings loads personal and professional profile data.
-                  </div>
-                  <div className="rounded-lg bg-background/70 p-3">
-                    Schedule is backed by doctor availability.
-                  </div>
+                  {reviewsSummaryQuery.isLoading ? (
+                    <>
+                      <Skeleton className="h-10 w-full" />
+                      <Skeleton className="h-10 w-full" />
+                    </>
+                  ) : reviewsSummaryQuery.isError ? (
+                    <p className="text-destructive">
+                      {(reviewsSummaryQuery.error as Error).message}
+                    </p>
+                  ) : (
+                    <>
+                      <div className="rounded-lg bg-background/70 p-3">
+                        Average rating: {reviewsSummaryQuery.data?.averageRating.toFixed(1) ?? "0.0"}
+                      </div>
+                      <div className="rounded-lg bg-background/70 p-3">
+                        Total reviews: {reviewsSummaryQuery.data?.totalReviews ?? 0}
+                      </div>
+                      <div className="rounded-lg bg-background/70 p-3">
+                        Recommendation rate:{" "}
+                        {reviewsSummaryQuery.data?.recommendationRate != null
+                          ? `${reviewsSummaryQuery.data.recommendationRate}%`
+                          : "N/A"}
+                      </div>
+                    </>
+                  )}
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Next Steps</CardTitle>
+                  <CardTitle>Quick Links</CardTitle>
                   <CardDescription>
-                    The detailed appointment and patient widgets still need their own backend
-                    endpoints in later phases.
+                    Jump directly into the new live doctor workflow pages.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <Link
-                    to="/doctor/schedule"
+                    to="/doctor/patients"
                     className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/40"
                   >
-                    <span className="font-medium">Manage availability</span>
+                    <span className="font-medium">Patients</span>
+                    <ChevronRight className="h-4 w-4" />
+                  </Link>
+                  <Link
+                    to="/doctor/prescriptions"
+                    className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/40"
+                  >
+                    <span className="font-medium">Prescriptions</span>
+                    <ChevronRight className="h-4 w-4" />
+                  </Link>
+                  <Link
+                    to="/doctor/reviews"
+                    className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/40"
+                  >
+                    <span className="font-medium">Reviews</span>
                     <ChevronRight className="h-4 w-4" />
                   </Link>
                   <Link
                     to="/doctor/settings"
                     className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/40"
                   >
-                    <span className="font-medium">Complete profile details</span>
+                    <span className="font-medium">Settings</span>
                     <ChevronRight className="h-4 w-4" />
                   </Link>
                 </CardContent>

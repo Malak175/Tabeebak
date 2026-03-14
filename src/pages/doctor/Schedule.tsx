@@ -1,16 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  Calendar,
-  Clock,
-  HelpCircle,
-  Home,
-  Save,
-  Settings,
-  Stethoscope,
-  Users,
-} from "lucide-react";
+import { Save, Stethoscope } from "lucide-react";
 import { toast } from "sonner";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import { doctorNavItems } from "@/components/settings/AccountSettingsContent";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,15 +22,6 @@ import {
   DoctorAvailabilityDay,
   UpdateDoctorAvailabilityRequest,
 } from "@/types/doctor-profile.types";
-
-const navItems = [
-  { title: "Dashboard", url: "/doctor/dashboard", icon: Home },
-  { title: "Appointments", url: "/doctor/appointments", icon: Calendar },
-  { title: "Patients", url: "/doctor/patients", icon: Users },
-  { title: "Schedule", url: "/doctor/schedule", icon: Clock },
-  { title: "Settings", url: "/doctor/settings", icon: Settings },
-  { title: "Help", url: "/doctor/help", icon: HelpCircle },
-];
 
 const weekDays = [
   "Monday",
@@ -169,7 +152,7 @@ const DoctorSchedule = () => {
       userRole="doctor"
       userName={doctorName}
       userSubtitle={doctorSubtitle}
-      navItems={navItems}
+      navItems={doctorNavItems}
       userIcon={Stethoscope}
     >
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">

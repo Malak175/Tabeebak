@@ -3,29 +3,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import { doctorNavItems } from "@/components/settings/AccountSettingsContent";
+import { useAuth } from "@/hooks/useAuth";
+import { getDisplayName } from "@/lib/auth";
 import {
-  Calendar,
-  Users,
-  Clock,
   Stethoscope,
-  Home,
-  Settings,
-  HelpCircle,
   Search,
   Phone,
   Mail,
   Book,
   Headphones,
 } from "lucide-react";
-
-const navItems = [
-  { title: "Dashboard", url: "/doctor/dashboard", icon: Home },
-  { title: "Appointments", url: "/doctor/appointments", icon: Calendar },
-  { title: "Patients", url: "/doctor/patients", icon: Users },
-  { title: "Schedule", url: "/doctor/schedule", icon: Clock },
-  { title: "Settings", url: "/doctor/settings", icon: Settings },
-  { title: "Help", url: "/doctor/help", icon: HelpCircle },
-];
 
 const faqs = [
   {
@@ -51,8 +39,9 @@ const faqs = [
 ];
 
 const DoctorHelp = () => {
-  const [doctor] = useState({ name: "Dr. Sarah Johnson", specialty: "Cardiologist" });
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
+  const doctorName = getDisplayName(user ?? {});
 
   const filteredFaqs = faqs.filter(
     (faq) =>
@@ -63,9 +52,9 @@ const DoctorHelp = () => {
   return (
     <DashboardLayout
       userRole="doctor"
-      userName={doctor.name}
-      userSubtitle={doctor.specialty}
-      navItems={navItems}
+      userName={doctorName}
+      userSubtitle="Doctor account"
+      navItems={doctorNavItems}
       userIcon={Stethoscope}
     >
       <div className="mb-6">
