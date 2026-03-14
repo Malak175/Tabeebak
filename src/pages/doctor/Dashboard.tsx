@@ -1,29 +1,25 @@
-import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import {
+  Activity,
   Calendar,
-  Users,
+  ChevronRight,
   Clock,
-  CheckCircle,
-  XCircle,
-  Stethoscope,
-  TrendingUp,
+  FileText,
+  HelpCircle,
   Home,
   Settings,
-  HelpCircle,
-  FileText,
-  MessageSquare,
-  Video,
   Star,
-  ChevronRight,
-  Activity,
-  UserPlus,
+  Stethoscope,
+  Users,
 } from "lucide-react";
+import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useDoctorDashboardSummaryQuery } from "@/hooks/useDoctorProfile";
+import { getDisplayName } from "@/lib/auth";
 
 const navItems = [
   { title: "Dashboard", url: "/doctor/dashboard", icon: Home },
@@ -34,332 +30,226 @@ const navItems = [
   { title: "Help", url: "/doctor/help", icon: HelpCircle },
 ];
 
-const todayAppointments = [
+const statCards = (summary: ReturnType<typeof useDoctorDashboardSummaryQuery>["data"]) => [
   {
-    id: 1,
-    patient: "Ahmed Ali",
-    age: 45,
-    time: "9:00 AM",
-    type: "Consultation",
-    status: "waiting",
-    avatar: "AA",
-    issue: "Chest pain",
+    label: "Today's Appointments",
+    value: summary?.totalAppointmentsToday ?? 0,
+    icon: Calendar,
+    description: "Appointments scheduled for today",
   },
   {
-    id: 2,
-    patient: "Fatima Hassan",
-    age: 32,
-    time: "10:30 AM",
-    type: "Follow-up",
-    status: "completed",
-    avatar: "FH",
-    issue: "Blood pressure check",
+    label: "Completed Today",
+    value: summary?.completedAppointmentsToday ?? 0,
+    icon: Activity,
+    description: "Visits already completed",
   },
   {
-    id: 3,
-    patient: "Mohammed Said",
-    age: 58,
-    time: "11:30 AM",
-    type: "Consultation",
-    status: "upcoming",
-    avatar: "MS",
-    issue: "Heart palpitations",
+    label: "Upcoming Today",
+    value: summary?.upcomingAppointmentsToday ?? 0,
+    icon: Clock,
+    description: "Still coming up today",
   },
   {
-    id: 4,
-    patient: "Sara Ahmed",
-    age: 28,
-    time: "2:00 PM",
-    type: "Check-up",
-    status: "upcoming",
-    avatar: "SA",
-    issue: "Annual checkup",
+    label: "Total Patients",
+    value: summary?.totalPatientsCount ?? 0,
+    icon: Users,
+    description: "Patients attached to your account",
   },
-  {
-    id: 5,
-    patient: "Omar Khan",
-    age: 52,
-    time: "3:30 PM",
-    type: "Follow-up",
-    status: "upcoming",
-    avatar: "OK",
-    issue: "Post-surgery review",
-  },
-];
-
-const appointmentRequests = [
-  {
-    id: 1,
-    name: "Layla Ahmed",
-    date: "Dec 12, 2024",
-    time: "3:00 PM",
-    type: "New Patient",
-    issue: "Heart screening",
-  },
-  {
-    id: 2,
-    name: "Hassan Ali",
-    date: "Dec 13, 2024",
-    time: "10:00 AM",
-    type: "Consultation",
-    issue: "Shortness of breath",
-  },
-  {
-    id: 3,
-    name: "Noor Mohammed",
-    date: "Dec 14, 2024",
-    time: "2:30 PM",
-    type: "Second Opinion",
-    issue: "ECG interpretation",
-  },
-];
-
-const recentPatients = [
-  { name: "Ahmed Ali", lastVisit: "Today", condition: "Stable", avatar: "AA" },
-  { name: "Fatima Hassan", lastVisit: "Today", condition: "Improving", avatar: "FH" },
-  { name: "Khalid Omar", lastVisit: "Yesterday", condition: "Critical", avatar: "KO" },
-  { name: "Maryam Said", lastVisit: "2 days ago", condition: "Stable", avatar: "MS" },
-];
-
-const stats = [
-  { label: "Today's Appointments", value: "8", icon: Calendar, change: "+2", trend: "up" },
-  { label: "Total Patients", value: "156", icon: Users, change: "+12", trend: "up" },
-  { label: "Completed Today", value: "3", icon: CheckCircle, change: null, trend: null },
-  { label: "Pending Reviews", value: "5", icon: Clock, change: "-2", trend: "down" },
 ];
 
 const DoctorDashboard = () => {
-  const [doctor] = useState({
-    name: "Dr. Sarah Johnson",
-    specialty: "Cardiologist",
-    rating: 4.8,
-    experience: "12 years",
-  });
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "completed":
-        return "bg-green-100 text-green-700";
-      case "waiting":
-        return "bg-yellow-100 text-yellow-700";
-      case "upcoming":
-        return "bg-muted text-muted-foreground";
-      default:
-        return "bg-muted text-muted-foreground";
-    }
-  };
-
-  const getConditionColor = (condition: string) => {
-    switch (condition) {
-      case "Stable":
-        return "text-green-600";
-      case "Improving":
-        return "text-blue-600";
-      case "Critical":
-        return "text-red-600";
-      default:
-        return "text-muted-foreground";
-    }
-  };
+  const summaryQuery = useDoctorDashboardSummaryQuery();
+  const summary = summaryQuery.data;
+  const doctorName = getDisplayName(summary ?? {});
+  const userSubtitle = summary?.specialty ?? "Doctor account";
+  const firstName = summary?.firstName ?? doctorName.split(" ")[0] ?? "Doctor";
 
   return (
     <DashboardLayout
       userRole="doctor"
-      userName={doctor.name}
-      userSubtitle={doctor.specialty}
+      userName={doctorName}
+      userSubtitle={userSubtitle}
       navItems={navItems}
       userIcon={Stethoscope}
     >
-      {/* Welcome Section */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+      <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold mb-2">
-            Good Morning, Dr. {doctor.name.split(" ")[1]}!
-          </h1>
+          <h1 className="mb-2 text-2xl font-bold md:text-3xl">Welcome back, Dr. {firstName}</h1>
           <p className="text-muted-foreground">
-            You have{" "}
-            {todayAppointments.filter((a) => a.status !== "completed").length}{" "}
-            appointments scheduled today
+            Live dashboard data is now loaded from `/api/v1/doctors/me/dashboard-summary`.
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1 text-sm">
-            <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-            <span className="font-medium">{doctor.rating}</span>
-            <span className="text-muted-foreground">rating</span>
-          </div>
-          <Badge variant="secondary">{doctor.experience} exp</Badge>
+
+        <div className="flex flex-wrap items-center gap-3">
+          {summary?.rating != null && (
+            <div className="flex items-center gap-1 text-sm">
+              <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+              <span className="font-medium">{summary.rating.toFixed(1)}</span>
+              <span className="text-muted-foreground">rating</span>
+            </div>
+          )}
+          {summary?.yearsOfExperience != null && (
+            <Badge variant="secondary">{summary.yearsOfExperience} years exp</Badge>
+          )}
+          {summary?.clinicName && <Badge variant="outline">{summary.clinicName}</Badge>}
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        {stats.map((stat) => (
-          <Card key={stat.label}>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <stat.icon className="h-5 w-5 text-primary" />
-                </div>
-                {stat.change && (
-                  <span
-                    className={`flex items-center text-sm font-medium ${
-                      stat.trend === "up" ? "text-green-600" : "text-red-600"
-                    }`}
-                  >
-                    <TrendingUp
-                      className={`h-3.5 w-3.5 mr-1 ${
-                        stat.trend === "down" ? "rotate-180" : ""
-                      }`}
-                    />
-                    {stat.change}
-                  </span>
-                )}
-              </div>
-              <div className="text-2xl font-bold">{stat.value}</div>
-              <div className="text-sm text-muted-foreground">{stat.label}</div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Today's Schedule - 2 columns */}
-        <div className="lg:col-span-2 space-y-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-lg">Today's Schedule</CardTitle>
-              <Link
-                to="/doctor/schedule"
-                className="text-primary text-sm hover:underline flex items-center gap-1"
-              >
-                Full Schedule <ChevronRight className="h-4 w-4" />
-              </Link>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {todayAppointments.map((apt) => (
-                  <div
-                    key={apt.id}
-                    className="flex items-center gap-4 p-4 bg-muted/50 rounded-xl hover:bg-muted transition-colors"
-                  >
-                    <div className="text-center min-w-[70px]">
-                      <div className="text-sm font-semibold">{apt.time}</div>
-                      <div className="text-xs text-muted-foreground">{apt.type}</div>
-                    </div>
-                    <Avatar className="h-10 w-10 bg-primary/10 text-primary">
-                      <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                        {apt.avatar}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-medium">{apt.patient}</h4>
-                        <span className="text-xs text-muted-foreground">
-                          {apt.age} yrs
-                        </span>
-                      </div>
-                      <p className="text-sm text-muted-foreground truncate">
-                        {apt.issue}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${getStatusColor(
-                          apt.status
-                        )}`}
-                      >
-                        {apt.status}
-                      </span>
-                      {apt.status === "waiting" && (
-                        <Button size="sm" variant="hero">
-                          Start
-                        </Button>
-                      )}
-                      {apt.status === "upcoming" && (
-                        <Button size="sm" variant="outline">
-                          View
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Recent Patients */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-lg">Recent Patients</CardTitle>
-              <Link
-                to="/doctor/patients"
-                className="text-primary text-sm hover:underline flex items-center gap-1"
-              >
-                All Patients <ChevronRight className="h-4 w-4" />
-              </Link>
-            </CardHeader>
-            <CardContent>
-              <div className="grid sm:grid-cols-2 gap-4">
-                {recentPatients.map((patient) => (
-                  <div
-                    key={patient.name}
-                    className="flex items-center gap-3 p-3 bg-muted/50 rounded-xl hover:bg-muted transition-colors cursor-pointer"
-                  >
-                    <Avatar className="h-10 w-10">
-                      <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                        {patient.avatar}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-medium text-sm truncate">
-                        {patient.name}
-                      </h4>
-                      <p className="text-xs text-muted-foreground">
-                        {patient.lastVisit}
-                      </p>
-                    </div>
-                    <span className={`text-xs font-medium ${getConditionColor(patient.condition)}`}>
-                      {patient.condition}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Sidebar - 1 column */}
+      {summaryQuery.isLoading ? (
         <div className="space-y-6">
-          {/* Today's Summary */}
-          <Card className="bg-gradient-to-br from-secondary/10 to-primary/5 border-secondary/20">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3 mb-4">
-                <Activity className="h-5 w-5 text-secondary" />
-                <h4 className="font-semibold">Today's Summary</h4>
-              </div>
-              <div className="grid grid-cols-2 gap-3 text-center">
-                <div className="p-2 bg-background/50 rounded-lg">
-                  <div className="text-xl font-bold text-green-600">3</div>
-                  <div className="text-xs text-muted-foreground">Completed</div>
-                </div>
-                <div className="p-2 bg-background/50 rounded-lg">
-                  <div className="text-xl font-bold text-yellow-600">1</div>
-                  <div className="text-xs text-muted-foreground">Waiting</div>
-                </div>
-                <div className="p-2 bg-background/50 rounded-lg">
-                  <div className="text-xl font-bold text-blue-600">4</div>
-                  <div className="text-xs text-muted-foreground">Upcoming</div>
-                </div>
-                <div className="p-2 bg-background/50 rounded-lg">
-                  <div className="text-xl font-bold text-primary">2h 30m</div>
-                  <div className="text-xs text-muted-foreground">Avg. Time</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <Card key={index}>
+                <CardContent className="space-y-3 p-4">
+                  <Skeleton className="h-10 w-10 rounded-xl" />
+                  <Skeleton className="h-8 w-16" />
+                  <Skeleton className="h-4 w-32" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <div className="grid gap-6 lg:grid-cols-3">
+            <Skeleton className="h-64 w-full lg:col-span-2" />
+            <Skeleton className="h-64 w-full" />
+          </div>
         </div>
-      </div>
+      ) : summaryQuery.isError ? (
+        <Alert variant="destructive">
+          <AlertTitle>Unable to load dashboard summary</AlertTitle>
+          <AlertDescription>
+            {(summaryQuery.error as Error).message}
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-3"
+              onClick={() => void summaryQuery.refetch()}
+            >
+              Retry
+            </Button>
+          </AlertDescription>
+        </Alert>
+      ) : (
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            {statCards(summary).map((stat) => (
+              <Card key={stat.label}>
+                <CardContent className="p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+                      <stat.icon className="h-5 w-5 text-primary" />
+                    </div>
+                  </div>
+                  <div className="text-2xl font-bold">{stat.value}</div>
+                  <div className="text-sm font-medium">{stat.label}</div>
+                  <div className="text-xs text-muted-foreground">{stat.description}</div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-3">
+            <Card className="lg:col-span-2">
+              <CardHeader className="flex flex-row items-start justify-between gap-4">
+                <div>
+                  <CardTitle>Doctor Snapshot</CardTitle>
+                  <CardDescription>
+                    Core profile and scheduling indicators from the backend.
+                  </CardDescription>
+                </div>
+                <Link
+                  to="/doctor/settings"
+                  className="text-sm text-primary hover:underline"
+                >
+                  Edit profile
+                </Link>
+              </CardHeader>
+              <CardContent className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-xl border bg-muted/30 p-4">
+                  <p className="text-sm text-muted-foreground">Specialty</p>
+                  <p className="text-lg font-semibold">
+                    {summary?.specialty ?? "Not added yet"}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {summary?.subspecialty ?? "No subspecialty provided"}
+                  </p>
+                </div>
+                <div className="rounded-xl border bg-muted/30 p-4">
+                  <p className="text-sm text-muted-foreground">Pending Requests</p>
+                  <p className="text-lg font-semibold">
+                    {summary?.pendingAppointmentRequestsCount ?? 0}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Appointment requests waiting for review
+                  </p>
+                </div>
+                <div className="rounded-xl border bg-muted/30 p-4">
+                  <p className="text-sm text-muted-foreground">Next Available Slot</p>
+                  <p className="text-lg font-semibold">
+                    {summary?.nextAvailableSlot ?? "Not available"}
+                  </p>
+                </div>
+                <div className="rounded-xl border bg-muted/30 p-4">
+                  <p className="text-sm text-muted-foreground">Profile Completion</p>
+                  <p className="text-lg font-semibold">
+                    {summary?.profileCompletionPercentage ?? 0}%
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="space-y-6">
+              <Card className="bg-gradient-to-br from-secondary/10 to-primary/5">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Connected Areas
+                  </CardTitle>
+                  <CardDescription>
+                    These routes are now using live doctor profile APIs.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3 text-sm">
+                  <div className="rounded-lg bg-background/70 p-3">
+                    Dashboard summary uses the doctor summary endpoint.
+                  </div>
+                  <div className="rounded-lg bg-background/70 p-3">
+                    Settings loads personal and professional profile data.
+                  </div>
+                  <div className="rounded-lg bg-background/70 p-3">
+                    Schedule is backed by doctor availability.
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Next Steps</CardTitle>
+                  <CardDescription>
+                    The detailed appointment and patient widgets still need their own backend
+                    endpoints in later phases.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Link
+                    to="/doctor/schedule"
+                    className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/40"
+                  >
+                    <span className="font-medium">Manage availability</span>
+                    <ChevronRight className="h-4 w-4" />
+                  </Link>
+                  <Link
+                    to="/doctor/settings"
+                    className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/40"
+                  >
+                    <span className="font-medium">Complete profile details</span>
+                    <ChevronRight className="h-4 w-4" />
+                  </Link>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 };
