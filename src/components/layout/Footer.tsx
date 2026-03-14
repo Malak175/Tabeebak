@@ -1,8 +1,14 @@
 import { Link } from "react-router-dom";
 import { Heart, Mail, Phone, MapPin } from "lucide-react";
 import logo from "@/assets/logo.png";
+import { useAuth } from "@/hooks/useAuth";
+import { getBookAppointmentRoute, getDoctorsRouteByRole } from "@/lib/auth";
 
 const Footer = () => {
+  const { user } = useAuth();
+  const doctorsRoute = getDoctorsRouteByRole(user?.role);
+  const bookAppointmentRoute = getBookAppointmentRoute(user?.role);
+
   return (
     <footer className="bg-slate-900 dark:bg-slate-950 text-white">
       <div className="container mx-auto px-4 py-16">
@@ -27,9 +33,9 @@ const Footer = () => {
             <h4 className="font-semibold mb-4 text-lg">Quick Links</h4>
             <ul className="space-y-3">
               {[
-                { name: "Find Doctors", href: "/doctors" },
+                { name: "Find Doctors", href: doctorsRoute },
                 { name: "Lab Services", href: "/lab-services" },
-                { name: "Book Appointment", href: "/doctors" },
+                { name: "Book Appointment", href: bookAppointmentRoute },
                 { name: "About Us", href: "/about" },
               ].map((link) => (
                 <li key={link.name}>

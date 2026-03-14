@@ -4,13 +4,18 @@ import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import logo from "@/assets/logo.png";
+import { useAuth } from "@/hooks/useAuth";
+import { getDoctorsRouteByRole, routeByRole } from "@/lib/auth";
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const { user, isAuthenticated } = useAuth();
+  const doctorsRoute = getDoctorsRouteByRole(user?.role);
+  const primaryAuthRoute = user ? routeByRole(user.role) : "/login";
 
   const navLinks = [
     { name: "Home", href: "/" },
-    { name: "Find Doctors", href: "/doctors" },
+    { name: "Find Doctors", href: doctorsRoute },
     { name: "Lab Services", href: "/lab-services" },
     { name: "About", href: "/about" },
     { name: "Contact", href: "/contact" },
@@ -48,14 +53,14 @@ const Navbar = () => {
           {/* Auth Buttons & Theme Toggle */}
           <div className="hidden lg:flex items-center gap-3">
             <ThemeToggle />
-            <Link to="/login">
+            <Link to={primaryAuthRoute}>
               <Button variant="ghost" size="sm">
-                Login
+                {isAuthenticated ? "Dashboard" : "Login"}
               </Button>
             </Link>
-            <Link to="/register">
+            <Link to={isAuthenticated ? primaryAuthRoute : "/register"}>
               <Button variant="hero" size="sm">
-                Register
+                {isAuthenticated ? "Open App" : "Register"}
               </Button>
             </Link>
           </div>
@@ -89,14 +94,14 @@ const Navbar = () => {
               ))}
               <div className="flex items-center gap-3 pt-4 border-t border-border">
                 <ThemeToggle />
-                <Link to="/login" className="flex-1">
+                <Link to={primaryAuthRoute} className="flex-1">
                   <Button variant="outline" className="w-full">
-                    Login
+                    {isAuthenticated ? "Dashboard" : "Login"}
                   </Button>
                 </Link>
-                <Link to="/register" className="flex-1">
+                <Link to={isAuthenticated ? primaryAuthRoute : "/register"} className="flex-1">
                   <Button variant="hero" className="w-full">
-                    Register
+                    {isAuthenticated ? "Open App" : "Register"}
                   </Button>
                 </Link>
               </div>

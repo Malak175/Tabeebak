@@ -158,7 +158,7 @@ const PatientAppointments = () => {
           </p>
         </div>
         <Button asChild className="gap-2">
-          <Link to="/doctors">
+          <Link to="/patient/doctors">
             <Plus className="h-4 w-4" />
             Book Appointment
           </Link>

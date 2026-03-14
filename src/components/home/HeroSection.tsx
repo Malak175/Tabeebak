@@ -1,8 +1,14 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Search, Calendar, Heart } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { getBookAppointmentRoute, getDoctorsRouteByRole } from "@/lib/auth";
 
 const HeroSection = () => {
+  const { user } = useAuth();
+  const doctorsRoute = getDoctorsRouteByRole(user?.role);
+  const bookAppointmentRoute = getBookAppointmentRoute(user?.role);
+
   return (
     <section className="relative min-h-[85vh] flex items-center pt-20 overflow-hidden">
       {/* Diagonal Red Background */}
@@ -25,13 +31,13 @@ const HeroSection = () => {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 pt-4">
-              <Link to="/doctors">
+              <Link to={doctorsRoute}>
                 <Button variant="white" size="lg" className="w-full sm:w-auto gap-2">
                   <Search className="h-4 w-4" />
                   Find a Doctor
                 </Button>
               </Link>
-              <Link to="/register">
+              <Link to={bookAppointmentRoute}>
                 <Button variant="outline" size="lg" className="w-full sm:w-auto gap-2 border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10">
                   <Calendar className="h-4 w-4" />
                   Book Appointment

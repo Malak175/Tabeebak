@@ -1,8 +1,14 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Heart } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { getDoctorsRouteByRole, routeByRole } from "@/lib/auth";
 
 const CTASection = () => {
+  const { user } = useAuth();
+  const doctorsRoute = getDoctorsRouteByRole(user?.role);
+  const startRoute = user ? routeByRole(user.role) : "/register";
+
   return (
     <section className="py-20 bg-muted/30">
       <div className="container mx-auto px-4">
@@ -21,13 +27,13 @@ const CTASection = () => {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
-              <Link to="/register">
+              <Link to={startRoute}>
                 <Button variant="white" size="lg" className="w-full sm:w-auto gap-2">
-                  Get Started
+                  {user ? "Open App" : "Get Started"}
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
-              <Link to="/doctors">
+              <Link to={doctorsRoute}>
                 <Button 
                   variant="outline" 
                   size="lg" 

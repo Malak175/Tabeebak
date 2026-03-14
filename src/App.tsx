@@ -16,6 +16,7 @@ import LabServices from "./pages/LabServices";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
 import PatientDashboard from "./pages/patient/Dashboard";
+import PatientDoctors from "./pages/patient/Doctors";
 import PatientAppointments from "./pages/patient/Appointments";
 import PatientAppointmentDetails from "./pages/patient/AppointmentDetails";
 import PatientLabResults from "./pages/patient/LabResults";
@@ -66,6 +67,7 @@ const App = () => (
               
               {/* Patient Routes */}
               <Route path="/patient/dashboard" element={<ProtectedRoute allowedRoles={["Patient"]}><PatientDashboard /></ProtectedRoute>} />
+              <Route path="/patient/doctors" element={<ProtectedRoute allowedRoles={["Patient"]}><PatientDoctors /></ProtectedRoute>} />
               <Route path="/patient/appointments" element={<ProtectedRoute allowedRoles={["Patient"]}><PatientAppointments /></ProtectedRoute>} />
               <Route path="/patient/appointments/:appointmentId" element={<ProtectedRoute allowedRoles={["Patient"]}><PatientAppointmentDetails /></ProtectedRoute>} />
               <Route path="/patient/prescriptions" element={<ProtectedRoute allowedRoles={["Patient"]}><PatientPrescriptions /></ProtectedRoute>} />

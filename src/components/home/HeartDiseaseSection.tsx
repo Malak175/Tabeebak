@@ -2,6 +2,8 @@ import { Heart, AlertCircle, Activity, Utensils, Dumbbell, Cigarette, Stethoscop
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { getDoctorsRouteByRole } from "@/lib/auth";
 
 const keyTakeaways = [
   "Heart disease is a group of conditions that includes coronary heart disease, arrhythmias, heart failure and valve disease.",
@@ -56,6 +58,9 @@ const heartConditions = [
 ];
 
 const HeartDiseaseSection = () => {
+  const { user } = useAuth();
+  const doctorsRoute = getDoctorsRouteByRole(user?.role);
+
   return (
     <section className="py-20 bg-background">
       <div className="container mx-auto px-4">
@@ -144,7 +149,7 @@ const HeartDiseaseSection = () => {
             ))}
           </div>
           <div className="text-center mt-10">
-            <Link to="/doctors">
+            <Link to={doctorsRoute}>
               <Button variant="hero" size="lg">
                 Find a Heart Specialist
               </Button>

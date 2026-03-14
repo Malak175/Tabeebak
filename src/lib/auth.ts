@@ -48,3 +48,19 @@ export const routeByRole = (role: UserRole): string => {
       return "/";
   }
 };
+
+export const getDoctorsRouteByRole = (role?: UserRole | null): string => {
+  if (role === "Patient") {
+    return "/patient/doctors";
+  }
+
+  return "/doctors";
+};
+
+export const getBookAppointmentRoute = (role?: UserRole | null): string => {
+  if (role === "Patient") {
+    return "/patient/doctors";
+  }
+
+  return "/register";
+};
