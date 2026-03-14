@@ -1,130 +1,385 @@
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { Input } from "@/components/ui/input";
+import { useMemo, useState } from "react";
+import { format, isValid, parseISO } from "date-fns";
+import { Clock, Eye, FlaskConical, MapPinned, Search } from "lucide-react";
+import { Link } from "react-router-dom";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import { labNavItems } from "@/components/settings/AccountSettingsContent";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  FlaskConical,
-  Clock,
-  CheckCircle,
-  Home,
-  Settings,
-  HelpCircle,
-  Search,
-  Upload,
-  Eye,
-} from "lucide-react";
+  usePendingLabOrdersQuery,
+  useSampleCollectionRequestsQuery,
+} from "@/hooks/useLabWorkflow";
+import { useLabProfileQuery } from "@/hooks/useLabProfile";
+import { useAuth } from "@/hooks/useAuth";
+import { getDisplayName } from "@/lib/auth";
 
-const navItems = [
-  { title: "Dashboard", url: "/lab/dashboard", icon: Home },
-  { title: "Pending Tests", url: "/lab/pending", icon: Clock },
-  { title: "Completed", url: "/lab/completed", icon: CheckCircle },
-  { title: "Settings", url: "/lab/settings", icon: Settings },
-  { title: "Help", url: "/lab/help", icon: HelpCircle },
-];
+const formatDateTime = (value?: string | null) => {
+  if (!value) return "Not available";
 
-const pendingTests = [
-  { id: 1, patient: "Ahmed Ali", test: "Complete Blood Count", doctor: "Dr. Sarah Johnson", date: "Dec 10, 2024", priority: "urgent", sampleId: "SMP-001234", progress: 75 },
-  { id: 2, patient: "Fatima Hassan", test: "Lipid Profile", doctor: "Dr. Michael Chen", date: "Dec 10, 2024", priority: "urgent", sampleId: "SMP-001235", progress: 40 },
-  { id: 3, patient: "Mohammed Said", test: "Thyroid Function", doctor: "Dr. Emily Williams", date: "Dec 9, 2024", priority: "normal", sampleId: "SMP-001236", progress: 90 },
-  { id: 4, patient: "Sara Ahmed", test: "HbA1c", doctor: "Dr. Sarah Johnson", date: "Dec 9, 2024", priority: "normal", sampleId: "SMP-001237", progress: 20 },
-  { id: 5, patient: "Omar Khan", test: "Liver Function Test", doctor: "Dr. Michael Chen", date: "Dec 9, 2024", priority: "normal", sampleId: "SMP-001238", progress: 60 },
-  { id: 6, patient: "Layla Mahmoud", test: "Kidney Function", doctor: "Dr. Emily Williams", date: "Dec 8, 2024", priority: "urgent", sampleId: "SMP-001239", progress: 85 },
-];
+  const parsed = parseISO(value);
+  if (!isValid(parsed)) return value;
+
+  return format(parsed, "PPP p");
+};
+
+const getStatusClassName = (status?: string | null) => {
+  switch ((status ?? "").toLowerCase()) {
+    case "completed":
+    case "ready":
+    case "reported":
+      return "bg-green-100 text-green-700 border-green-200";
+    case "processing":
+    case "in_progress":
+    case "in-progress":
+      return "bg-blue-100 text-blue-700 border-blue-200";
+    case "requested":
+    case "pending":
+    case "sample_collected":
+    case "sample-collected":
+      return "bg-yellow-100 text-yellow-700 border-yellow-200";
+    case "cancelled":
+    case "canceled":
+      return "bg-red-100 text-red-700 border-red-200";
+    default:
+      return "bg-muted text-muted-foreground border-border";
+  }
+};
+
+const OrdersSkeleton = () => (
+  <div className="space-y-4">
+    {Array.from({ length: 3 }).map((_, index) => (
+      <Card key={index}>
+        <CardContent className="space-y-3 p-6">
+          <Skeleton className="h-5 w-48" />
+          <Skeleton className="h-4 w-64" />
+          <Skeleton className="h-4 w-40" />
+        </CardContent>
+      </Card>
+    ))}
+  </div>
+);
 
 const LabPending = () => {
-  const [lab] = useState({ name: "MedLab Diagnostics", certification: "NABL Certified" });
-  const [searchQuery, setSearchQuery] = useState("");
+  const { user } = useAuth();
+  const profileQuery = useLabProfileQuery(Boolean(user));
+  const [activeTab, setActiveTab] = useState("orders");
+  const [ordersPage, setOrdersPage] = useState(1);
+  const [collectionsPage, setCollectionsPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("all");
+  const [priority, setPriority] = useState("all");
 
-  const filteredTests = pendingTests.filter(test =>
-    test.patient.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    test.sampleId.toLowerCase().includes(searchQuery.toLowerCase())
+  const enabled = Boolean(user);
+  const userName = getDisplayName(profileQuery.data ?? user ?? {});
+
+  const orderFilters = useMemo(
+    () => ({
+      page: ordersPage,
+      limit: 6,
+      search,
+      status: status === "all" ? undefined : status,
+      priority: priority === "all" ? undefined : priority,
+      sortBy: "orderedAt",
+      sortOrder: "desc" as const,
+    }),
+    [ordersPage, priority, search, status],
   );
+
+  const sampleCollectionFilters = useMemo(
+    () => ({
+      page: collectionsPage,
+      limit: 6,
+      search,
+      status: status === "all" ? undefined : status,
+      priority: priority === "all" ? undefined : priority,
+      sortBy: "requestedAt",
+      sortOrder: "desc" as const,
+    }),
+    [collectionsPage, priority, search, status],
+  );
+
+  const pendingOrdersQuery = usePendingLabOrdersQuery(orderFilters, enabled);
+  const sampleRequestsQuery = useSampleCollectionRequestsQuery(sampleCollectionFilters, enabled);
 
   return (
     <DashboardLayout
       userRole="laboratory"
-      userName={lab.name}
-      userSubtitle={lab.certification}
-      navItems={navItems}
+      userName={userName}
+      userSubtitle={profileQuery.data?.accreditation ?? "Laboratory account"}
+      navItems={labNavItems}
       userIcon={FlaskConical}
     >
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+      <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold mb-2">Pending Tests</h1>
-          <p className="text-muted-foreground">Manage and process pending laboratory tests</p>
+          <h1 className="mb-2 text-2xl font-bold md:text-3xl">Pending Lab Workflow</h1>
+          <p className="text-muted-foreground">
+            Review pending orders and home sample collection requests from the live lab endpoints.
+          </p>
         </div>
-        <div className="flex items-center gap-4">
-          <Badge variant="outline" className="text-red-600 border-red-200">
-            {pendingTests.filter(t => t.priority === "urgent").length} Urgent
+        <div className="flex flex-wrap items-center gap-3">
+          <Badge variant="outline">
+            {pendingOrdersQuery.data?.total ?? 0} pending orders
           </Badge>
           <Badge variant="outline">
-            {pendingTests.length} Total Pending
+            {sampleRequestsQuery.data?.total ?? 0} sample requests
           </Badge>
         </div>
       </div>
 
-      <div className="mb-6">
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-          <Input
-            placeholder="Search by patient or sample ID..."
-            className="pl-10"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-      </div>
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="text-lg">Filters</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              className="pl-9"
+              value={search}
+              onChange={(event) => {
+                setOrdersPage(1);
+                setCollectionsPage(1);
+                setSearch(event.target.value);
+              }}
+              placeholder="Search patient, order, sample"
+            />
+          </div>
+          <Select
+            value={status}
+            onValueChange={(value) => {
+              setOrdersPage(1);
+              setCollectionsPage(1);
+              setStatus(value);
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All statuses</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="requested">Requested</SelectItem>
+              <SelectItem value="processing">Processing</SelectItem>
+              <SelectItem value="sample_collected">Sample collected</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select
+            value={priority}
+            onValueChange={(value) => {
+              setOrdersPage(1);
+              setCollectionsPage(1);
+              setPriority(value);
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Priority" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All priorities</SelectItem>
+              <SelectItem value="urgent">Urgent</SelectItem>
+              <SelectItem value="high">High</SelectItem>
+              <SelectItem value="normal">Normal</SelectItem>
+              <SelectItem value="routine">Routine</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setOrdersPage(1);
+              setCollectionsPage(1);
+              setSearch("");
+              setStatus("all");
+              setPriority("all");
+            }}
+          >
+            Clear filters
+          </Button>
+        </CardContent>
+      </Card>
 
-      <div className="space-y-4">
-        {filteredTests.map((test) => (
-          <Card key={test.id}>
-            <CardContent className="p-6">
-              <div className="flex flex-col md:flex-row md:items-center gap-4">
-                <Avatar className="h-12 w-12">
-                  <AvatarFallback className="bg-primary/10 text-primary">
-                    {test.patient.split(" ").map(n => n[0]).join("")}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <h3 className="font-semibold">{test.patient}</h3>
-                    {test.priority === "urgent" && (
-                      <Badge variant="destructive">Urgent</Badge>
-                    )}
-                  </div>
-                  <p className="font-medium text-primary">{test.test}</p>
-                  <div className="flex flex-wrap gap-4 mt-2 text-sm text-muted-foreground">
-                    <span>Sample: {test.sampleId}</span>
-                    <span>{test.doctor}</span>
-                    <span>{test.date}</span>
-                  </div>
-                </div>
-                <div className="w-full md:w-48">
-                  <div className="flex items-center justify-between text-sm mb-2">
-                    <span className="text-muted-foreground">Progress</span>
-                    <span className="font-medium">{test.progress}%</span>
-                  </div>
-                  <Progress value={test.progress} className="h-2" />
-                </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="orders">Pending Orders</TabsTrigger>
+          <TabsTrigger value="samples">Sample Collection</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="orders" className="space-y-6">
+          {pendingOrdersQuery.isLoading ? (
+            <OrdersSkeleton />
+          ) : pendingOrdersQuery.isError ? (
+            <Alert variant="destructive">
+              <AlertTitle>Unable to load pending orders</AlertTitle>
+              <AlertDescription>
+                {(pendingOrdersQuery.error as Error).message}
+              </AlertDescription>
+            </Alert>
+          ) : pendingOrdersQuery.data?.data.length ? (
+            <>
+              <div className="space-y-4">
+                {pendingOrdersQuery.data.data.map((order) => (
+                  <Card key={order.id}>
+                    <CardContent className="flex flex-col gap-4 p-6 lg:flex-row lg:items-center">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                        <Clock className="h-5 w-5" />
+                      </div>
+
+                      <div className="flex-1 space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="text-lg font-semibold">{order.patientName}</h3>
+                          <Badge className={getStatusClassName(order.status)}>{order.status}</Badge>
+                          {order.priority ? <Badge variant="outline">{order.priority}</Badge> : null}
+                        </div>
+                        <p className="font-medium text-primary">{order.testName}</p>
+                        <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                          <span>Order: {order.orderNumber || order.id}</span>
+                          <span>Sample: {order.sampleId || "Pending assignment"}</span>
+                          <span>Doctor: {order.orderingDoctorName || "Not available"}</span>
+                        </div>
+                        <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                          <span>Ordered {formatDateTime(order.orderedAt)}</span>
+                          <span>Collected {formatDateTime(order.collectedAt)}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        <Button asChild variant="outline">
+                          <Link to={`/lab/orders/${order.id}`}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            Details
+                          </Link>
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              <div className="flex flex-col gap-3 rounded-lg border bg-card p-4 md:flex-row md:items-center md:justify-between">
+                <p className="text-sm text-muted-foreground">
+                  Page {pendingOrdersQuery.data.page} of {pendingOrdersQuery.data.totalPages} with{" "}
+                  {pendingOrdersQuery.data.total} pending orders
+                </p>
                 <div className="flex gap-2">
-                  <Button variant="hero" size="sm">
-                    <Upload className="h-4 w-4 mr-2" />
-                    Upload Result
+                  <Button
+                    variant="outline"
+                    disabled={!pendingOrdersQuery.data.hasPreviousPage}
+                    onClick={() => setOrdersPage((current) => Math.max(1, current - 1))}
+                  >
+                    Previous
                   </Button>
-                  <Button variant="outline" size="sm">
-                    <Eye className="h-4 w-4 mr-2" />
-                    Details
+                  <Button
+                    variant="outline"
+                    disabled={!pendingOrdersQuery.data.hasNextPage}
+                    onClick={() => setOrdersPage((current) => current + 1)}
+                  >
+                    Next
                   </Button>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+            </>
+          ) : (
+            <Card>
+              <CardContent className="p-8 text-center text-muted-foreground">
+                No pending orders matched the current filters.
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="samples" className="space-y-6">
+          {sampleRequestsQuery.isLoading ? (
+            <OrdersSkeleton />
+          ) : sampleRequestsQuery.isError ? (
+            <Alert variant="destructive">
+              <AlertTitle>Unable to load sample collection requests</AlertTitle>
+              <AlertDescription>
+                {(sampleRequestsQuery.error as Error).message}
+              </AlertDescription>
+            </Alert>
+          ) : sampleRequestsQuery.data?.data.length ? (
+            <>
+              <div className="space-y-4">
+                {sampleRequestsQuery.data.data.map((request) => (
+                  <Card key={request.id}>
+                    <CardContent className="flex flex-col gap-4 p-6 lg:flex-row lg:items-center">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                        <MapPinned className="h-5 w-5" />
+                      </div>
+
+                      <div className="flex-1 space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="text-lg font-semibold">{request.patientName}</h3>
+                          <Badge className={getStatusClassName(request.status)}>{request.status}</Badge>
+                          {request.priority ? <Badge variant="outline">{request.priority}</Badge> : null}
+                        </div>
+                        <p className="font-medium text-primary">{request.testName}</p>
+                        <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                          <span>Order: {request.orderNumber || request.orderId || "Not available"}</span>
+                          <span>Phone: {request.patientPhone || "Not available"}</span>
+                        </div>
+                        <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                          <span>Requested {formatDateTime(request.requestedAt)}</span>
+                          <span>Scheduled {formatDateTime(request.scheduledAt)}</span>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {request.address || "No collection address was returned yet."}
+                        </p>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        {request.orderId ? (
+                          <Button asChild variant="outline">
+                            <Link to={`/lab/orders/${request.orderId}`}>
+                              <Eye className="mr-2 h-4 w-4" />
+                              Order
+                            </Link>
+                          </Button>
+                        ) : null}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              <div className="flex flex-col gap-3 rounded-lg border bg-card p-4 md:flex-row md:items-center md:justify-between">
+                <p className="text-sm text-muted-foreground">
+                  Page {sampleRequestsQuery.data.page} of {sampleRequestsQuery.data.totalPages} with{" "}
+                  {sampleRequestsQuery.data.total} collection requests
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    disabled={!sampleRequestsQuery.data.hasPreviousPage}
+                    onClick={() => setCollectionsPage((current) => Math.max(1, current - 1))}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    disabled={!sampleRequestsQuery.data.hasNextPage}
+                    onClick={() => setCollectionsPage((current) => current + 1)}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <Card>
+              <CardContent className="p-8 text-center text-muted-foreground">
+                No sample collection requests matched the current filters.
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
     </DashboardLayout>
   );
 };
