@@ -27,7 +27,11 @@ import PatientSettings from "./pages/patient/PatientSettings";
 import PatientHelp from "./pages/patient/Help";
 import DoctorDashboard from "./pages/doctor/Dashboard";
 import DoctorAppointments from "./pages/doctor/Appointments";
+import DoctorAppointmentDetails from "./pages/doctor/AppointmentDetails";
 import DoctorPatients from "./pages/doctor/Patients";
+import DoctorPatientSummary from "./pages/doctor/PatientSummary";
+import DoctorPrescriptions from "./pages/doctor/Prescriptions";
+import DoctorReviews from "./pages/doctor/Reviews";
 import DoctorSchedule from "./pages/doctor/Schedule";
 import DoctorSettings from "./pages/doctor/DoctorSettings";
 import DoctorHelp from "./pages/doctor/Help";
@@ -74,7 +78,11 @@ const App = () => (
               {/* Doctor Routes */}
               <Route path="/doctor/dashboard" element={<ProtectedRoute allowedRoles={["Doctor"]}><DoctorDashboard /></ProtectedRoute>} />
               <Route path="/doctor/appointments" element={<ProtectedRoute allowedRoles={["Doctor"]}><DoctorAppointments /></ProtectedRoute>} />
+              <Route path="/doctor/appointments/:appointmentId" element={<ProtectedRoute allowedRoles={["Doctor"]}><DoctorAppointmentDetails /></ProtectedRoute>} />
               <Route path="/doctor/patients" element={<ProtectedRoute allowedRoles={["Doctor"]}><DoctorPatients /></ProtectedRoute>} />
+              <Route path="/doctor/patients/:patientId" element={<ProtectedRoute allowedRoles={["Doctor"]}><DoctorPatientSummary /></ProtectedRoute>} />
+              <Route path="/doctor/prescriptions" element={<ProtectedRoute allowedRoles={["Doctor"]}><DoctorPrescriptions /></ProtectedRoute>} />
+              <Route path="/doctor/reviews" element={<ProtectedRoute allowedRoles={["Doctor"]}><DoctorReviews /></ProtectedRoute>} />
               <Route path="/doctor/schedule" element={<ProtectedRoute allowedRoles={["Doctor"]}><DoctorSchedule /></ProtectedRoute>} />
               <Route path="/doctor/settings" element={<ProtectedRoute allowedRoles={["Doctor"]}><DoctorSettings /></ProtectedRoute>} />
               <Route path="/doctor/help" element={<ProtectedRoute allowedRoles={["Doctor"]}><DoctorHelp /></ProtectedRoute>} />

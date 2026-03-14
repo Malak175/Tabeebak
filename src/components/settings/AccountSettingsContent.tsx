@@ -192,6 +192,8 @@ export const doctorNavItems = [
   { title: "Dashboard", url: "/doctor/dashboard", icon: Home },
   { title: "Appointments", url: "/doctor/appointments", icon: Calendar },
   { title: "Patients", url: "/doctor/patients", icon: Users },
+  { title: "Prescriptions", url: "/doctor/prescriptions", icon: ClipboardList },
+  { title: "Reviews", url: "/doctor/reviews", icon: Bell },
   { title: "Schedule", url: "/doctor/schedule", icon: Clock },
   { title: "Settings", url: "/doctor/settings", icon: Settings },
   { title: "Help", url: "/doctor/help", icon: HelpCircle },
