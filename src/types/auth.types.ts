@@ -1,16 +1,6 @@
-export type UserRole = "Patient" | "Doctor" | "Lab" | "Admin";
+import type { MeResponse } from "@/types/me.types";
 
-export interface AuthUser {
-  id: string;
-  firstName?: string;
-  lastName?: string;
-  name?: string;
-  email: string;
-  role: UserRole;
-  phone?: string;
-  dateOfBirth?: string;
-  gender?: string;
-}
+export type UserRole = "Patient" | "Doctor" | "Lab" | "Admin";
 
 export interface RegisterPayload {
   firstName: string;
@@ -26,15 +16,6 @@ export interface RegisterPayload {
 export interface LoginPayload {
   email: string;
   password: string;
-}
-
-export interface UpdateProfilePayload {
-  firstName?: string;
-  lastName?: string;
-  name?: string;
-  phone?: string;
-  dateOfBirth?: string;
-  gender?: string;
 }
 
 export interface ChangePasswordPayload {
@@ -53,10 +34,10 @@ export interface ResetPasswordPayload {
 
 export interface AuthResponse {
   token: string;
-  user: AuthUser;
+  user?: MeResponse | null;
 }
 
 export interface AuthStorage {
   token: string;
-  user: AuthUser;
+  user?: MeResponse | null;
 }

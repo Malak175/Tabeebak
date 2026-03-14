@@ -1,17 +1,27 @@
-import { createContext, ReactNode, useContext, useMemo, useState } from "react";
+import {
+  createContext,
+  ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { authService } from "@/services/auth.service";
+import { meService } from "@/services/me.service";
 import {
   AuthResponse,
-  AuthUser,
-  ChangePasswordPayload,
   ForgotPasswordPayload,
   LoginPayload,
   RegisterPayload,
   ResetPasswordPayload,
-  UpdateProfilePayload,
   UserRole,
 } from "@/types/auth.types";
+import { ApiError } from "@/types/api.types";
+import { MeResponse } from "@/types/me.types";
+import { myAccountQueryKeys } from "@/hooks/useMyAccount";
 
 const IS_DEV = import.meta.env.DEV;
 
@@ -27,52 +37,169 @@ const debugError = (tag: string, payload: unknown) => {
 
 interface AuthContextValue {
   token: string | null;
-  user: AuthUser | null;
+  user: MeResponse | null;
+  hasToken: boolean;
   isAuthenticated: boolean;
-  setAuth: (data: AuthResponse) => void;
-  updateUser: (user: AuthUser) => void;
+  isBootstrappingAuth: boolean;
+  authBootstrapError: ApiError | Error | null;
+  setSession: (data: AuthResponse) => Promise<MeResponse>;
+  bootstrapAuth: () => Promise<MeResponse | null>;
+  setBootstrappedUser: (user: MeResponse | null) => void;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+export const authQueryKeys = {
+  all: ["auth"] as const,
+  bootstrap: () => ["auth", "bootstrap"] as const,
+};
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const queryClient = useQueryClient();
   const persisted = authService.loadAuth();
   const [token, setToken] = useState<string | null>(persisted?.token ?? null);
-  const [user, setUser] = useState<AuthUser | null>(persisted?.user ?? null);
+  const [user, setUser] = useState<MeResponse | null>(persisted?.user ?? null);
+  const [isBootstrappingAuth, setIsBootstrappingAuth] = useState(Boolean(persisted?.token));
+  const [authBootstrapError, setAuthBootstrapError] = useState<ApiError | Error | null>(null);
+  const bootstrapPromiseRef = useRef<Promise<MeResponse | null> | null>(null);
+
+  const clearRelatedQueries = useCallback(() => {
+    queryClient.removeQueries({ queryKey: authQueryKeys.all });
+    queryClient.removeQueries({ queryKey: myAccountQueryKeys.all });
+  }, [queryClient]);
+
+  const setBootstrappedUser = useCallback(
+    (nextUser: MeResponse | null) => {
+      setUser(nextUser);
+      if (token) {
+        authService.saveAuth({ token, user: nextUser });
+      }
+    },
+    [token],
+  );
+
+  const logout = useCallback(() => {
+    authService.clearAuth();
+    setToken(null);
+    setUser(null);
+    setAuthBootstrapError(null);
+    setIsBootstrappingAuth(false);
+    bootstrapPromiseRef.current = null;
+    clearRelatedQueries();
+    debugLog("[AUTH] User logged out", {});
+  }, [clearRelatedQueries]);
+
+  const bootstrapAuth = useCallback(async (): Promise<MeResponse | null> => {
+    if (!token) {
+      setIsBootstrappingAuth(false);
+      setAuthBootstrapError(null);
+      setUser(null);
+      return null;
+    }
+
+    if (bootstrapPromiseRef.current) {
+      return bootstrapPromiseRef.current;
+    }
+
+    setIsBootstrappingAuth(true);
+    setAuthBootstrapError(null);
+
+    const bootstrapPromise = queryClient
+      .fetchQuery({
+        queryKey: myAccountQueryKeys.me(),
+        queryFn: meService.getMe,
+      })
+      .then((me) => {
+        setUser(me);
+        authService.saveAuth({ token, user: me });
+        debugLog("[AUTH] Bootstrap success", { userId: me.id, role: me.role });
+        return me;
+      })
+      .catch((error: ApiError | Error) => {
+        setAuthBootstrapError(error);
+        authService.clearAuth();
+        setToken(null);
+        setUser(null);
+        clearRelatedQueries();
+        debugError("[AUTH] Bootstrap failed", error);
+        throw error;
+      })
+      .finally(() => {
+        setIsBootstrappingAuth(false);
+        bootstrapPromiseRef.current = null;
+      });
+
+    bootstrapPromiseRef.current = bootstrapPromise;
+    return bootstrapPromise;
+  }, [clearRelatedQueries, queryClient, token]);
+
+  useEffect(() => {
+    if (!token) {
+      setIsBootstrappingAuth(false);
+      setAuthBootstrapError(null);
+      return;
+    }
+
+    void bootstrapAuth();
+  }, [bootstrapAuth, token]);
+
+  const setSession = useCallback(
+    async (data: AuthResponse) => {
+      authService.saveAuth({ token: data.token, user: null });
+      setToken(data.token);
+      setUser(null);
+      setAuthBootstrapError(null);
+      setIsBootstrappingAuth(true);
+      clearRelatedQueries();
+      debugLog("[AUTH] Token stored in localStorage", { tokenPreview: `${data.token.slice(0, 8)}...` });
+
+      try {
+        const me = await queryClient.fetchQuery({
+          queryKey: myAccountQueryKeys.me(),
+          queryFn: meService.getMe,
+        });
+
+        setToken(data.token);
+        setUser(me);
+        setIsBootstrappingAuth(false);
+        authService.saveAuth({ token: data.token, user: me });
+        return me;
+      } catch (error) {
+        setAuthBootstrapError(error as ApiError | Error);
+        authService.clearAuth();
+        setToken(null);
+        setUser(null);
+        setIsBootstrappingAuth(false);
+        throw error;
+      }
+    },
+    [clearRelatedQueries, queryClient],
+  );
 
   const value = useMemo<AuthContextValue>(
     () => ({
       token,
       user,
+      hasToken: Boolean(token),
       isAuthenticated: Boolean(token && user),
-      setAuth: (data) => {
-        authService.saveAuth(data);
-        setToken(data.token);
-        setUser(data.user);
-        debugLog("[AUTH] Token stored in localStorage", {
-          userId: data.user.id,
-          role: data.user.role,
-        });
-      },
-      updateUser: (nextUser) => {
-        if (!token) return;
-        authService.saveAuth({ token, user: nextUser });
-        setUser(nextUser);
-        debugLog("[AUTH]", {
-          message: "User profile updated in auth store",
-          userId: nextUser.id,
-          role: nextUser.role,
-        });
-      },
-      logout: () => {
-        authService.clearAuth();
-        setToken(null);
-        setUser(null);
-        debugLog("[AUTH] User logged out", {});
-      },
+      isBootstrappingAuth,
+      authBootstrapError,
+      setSession,
+      bootstrapAuth,
+      setBootstrappedUser,
+      logout,
     }),
-    [token, user],
+    [
+      authBootstrapError,
+      bootstrapAuth,
+      isBootstrappingAuth,
+      logout,
+      setBootstrappedUser,
+      setSession,
+      token,
+      user,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -88,32 +215,26 @@ export const useAuth = (): AuthContextValue => {
 };
 
 export const useSignInMutation = () => {
-  const { setAuth } = useAuth();
+  const { setSession } = useAuth();
 
   return useMutation({
-    mutationFn: (payload: LoginPayload) => {
+    mutationFn: async (payload: LoginPayload) => {
       debugLog("[MUTATION START]", { mutationName: "signIn" });
-      debugLog("[AUTH] SignIn started", payload);
-      return authService.signIn(payload);
+      const response = await authService.signIn(payload);
+      return setSession(response);
     },
     onSuccess: (data) => {
       debugLog("[MUTATION SUCCESS]", { mutationName: "signIn", data });
-      debugLog("[AUTH] SignIn success", data.user);
-      setAuth(data);
     },
     onError: (error) => {
       debugError("[MUTATION ERROR]", { mutationName: "signIn", error });
-      debugError("[AUTH] SignIn failed", error);
     },
   });
 };
 
-export const useRegisterMutation = () => {
-  return useMutation({
-    mutationFn: (payload: RegisterPayload) => {
-      debugLog("[MUTATION START]", { mutationName: "register" });
-      return authService.register(payload);
-    },
+export const useRegisterMutation = () =>
+  useMutation({
+    mutationFn: (payload: RegisterPayload) => authService.register(payload),
     onSuccess: (data) => {
       debugLog("[MUTATION SUCCESS]", { mutationName: "register", data });
     },
@@ -121,53 +242,10 @@ export const useRegisterMutation = () => {
       debugError("[MUTATION ERROR]", { mutationName: "register", error });
     },
   });
-};
 
-export const useUpdateProfileMutation = () => {
-  const { updateUser, user } = useAuth();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (payload: UpdateProfilePayload) => {
-      debugLog("[MUTATION START]", { mutationName: "updateProfile" });
-      return authService.updateProfile(payload);
-    },
-    onSuccess: (updatedUser) => {
-      debugLog("[MUTATION SUCCESS]", { mutationName: "updateProfile", data: updatedUser });
-      if (user) {
-        updateUser({ ...user, ...updatedUser });
-      } else {
-        updateUser(updatedUser);
-      }
-      queryClient.invalidateQueries({ queryKey: ["auth", "profile"] });
-    },
-    onError: (error) => {
-      debugError("[MUTATION ERROR]", { mutationName: "updateProfile", error });
-    },
-  });
-};
-
-export const useChangePasswordMutation = () => {
-  return useMutation({
-    mutationFn: (payload: ChangePasswordPayload) => {
-      debugLog("[MUTATION START]", { mutationName: "changePassword" });
-      return authService.changePassword(payload);
-    },
-    onSuccess: (data) => {
-      debugLog("[MUTATION SUCCESS]", { mutationName: "changePassword", data });
-    },
-    onError: (error) => {
-      debugError("[MUTATION ERROR]", { mutationName: "changePassword", error });
-    },
-  });
-};
-
-export const useForgotPasswordMutation = () => {
-  return useMutation({
-    mutationFn: (payload: ForgotPasswordPayload) => {
-      debugLog("[MUTATION START]", { mutationName: "forgotPassword" });
-      return authService.forgotPassword(payload);
-    },
+export const useForgotPasswordMutation = () =>
+  useMutation({
+    mutationFn: (payload: ForgotPasswordPayload) => authService.forgotPassword(payload),
     onSuccess: (data) => {
       debugLog("[MUTATION SUCCESS]", { mutationName: "forgotPassword", data });
     },
@@ -175,14 +253,10 @@ export const useForgotPasswordMutation = () => {
       debugError("[MUTATION ERROR]", { mutationName: "forgotPassword", error });
     },
   });
-};
 
-export const useResetPasswordMutation = () => {
-  return useMutation({
-    mutationFn: (payload: ResetPasswordPayload) => {
-      debugLog("[MUTATION START]", { mutationName: "resetPassword" });
-      return authService.resetPassword(payload);
-    },
+export const useResetPasswordMutation = () =>
+  useMutation({
+    mutationFn: (payload: ResetPasswordPayload) => authService.resetPassword(payload),
     onSuccess: (data) => {
       debugLog("[MUTATION SUCCESS]", { mutationName: "resetPassword", data });
     },
@@ -190,7 +264,6 @@ export const useResetPasswordMutation = () => {
       debugError("[MUTATION ERROR]", { mutationName: "resetPassword", error });
     },
   });
-};
 
 export const hasRoleAccess = (userRole: UserRole | undefined, allowedRoles: UserRole[]) => {
   if (!userRole) return false;
