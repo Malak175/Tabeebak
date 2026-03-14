@@ -147,11 +147,17 @@ export async function apiRequest<T>(
   options: RequestOptions = {}
 ): Promise<T> {
   const { body, auth = false, method = "GET", ...rest } = options;
+  const headers = AxiosHeaders.from(rest.headers);
+
+  if (body instanceof FormData) {
+    headers.delete("Content-Type");
+  }
 
   const requestConfig: ExtendedAxiosRequestConfig = {
     url: path,
     method,
     data: body,
+    headers,
     requiresAuth: auth,
     ...rest,
   };
