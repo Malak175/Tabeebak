@@ -5,6 +5,7 @@ import {
   LabResultsFilterParams,
   ReviewLabOrderRequest,
   SampleCollectionRequestFilterParams,
+  SendLabOrderMessageRequest,
   UpdateLabOrderStatusRequest,
   UploadLabResultRequest,
 } from "@/types/lab-workflow.types";
@@ -94,6 +95,18 @@ export const useReviewLabOrderMutation = () => {
       queryClient.invalidateQueries({
         queryKey: labWorkflowQueryKeys.orderDetails(variables.orderId),
       });
+    },
+  });
+};
+
+export const useLabOrderMessageMutation = (requestId: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: SendLabOrderMessageRequest) =>
+      labWorkflowService.sendLabOrderMessage(requestId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: labWorkflowQueryKeys.all });
     },
   });
 };

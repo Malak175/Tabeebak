@@ -1,3 +1,5 @@
+import type { CreateRequestMessagePayload, RequestMessage } from "@/types/patient-booking.types";
+
 export interface PaginatedResponse<T> {
   data: T[];
   page: number;
@@ -85,6 +87,7 @@ export interface LabOrder {
 }
 
 export interface LabOrderDetails extends LabOrder {
+  requestId?: string | null;
   patient: LabOrderPatientSummary;
   orderingDoctor?: LabOrderDoctorSummary | null;
   service?: LabOrderServiceSummary | null;
@@ -97,6 +100,8 @@ export interface LabOrderDetails extends LabOrder {
   sampleCollectionRequested?: boolean;
   sampleCollectionStatus?: string | null;
   sampleCollectionAddress?: string | null;
+  canReply: boolean;
+  messages: RequestMessage[];
   attachments: string[];
 }
 
@@ -110,6 +115,8 @@ export interface ReviewLabOrderRequest {
   message?: string | null;
   notes?: string | null;
 }
+
+export type SendLabOrderMessageRequest = CreateRequestMessagePayload;
 
 export interface UploadLabResultValue {
   name: string;

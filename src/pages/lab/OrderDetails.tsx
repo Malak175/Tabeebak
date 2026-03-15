@@ -1,8 +1,13 @@
 import { ChangeEvent, useEffect, useState } from "react";
 import { format, isValid, parseISO } from "date-fns";
-import { ArrowLeft, FileUp, FlaskConical, Save } from "lucide-react";
+import { ArrowLeft, CalendarClock, FileUp, FlaskConical, Save, User } from "lucide-react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { toast } from "sonner";
+import {
+  MessageThread,
+  ReplyComposer,
+  SectionCard,
+} from "@/components/patient/BookingFlowSection";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { labNavItems } from "@/components/settings/AccountSettingsContent";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -15,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  useLabOrderMessageMutation,
   useLabOrderDetailsQuery,
   useReviewLabOrderMutation,
   useUpdateLabOrderStatusMutation,
@@ -86,14 +92,16 @@ const LabOrderDetailsPage = () => {
   const profileQuery = useLabProfileQuery(Boolean(user));
   const detailsQuery = useLabOrderDetailsQuery(orderId, Boolean(user));
   const reviewMutation = useReviewLabOrderMutation();
+  const messageMutation = useLabOrderMessageMutation(detailsQuery.data?.requestId ?? "");
   const updateStatusMutation = useUpdateLabOrderStatusMutation();
   const uploadResultMutation = useUploadLabOrderResultMutation();
   const userName = getDisplayName(profileQuery.data ?? user ?? {});
 
   const [status, setStatus] = useState("processing");
   const [statusNotes, setStatusNotes] = useState("");
-  const [reviewMessage, setReviewMessage] = useState("");
   const [reviewNotes, setReviewNotes] = useState("");
+  const [reply, setReply] = useState("");
+  const [replyError, setReplyError] = useState<string | null>(null);
   const [resultStatus, setResultStatus] = useState("completed");
   const [referenceNumber, setReferenceNumber] = useState("");
   const [summary, setSummary] = useState("");
@@ -104,13 +112,15 @@ const LabOrderDetailsPage = () => {
   const [values, setValues] = useState<UploadLabResultValue[]>([createEmptyValue()]);
 
   const detail = detailsQuery.data;
+  const labNotes = [detail?.instructions, detail?.diagnosis, detail?.specimenNotes]
+    .filter(Boolean)
+    .join("\n\n");
 
   useEffect(() => {
     if (!detail) return;
 
     setStatus(detail.status);
     setStatusNotes(detail.internalNotes ?? detail.notes ?? "");
-    setReviewMessage(detail.notes ?? "");
     setReviewNotes(detail.internalNotes ?? detail.notes ?? "");
     setResultStatus(detail.resultStatus ?? "completed");
     setReferenceNumber(detail.resultId ?? detail.orderNumber ?? "");
@@ -167,7 +177,7 @@ const LabOrderDetailsPage = () => {
         orderId,
         payload: {
           action,
-          message: reviewMessage || null,
+          message: statusNotes || null,
           notes: reviewNotes || null,
         },
       },
@@ -175,6 +185,25 @@ const LabOrderDetailsPage = () => {
         onSuccess: () =>
           toast.success(action === "approve" ? "Order approved successfully." : "Order rejected successfully."),
         onError: (error: Error) => toast.error(error.message),
+      },
+    );
+  };
+
+  const handleSendReply = () => {
+    if (!detail?.requestId || !reply.trim()) return;
+
+    setReplyError(null);
+    messageMutation.mutate(
+      { message: reply.trim() },
+      {
+        onSuccess: () => {
+          toast.success("Message sent.");
+          setReply("");
+        },
+        onError: (error: Error) => {
+          setReplyError(error.message);
+          toast.error(error.message);
+        },
       },
     );
   };
@@ -235,9 +264,9 @@ const LabOrderDetailsPage = () => {
               {backLabel}
             </Link>
           </Button>
-          <h1 className="text-2xl font-bold md:text-3xl">Lab Order Details</h1>
+          <h1 className="text-2xl font-bold md:text-3xl">Lab Request Details</h1>
           <p className="text-muted-foreground">
-            Review the live order record, approve or reject the request, update order status, and upload the final result.
+            Review the full patient request, reply in the shared thread, and continue the lab workflow.
           </p>
         </div>
       </div>
@@ -270,43 +299,42 @@ const LabOrderDetailsPage = () => {
                 <div className="flex flex-wrap items-center gap-3">
                   <h2 className="text-2xl font-semibold">{detail.patientName}</h2>
                   <Badge className={getStatusClassName(detail.status)}>{detail.status}</Badge>
-                  {detail.priority ? <Badge variant="outline">{detail.priority}</Badge> : null}
+                  {detail.service?.sampleType ? <Badge variant="outline">{detail.service.sampleType}</Badge> : null}
                 </div>
-                <p className="text-lg font-medium text-primary">{detail.testName}</p>
                 <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                  <span>Order: {detail.orderNumber || detail.id}</span>
-                  <span>Sample: {detail.sampleId || "Pending assignment"}</span>
-                  <span>Doctor: {detail.orderingDoctorName || "Not available"}</span>
+                  <span>Preferred: {formatDateTime(detail.scheduledAt)}</span>
+                  <span>Collected: {formatDateTime(detail.collectedAt)}</span>
+                  <span>Requested: {formatDateTime(detail.orderedAt)}</span>
                 </div>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button asChild variant="outline">
-                  <Link to="/lab/completed">Results history</Link>
-                </Button>
               </div>
             </CardContent>
           </Card>
 
-          <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+          <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
             <div className="space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Order Snapshot</CardTitle>
+                  <CardTitle>Request Snapshot</CardTitle>
                 </CardHeader>
                 <CardContent className="grid gap-4 md:grid-cols-2">
-                  <DetailRow label="Ordered at" value={formatDateTime(detail.orderedAt)} />
-                  <DetailRow label="Scheduled at" value={formatDateTime(detail.scheduledAt)} />
-                  <DetailRow label="Collected at" value={formatDateTime(detail.collectedAt)} />
-                  <DetailRow label="Completed at" value={formatDateTime(detail.completedAt)} />
+                  <DetailRow label="Request number" value={detail.orderNumber || detail.requestId || detail.id} />
+                  <DetailRow label="Patient name" value={detail.patient.fullName} />
+                  <DetailRow
+                    label="Patient details"
+                    value={[
+                      detail.patient.age ? `${detail.patient.age} years` : null,
+                      detail.patient.gender,
+                    ]
+                      .filter(Boolean)
+                      .join(" - ")}
+                  />
                   <DetailRow label="Patient phone" value={detail.patient.phone} />
-                  <DetailRow label="Patient demographics" value={[
-                    detail.patient.age ? `${detail.patient.age} years` : null,
-                    detail.patient.gender,
-                  ].filter(Boolean).join(" - ")} />
+                  <DetailRow label="Ordering doctor" value={detail.orderingDoctor?.fullName || detail.orderingDoctorName} />
                   <DetailRow label="Doctor specialty" value={detail.orderingDoctor?.specialty} />
+                  <DetailRow label="Requested test" value={detail.testName} />
                   <DetailRow label="Service category" value={detail.service?.category} />
                   <DetailRow label="Sample type" value={detail.specimenType || detail.service?.sampleType} />
-                  <DetailRow label="Sample collection" value={detail.sampleCollectionStatus} />
+                  <DetailRow label="Sample collection" value={detail.sampleCollectionStatus || (detail.sampleCollectionRequested ? "Requested" : null)} />
                   <DetailRow label="Collection address" value={detail.sampleCollectionAddress} />
                   <DetailRow label="Turnaround time" value={detail.service?.turnaroundTime} />
                 </CardContent>
@@ -317,6 +345,39 @@ const LabOrderDetailsPage = () => {
                   <CardTitle>Request Review</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {detailsQuery.isFetching ? (
+                    <p className="text-xs text-muted-foreground">Refreshing thread...</p>
+                  ) : null}
+                  {replyError ? (
+                    <Alert variant="destructive">
+                      <AlertTitle>Unable to send message</AlertTitle>
+                      <AlertDescription>{replyError}</AlertDescription>
+                    </Alert>
+                  ) : null}
+                  <MessageThread messages={detail.messages} currentUserRole={user?.role || "LAB"} />
+                  <ReplyComposer
+                    value={reply}
+                    onChange={(value) => {
+                      setReply(value);
+                      if (replyError) {
+                        setReplyError(null);
+                      }
+                    }}
+                    onSubmit={handleSendReply}
+                    isSending={messageMutation.isPending}
+                    disabled={!detail.requestId || !detail.canReply}
+                  />
+                  {!detail.requestId ? (
+                    <p className="text-sm text-muted-foreground">
+                      Messaging is unavailable because the request ID is missing from the lab detail response.
+                    </p>
+                  ) : null}
+                  {detail.requestId && !detail.canReply ? (
+                    <p className="text-sm text-muted-foreground">
+                      Replies are unavailable for this request in its current state.
+                    </p>
+                  ) : null}
+
                   <div className="space-y-2">
                     <Label htmlFor="reviewMessage">Patient-facing message</Label>
                     <Textarea
@@ -351,44 +412,12 @@ const LabOrderDetailsPage = () => {
                   </div>
                 </CardContent>
               </Card>
-
               <Card>
                 <CardHeader>
-                  <CardTitle>Status Update</CardTitle>
+                  <CardTitle>Patient Notes</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="status">Order status</Label>
-                      <Select value={status} onValueChange={setStatus}>
-                        <SelectTrigger id="status">
-                          <SelectValue placeholder="Select status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="pending">Pending</SelectItem>
-                          <SelectItem value="sample_collected">Sample collected</SelectItem>
-                          <SelectItem value="processing">Processing</SelectItem>
-                          <SelectItem value="completed">Completed</SelectItem>
-                          <SelectItem value="cancelled">Cancelled</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="statusNotes">Order notes</Label>
-                    <Textarea
-                      id="statusNotes"
-                      value={statusNotes}
-                      onChange={(event) => setStatusNotes(event.target.value)}
-                      placeholder="Add an internal workflow note"
-                    />
-                  </div>
-
-                  <Button onClick={submitStatusUpdate} disabled={updateStatusMutation.isPending}>
-                    <Save className="mr-2 h-4 w-4" />
-                    {updateStatusMutation.isPending ? "Saving..." : "Update status"}
-                  </Button>
+                <CardContent className="space-y-4 text-sm text-muted-foreground">
+                  <p className="whitespace-pre-wrap">{labNotes || "No patient-facing lab request notes were returned."}</p>
                 </CardContent>
               </Card>
             </div>
@@ -396,174 +425,249 @@ const LabOrderDetailsPage = () => {
             <div className="space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Upload Result</CardTitle>
+                  <CardTitle className="flex items-center gap-2">
+                    <CalendarClock className="h-5 w-5" />
+                    Review Request
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="resultStatus">Result status</Label>
-                      <Select value={resultStatus} onValueChange={setResultStatus}>
-                        <SelectTrigger id="resultStatus">
-                          <SelectValue placeholder="Result status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="completed">Completed</SelectItem>
-                          <SelectItem value="reported">Reported</SelectItem>
-                          <SelectItem value="final">Final</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="referenceNumber">Result reference</Label>
-                      <Input
-                        id="referenceNumber"
-                        value={referenceNumber}
-                        onChange={(event) => setReferenceNumber(event.target.value)}
-                        placeholder="Optional result number"
-                      />
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="status">Order status</Label>
+                    <Select value={status} onValueChange={setStatus}>
+                      <SelectTrigger id="status">
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="sample_collected">Sample collected</SelectItem>
+                        <SelectItem value="processing">Processing</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Use this to keep the request and order workflow aligned.
+                    </p>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="reportedAt">Reported at</Label>
-                    <Input
-                      id="reportedAt"
-                      type="datetime-local"
-                      value={reportedAt}
-                      onChange={(event) => setReportedAt(event.target.value)}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="summary">Summary</Label>
+                    <Label htmlFor="statusNotes">Message to patient</Label>
                     <Textarea
-                      id="summary"
-                      value={summary}
-                      onChange={(event) => setSummary(event.target.value)}
-                      placeholder="Clinical summary or interpretation"
+                      id="statusNotes"
+                      value={statusNotes}
+                      onChange={(event) => setStatusNotes(event.target.value)}
+                      placeholder="Optional approval or rejection note"
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="conclusion">Conclusion</Label>
-                    <Textarea
-                      id="conclusion"
-                      value={conclusion}
-                      onChange={(event) => setConclusion(event.target.value)}
-                      placeholder="Final conclusion"
-                    />
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      onClick={() => {
+                        submitReview("approve");
+                        submitStatusUpdate();
+                      }}
+                      disabled={reviewMutation.isPending || updateStatusMutation.isPending}
+                    >
+                      {reviewMutation.isPending || updateStatusMutation.isPending ? "Saving..." : "Approve request"}
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={() => submitReview("reject")}
+                      disabled={reviewMutation.isPending}
+                    >
+                      {reviewMutation.isPending ? "Saving..." : "Reject request"}
+                    </Button>
                   </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="resultNotes">Notes</Label>
-                    <Textarea
-                      id="resultNotes"
-                      value={resultNotes}
-                      onChange={(event) => setResultNotes(event.target.value)}
-                      placeholder="Optional lab notes"
-                    />
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <Label>Measured values</Label>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setValues((current) => [...current, createEmptyValue()])}
-                      >
-                        Add row
-                      </Button>
-                    </div>
-
-                    <div className="space-y-3">
-                      {values.map((item, index) => (
-                        <div key={index} className="grid gap-3 rounded-lg border p-3">
-                          <Input
-                            value={item.name}
-                            onChange={(event) =>
-                              handleValueChange(index, "name", event.target.value)
-                            }
-                            placeholder="Measurement name"
-                          />
-                          <div className="grid gap-3 md:grid-cols-2">
-                            <Input
-                              value={item.value ?? ""}
-                              onChange={(event) =>
-                                handleValueChange(index, "value", event.target.value)
-                              }
-                              placeholder="Value"
-                            />
-                            <Input
-                              value={item.unit ?? ""}
-                              onChange={(event) =>
-                                handleValueChange(index, "unit", event.target.value)
-                              }
-                              placeholder="Unit"
-                            />
-                          </div>
-                          <div className="grid gap-3 md:grid-cols-2">
-                            <Input
-                              value={item.referenceRange ?? ""}
-                              onChange={(event) =>
-                                handleValueChange(index, "referenceRange", event.target.value)
-                              }
-                              placeholder="Reference range"
-                            />
-                            <Input
-                              value={item.status ?? ""}
-                              onChange={(event) =>
-                                handleValueChange(index, "status", event.target.value)
-                              }
-                              placeholder="Status or flag"
-                            />
-                          </div>
-                          {values.length > 1 ? (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() =>
-                                setValues((current) =>
-                                  current.filter((_, itemIndex) => itemIndex !== index),
-                                )
-                              }
-                            >
-                              Remove row
-                            </Button>
-                          ) : null}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="resultFile">Result file</Label>
-                    <Input id="resultFile" type="file" onChange={handleFileChange} />
-                    {resultFile ? (
-                      <p className="text-sm text-muted-foreground">{resultFile.name}</p>
-                    ) : null}
-                  </div>
-
-                  <Button onClick={submitResultUpload} disabled={uploadResultMutation.isPending}>
-                    <FileUp className="mr-2 h-4 w-4" />
-                    {uploadResultMutation.isPending ? "Uploading..." : "Upload result"}
-                  </Button>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Clinical Notes</CardTitle>
+                  <CardTitle className="flex items-center gap-2">
+                    <User className="h-5 w-5" />
+                    Follow-up
+                  </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3 text-sm text-muted-foreground">
-                  <p>{detail.instructions || "No preparation instructions were returned."}</p>
-                  <p>{detail.diagnosis || "No diagnosis details were returned."}</p>
-                  <p>{detail.specimenNotes || "No specimen notes were returned."}</p>
+                <CardContent className="space-y-3">
+                  <Button asChild className="w-full" variant="outline">
+                    <Link to="/lab/completed">View results history</Link>
+                  </Button>
+                  <Button asChild className="w-full" variant="outline">
+                    <Link to="/lab/requests">Back to request inbox</Link>
+                  </Button>
                 </CardContent>
               </Card>
+
             </div>
+          </div>
+
+          <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+            <Card>
+              <CardHeader>
+                <CardTitle>Status Update</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="reviewNotes">Internal workflow note</Label>
+                  <Textarea
+                    id="reviewNotes"
+                    value={reviewNotes}
+                    onChange={(event) => setReviewNotes(event.target.value)}
+                    placeholder="Optional internal review note"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="resultNotes">Lab notes</Label>
+                  <Textarea
+                    id="resultNotes"
+                    value={resultNotes}
+                    onChange={(event) => setResultNotes(event.target.value)}
+                    placeholder="Optional lab notes"
+                  />
+                </div>
+
+                <Button onClick={submitStatusUpdate} disabled={updateStatusMutation.isPending}>
+                  <Save className="mr-2 h-4 w-4" />
+                  {updateStatusMutation.isPending ? "Saving..." : "Update status"}
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Upload Result</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="resultStatus">Result status</Label>
+                    <Select value={resultStatus} onValueChange={setResultStatus}>
+                      <SelectTrigger id="resultStatus">
+                        <SelectValue placeholder="Result status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="reported">Reported</SelectItem>
+                        <SelectItem value="final">Final</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="referenceNumber">Result reference</Label>
+                    <Input
+                      id="referenceNumber"
+                      value={referenceNumber}
+                      onChange={(event) => setReferenceNumber(event.target.value)}
+                      placeholder="Optional result number"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="reportedAt">Reported at</Label>
+                  <Input
+                    id="reportedAt"
+                    type="datetime-local"
+                    value={reportedAt}
+                    onChange={(event) => setReportedAt(event.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="summary">Summary</Label>
+                  <Textarea
+                    id="summary"
+                    value={summary}
+                    onChange={(event) => setSummary(event.target.value)}
+                    placeholder="Clinical summary or interpretation"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="conclusion">Conclusion</Label>
+                  <Textarea
+                    id="conclusion"
+                    value={conclusion}
+                    onChange={(event) => setConclusion(event.target.value)}
+                    placeholder="Final conclusion"
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label>Measured values</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setValues((current) => [...current, createEmptyValue()])}
+                    >
+                      Add row
+                    </Button>
+                  </div>
+
+                  <div className="space-y-3">
+                    {values.map((item, index) => (
+                      <div key={index} className="grid gap-3 rounded-lg border p-3">
+                        <Input
+                          value={item.name}
+                          onChange={(event) => handleValueChange(index, "name", event.target.value)}
+                          placeholder="Measurement name"
+                        />
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <Input
+                            value={item.value ?? ""}
+                            onChange={(event) => handleValueChange(index, "value", event.target.value)}
+                            placeholder="Value"
+                          />
+                          <Input
+                            value={item.unit ?? ""}
+                            onChange={(event) => handleValueChange(index, "unit", event.target.value)}
+                            placeholder="Unit"
+                          />
+                        </div>
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <Input
+                            value={item.referenceRange ?? ""}
+                            onChange={(event) => handleValueChange(index, "referenceRange", event.target.value)}
+                            placeholder="Reference range"
+                          />
+                          <Input
+                            value={item.status ?? ""}
+                            onChange={(event) => handleValueChange(index, "status", event.target.value)}
+                            placeholder="Status or flag"
+                          />
+                        </div>
+                        {values.length > 1 ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              setValues((current) => current.filter((_, itemIndex) => itemIndex !== index))
+                            }
+                          >
+                            Remove row
+                          </Button>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="resultFile">Result file</Label>
+                  <Input id="resultFile" type="file" onChange={handleFileChange} />
+                  {resultFile ? <p className="text-sm text-muted-foreground">{resultFile.name}</p> : null}
+                </div>
+
+                <Button onClick={submitResultUpload} disabled={uploadResultMutation.isPending}>
+                  <FileUp className="mr-2 h-4 w-4" />
+                  {uploadResultMutation.isPending ? "Uploading..." : "Upload result"}
+                </Button>
+              </CardContent>
+            </Card>
           </div>
         </div>
       ) : (
