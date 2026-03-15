@@ -164,6 +164,46 @@ const pickRecord = (record: Record<string, unknown>, keys: string[]) => {
   return {};
 };
 
+const normalizeIdentityPart = (value: unknown) => {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed.length ? trimmed : "";
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+
+  if (typeof value === "boolean") {
+    return value ? "true" : "false";
+  }
+
+  return "";
+};
+
+const buildIdentityKey = (...parts: unknown[]) => {
+  const normalized = parts.map(normalizeIdentityPart).filter(Boolean);
+  return normalized.length ? normalized.join("::") : null;
+};
+
+const dedupeByIdentity = <T>(items: T[], getIdentity: (item: T) => string | null) => {
+  const seen = new Set<string>();
+
+  return items.filter((item) => {
+    const identity = getIdentity(item);
+    if (!identity) {
+      return true;
+    }
+
+    if (seen.has(identity)) {
+      return false;
+    }
+
+    seen.add(identity);
+    return true;
+  });
+};
+
 const resolveEntityId = (
   primary: Record<string, unknown>,
   secondary: Record<string, unknown>,
@@ -381,19 +421,29 @@ const normalizeDoctorAvailability = (payload: unknown): DoctorAvailability => {
 
   const weeklySchedule =
     daysSource.length > 0
-      ? daysSource.map((item) => {
-          const record = asRecord(item);
-          return {
-            dayOfWeek:
-              pickString(record, ["dayOfWeek", "day_of_week", "day", "weekday"]) ?? "Unknown",
-            isAvailable: pickBoolean(record, ["isAvailable", "is_available", "available"]) ?? false,
-            startTime: pickNullableString(record, ["startTime", "start_time", "from"]),
-            endTime: pickNullableString(record, ["endTime", "end_time", "to"]),
-            breakStartTime: pickNullableString(record, ["breakStartTime", "break_start_time"]),
-            breakEndTime: pickNullableString(record, ["breakEndTime", "break_end_time"]),
-            maxAppointments: pickNullableNumber(record, ["maxAppointments", "max_appointments", "capacity"]),
-          };
-        })
+      ? dedupeByIdentity(
+          daysSource.map((item) => {
+            const record = asRecord(item);
+            return {
+              dayOfWeek:
+                pickString(record, ["dayOfWeek", "day_of_week", "day", "weekday"]) ?? "Unknown",
+              isAvailable: pickBoolean(record, ["isAvailable", "is_available", "available"]) ?? false,
+              startTime: pickNullableString(record, ["startTime", "start_time", "from"]),
+              endTime: pickNullableString(record, ["endTime", "end_time", "to"]),
+              breakStartTime: pickNullableString(record, ["breakStartTime", "break_start_time"]),
+              breakEndTime: pickNullableString(record, ["breakEndTime", "break_end_time"]),
+              maxAppointments: pickNullableNumber(record, ["maxAppointments", "max_appointments", "capacity"]),
+            };
+          }),
+          (day) =>
+            buildIdentityKey(
+              day.dayOfWeek,
+              day.startTime,
+              day.endTime,
+              day.breakStartTime,
+              day.breakEndTime,
+            ),
+        )
       : ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
           .map((dayKey) => {
             const record = asRecord(scheduleContainer[dayKey] ?? raw[dayKey]);
@@ -523,7 +573,15 @@ const normalizeMessage = (payload: unknown): RequestMessage => {
   );
 
   return {
-    id: String(raw.id ?? raw._id ?? raw.messageId ?? raw.message_id ?? crypto.randomUUID()),
+    id:
+      pickString(raw, ["id", "_id", "messageId", "message_id"]) ??
+      buildIdentityKey(
+        pickNullableString(raw, ["createdAt", "created_at", "sentAt", "sent_at"]),
+        pickString(raw, ["message", "content", "text", "body"]),
+        pickString(raw, ["senderRole", "sender_role", "role"]),
+        pickNullableString(raw, ["senderName", "sender_name"]),
+      ) ??
+      "message",
     senderRole:
       pickString(raw, ["senderRole", "sender_role", "role"]) ??
       pickString(sender, ["role"]) ??
@@ -537,12 +595,20 @@ const normalizeMessage = (payload: unknown): RequestMessage => {
 };
 
 const resolveMessageList = (raw: Record<string, unknown>) =>
-  [
-    ...unwrapListPayload(raw.messages, ["items"]),
-    ...unwrapListPayload(raw.thread, ["messages"]),
-  ]
-    .map(normalizeMessage)
-    .filter((message, index, all) => all.findIndex((item) => item.id === message.id) === index);
+  dedupeByIdentity(
+    [
+      ...unwrapListPayload(raw.messages, ["items"]),
+      ...unwrapListPayload(raw.thread, ["messages"]),
+    ].map(normalizeMessage),
+    (message) =>
+      buildIdentityKey(
+        message.id,
+        message.createdAt,
+        message.senderRole,
+        message.senderName,
+        message.message,
+      ),
+  );
 
 const normalizeDoctorRequestSummary = (payload: unknown): DoctorRequestSummary => {
   const raw = unwrapPayload(payload);
@@ -726,7 +792,11 @@ export const patientBookingService = {
       params: buildDiscoveryQueryParams(params),
     });
 
-    return unwrapListPayload(response, ["doctors", "items"]).map(normalizeDoctorItem);
+    return dedupeByIdentity(
+      unwrapListPayload(response, ["doctors", "items"]).map(normalizeDoctorItem),
+      (doctor) =>
+        buildIdentityKey(doctor.id, doctor.doctorId, doctor.name, doctor.specialty, doctor.location),
+    );
   },
 
   async getNearbyDoctors(params: DiscoveryLocationParams): Promise<DoctorDirectoryItem[]> {
@@ -747,7 +817,11 @@ export const patientBookingService = {
       method: "GET",
     });
 
-    return unwrapListPayload(response, ["doctors", "items"]).map(normalizeDoctorItem);
+    return dedupeByIdentity(
+      unwrapListPayload(response, ["doctors", "items"]).map(normalizeDoctorItem),
+      (doctor) =>
+        buildIdentityKey(doctor.id, doctor.doctorId, doctor.name, doctor.specialty, doctor.location),
+    );
   },
 
   async getDoctorById(doctorId: string): Promise<DoctorDetail> {
@@ -772,7 +846,10 @@ export const patientBookingService = {
       params: buildDiscoveryQueryParams(params),
     });
 
-    return unwrapListPayload(response, ["labs", "items"]).map(normalizeLabItem);
+    return dedupeByIdentity(
+      unwrapListPayload(response, ["labs", "items"]).map(normalizeLabItem),
+      (lab) => buildIdentityKey(lab.id, lab.labId, lab.name, lab.address, lab.phone),
+    );
   },
 
   async getNearbyLabs(params: DiscoveryLocationParams): Promise<LabDirectoryItem[]> {
@@ -793,7 +870,10 @@ export const patientBookingService = {
       method: "GET",
     });
 
-    return unwrapListPayload(response, ["labs", "items"]).map(normalizeLabItem);
+    return dedupeByIdentity(
+      unwrapListPayload(response, ["labs", "items"]).map(normalizeLabItem),
+      (lab) => buildIdentityKey(lab.id, lab.labId, lab.name, lab.address, lab.phone),
+    );
   },
 
   async getLabById(labId: string): Promise<LabDetail> {
@@ -809,7 +889,10 @@ export const patientBookingService = {
       method: "GET",
     });
 
-    return unwrapListPayload(response, ["branches", "items"]).map(normalizeLabBranch);
+    return dedupeByIdentity(
+      unwrapListPayload(response, ["branches", "items"]).map(normalizeLabBranch),
+      (branch) => buildIdentityKey(branch.id, branch.name, branch.address, branch.phone),
+    );
   },
 
   async getLabServices(labId: string): Promise<LabServiceDirectoryItem[]> {
@@ -817,7 +900,11 @@ export const patientBookingService = {
       method: "GET",
     });
 
-    return unwrapListPayload(response, ["services", "items"]).map(normalizeLabService);
+    return dedupeByIdentity(
+      unwrapListPayload(response, ["services", "items"]).map(normalizeLabService),
+      (service) =>
+        buildIdentityKey(service.id, service.name, service.category, service.sampleType, service.price),
+    );
   },
 
   async createAppointmentRequest(payload: CreateAppointmentRequestPayload): Promise<DoctorRequestDetail> {
@@ -837,7 +924,22 @@ export const patientBookingService = {
       params: buildQueryParams(params),
     });
 
-    return normalizePaginatedResponse(response, normalizeDoctorRequestSummary);
+    const normalized = normalizePaginatedResponse(response, normalizeDoctorRequestSummary);
+
+    return {
+      ...normalized,
+      data: dedupeByIdentity(
+        normalized.data,
+        (request) =>
+          buildIdentityKey(
+            request.id,
+            request.requestNumber,
+            request.doctorId,
+            request.providerName,
+            request.createdAt,
+          ),
+      ),
+    };
   },
 
   async getAppointmentRequestById(requestId: string): Promise<DoctorRequestDetail> {
@@ -888,7 +990,22 @@ export const patientBookingService = {
       params: buildQueryParams(params),
     });
 
-    return normalizePaginatedResponse(response, normalizeLabRequestSummary);
+    const normalized = normalizePaginatedResponse(response, normalizeLabRequestSummary);
+
+    return {
+      ...normalized,
+      data: dedupeByIdentity(
+        normalized.data,
+        (request) =>
+          buildIdentityKey(
+            request.id,
+            request.requestNumber,
+            request.labId,
+            request.providerName,
+            request.createdAt,
+          ),
+      ),
+    };
   },
 
   async getTestRequestById(requestId: string): Promise<LabRequestDetail> {
