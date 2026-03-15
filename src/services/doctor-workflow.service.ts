@@ -1,6 +1,9 @@
 import { apiRequest } from "@/services/api";
 import {
   DoctorAppointment,
+  DoctorAppointmentRequest,
+  DoctorAppointmentRequestDetails,
+  DoctorAppointmentRequestFilterParams,
   DoctorAppointmentFilterParams,
   DoctorPatientFilterParams,
   DoctorPatientListItem,
@@ -11,6 +14,7 @@ import {
   DoctorReviewFilterParams,
   DoctorReviewsSummary,
   PaginatedResponse,
+  UpdateDoctorAppointmentRequestStatusPayload,
 } from "@/types/doctor-workflow.types";
 
 const asRecord = (value: unknown): Record<string, unknown> =>
@@ -39,6 +43,22 @@ const pickString = (record: Record<string, unknown>, keys: string[]) => {
     const value = record[key];
     if (typeof value === "string" && value.trim()) {
       return value.trim();
+    }
+  }
+
+  return undefined;
+};
+
+const pickIdentifier = (record: Record<string, unknown>, keys: string[]) => {
+  for (const key of keys) {
+    const value = record[key];
+
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return String(value);
     }
   }
 
@@ -301,6 +321,131 @@ const normalizeDoctorAppointment = (payload: unknown): DoctorAppointment => {
   };
 };
 
+const normalizeDoctorAppointmentRequest = (payload: unknown): DoctorAppointmentRequest => {
+  const raw = unwrapPayload(payload);
+  const patient = mergeRecords(
+    pickRecord(raw, ["patient", "patientProfile"]),
+    pickRecord(raw, ["patientDetails"]),
+  );
+  const requestId =
+    pickIdentifier(raw, [
+      "id",
+      "_id",
+      "requestId",
+      "request_id",
+      "appointmentRequestId",
+      "appointment_request_id",
+      "appointmentRequestID",
+      "appointment_request",
+    ]) ??
+    pickIdentifier(pickRecord(raw, ["request", "appointmentRequest"]), [
+      "id",
+      "_id",
+      "requestId",
+      "request_id",
+      "appointmentRequestId",
+      "appointment_request_id",
+    ]) ??
+    pickIdentifier(raw, ["requestNumber", "request_number", "referenceNumber"]);
+  const latestSummary =
+    pickNullableString(raw, [
+      "latestSummary",
+      "latest_summary",
+      "summary",
+      "requestSummary",
+      "request_summary",
+    ]) ??
+    pickNullableString(raw, ["reason", "chiefComplaint", "chief_complaint", "note", "notes"]);
+
+  return {
+    id: requestId ?? "",
+    requestNumber: pickNullableString(raw, [
+      "requestNumber",
+      "request_number",
+      "referenceNumber",
+      "reference_number",
+    ]),
+    patientId:
+      pickNullableString(raw, ["patientId", "patient_id"]) ??
+      pickNullableString(patient, ["id", "_id", "patientId", "patient_id"]),
+    patientName:
+      pickString(raw, ["patientName", "patient_name"]) ??
+      pickString(patient, ["displayName", "name", "fullName", "full_name"]) ??
+      "Patient",
+    patientAge:
+      pickNullableNumber(raw, ["patientAge", "patient_age", "age"]) ??
+      pickNullableNumber(patient, ["age"]),
+    patientGender:
+      pickNullableString(raw, ["patientGender", "patient_gender", "gender"]) ??
+      pickNullableString(patient, ["gender"]),
+    preferredTime: buildDateTime(
+      raw,
+      [
+        "preferredDate",
+        "preferred_date",
+        "preferredAt",
+        "preferred_at",
+        "requestedDate",
+        "requested_date",
+      ],
+      ["preferredTime", "preferred_time", "time"],
+    ),
+    scheduledAt: buildDateTime(
+      raw,
+      ["scheduledAt", "scheduled_at", "approvedDate", "approved_date"],
+      ["scheduledTime", "scheduled_time"],
+    ),
+    consultationType:
+      pickNullableString(raw, [
+        "consultationType",
+        "consultation_type",
+        "visitType",
+        "visit_type",
+        "type",
+      ]) ?? pickNullableString(raw, ["mode"]),
+    status: pickString(raw, ["status", "requestStatus", "request_status"]) ?? "pending",
+    latestSummary,
+    reason: pickNullableString(raw, ["reason", "chiefComplaint", "chief_complaint"]),
+    notes: pickNullableString(raw, ["note", "notes", "patientNote", "patient_note"]),
+    providerMessage: pickNullableString(raw, [
+      "providerMessage",
+      "provider_message",
+      "message",
+      "reviewMessage",
+      "review_message",
+    ]),
+    createdAt: pickNullableString(raw, ["createdAt", "created_at"]),
+    updatedAt: pickNullableString(raw, ["updatedAt", "updated_at"]),
+  };
+};
+
+const normalizeDoctorAppointmentRequestDetails = (
+  payload: unknown,
+): DoctorAppointmentRequestDetails => {
+  const raw = unwrapPayload(payload);
+  const base = normalizeDoctorAppointmentRequest(raw);
+  const patient = mergeRecords(
+    pickRecord(raw, ["patient", "patientProfile"]),
+    pickRecord(raw, ["patientDetails"]),
+  );
+
+  return {
+    ...base,
+    patient: {
+      id:
+        pickNullableString(patient, ["id", "_id", "patientId", "patient_id"]) ??
+        base.patientId,
+      fullName:
+        pickString(patient, ["displayName", "name", "fullName", "full_name"]) ??
+        base.patientName,
+      age: pickNullableNumber(patient, ["age"]) ?? base.patientAge,
+      gender: pickNullableString(patient, ["gender"]) ?? base.patientGender,
+      phone: pickNullableString(patient, ["phone", "phoneNumber", "mobile"]),
+      email: pickNullableString(patient, ["email"]),
+    },
+  };
+};
+
 const normalizeDoctorPatientListItem = (payload: unknown): DoctorPatientListItem => {
   const raw = unwrapPayload(payload);
   const fallbackName = [
@@ -470,6 +615,60 @@ const normalizeDoctorReviewsSummary = (payload: unknown): DoctorReviewsSummary =
 };
 
 export const doctorWorkflowService = {
+  getDoctorAppointmentRequests: async (
+    params?: DoctorAppointmentRequestFilterParams,
+  ): Promise<PaginatedResponse<DoctorAppointmentRequest>> => {
+    const response = await apiRequest<unknown>("/api/v1/doctors/me/appointment-requests", {
+      method: "GET",
+      params: buildQueryParams(params),
+      auth: true,
+    });
+
+    return normalizePaginatedResponse(response, normalizeDoctorAppointmentRequest);
+  },
+
+  getDoctorAppointmentRequestById: async (
+    requestId: string,
+  ): Promise<DoctorAppointmentRequestDetails> => {
+    const response = await apiRequest<unknown>(
+      `/api/v1/doctors/me/appointment-requests/${requestId}`,
+      {
+        method: "GET",
+        auth: true,
+      },
+    );
+
+    return normalizeDoctorAppointmentRequestDetails(response);
+  },
+
+  updateDoctorAppointmentRequestStatus: async (
+    requestId: string,
+    payload: UpdateDoctorAppointmentRequestStatusPayload,
+  ): Promise<DoctorAppointmentRequestDetails> => {
+    const response = await apiRequest<unknown>(
+      `/api/v1/doctors/me/appointment-requests/${requestId}/status`,
+      {
+        method: "PATCH",
+        body: {
+          status: payload.status,
+          ...(payload.message?.trim()
+            ? {
+                message: payload.message.trim(),
+              }
+            : {}),
+          ...(payload.scheduledAt
+            ? {
+                scheduled_at: payload.scheduledAt,
+              }
+            : {}),
+        },
+        auth: true,
+      },
+    );
+
+    return normalizeDoctorAppointmentRequestDetails(response);
+  },
+
   getDoctorAppointments: async (
     params?: DoctorAppointmentFilterParams,
   ): Promise<PaginatedResponse<DoctorAppointment>> => {

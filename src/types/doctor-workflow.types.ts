@@ -23,6 +23,16 @@ export interface DoctorAppointmentFilterParams {
   sortOrder?: DoctorWorkflowSortOrder;
 }
 
+export interface DoctorAppointmentRequestFilterParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: string;
+  consultationType?: string;
+  sortBy?: string;
+  sortOrder?: DoctorWorkflowSortOrder;
+}
+
 export interface DoctorPatientFilterParams {
   page?: number;
   limit?: number;
@@ -76,6 +86,44 @@ export interface DoctorAppointment {
   canJoinOnline: boolean;
   createdAt?: string | null;
   updatedAt?: string | null;
+}
+
+export interface DoctorAppointmentRequestPatientSummary {
+  id?: string | null;
+  fullName: string;
+  age?: number | null;
+  gender?: string | null;
+  phone?: string | null;
+  email?: string | null;
+}
+
+export interface DoctorAppointmentRequest {
+  id: string;
+  requestNumber?: string | null;
+  patientId?: string | null;
+  patientName: string;
+  patientAge?: number | null;
+  patientGender?: string | null;
+  preferredTime?: string | null;
+  scheduledAt?: string | null;
+  consultationType?: string | null;
+  status: string;
+  latestSummary?: string | null;
+  reason?: string | null;
+  notes?: string | null;
+  providerMessage?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface DoctorAppointmentRequestDetails extends DoctorAppointmentRequest {
+  patient: DoctorAppointmentRequestPatientSummary;
+}
+
+export interface UpdateDoctorAppointmentRequestStatusPayload {
+  status: string;
+  message?: string | null;
+  scheduledAt?: string | null;
 }
 
 export interface DoctorPatientListItem {

@@ -1,10 +1,12 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { doctorWorkflowService } from "@/services/doctor-workflow.service";
 import {
+  DoctorAppointmentRequestFilterParams,
   DoctorAppointmentFilterParams,
   DoctorPatientFilterParams,
   DoctorPrescriptionFilterParams,
   DoctorReviewFilterParams,
+  UpdateDoctorAppointmentRequestStatusPayload,
 } from "@/types/doctor-workflow.types";
 
 const normalizeListParams = <T extends Record<string, unknown>>(params?: T) =>
@@ -18,6 +20,10 @@ const normalizeListParams = <T extends Record<string, unknown>>(params?: T) =>
 
 export const doctorWorkflowQueryKeys = {
   all: ["doctor-workflow"] as const,
+  appointmentRequests: (params?: DoctorAppointmentRequestFilterParams) =>
+    ["doctor-workflow", "appointment-requests", normalizeListParams(params)] as const,
+  appointmentRequestDetails: (requestId: string) =>
+    ["doctor-workflow", "appointment-requests", "detail", requestId] as const,
   appointments: (params?: DoctorAppointmentFilterParams) =>
     ["doctor-workflow", "appointments", normalizeListParams(params)] as const,
   todayAppointments: (params?: DoctorAppointmentFilterParams) =>
@@ -33,6 +39,48 @@ export const doctorWorkflowQueryKeys = {
   reviewsSummary: () => ["doctor-workflow", "reviews", "summary"] as const,
   reviews: (params?: DoctorReviewFilterParams) =>
     ["doctor-workflow", "reviews", normalizeListParams(params)] as const,
+};
+
+export const useDoctorAppointmentRequestsQuery = (
+  params?: DoctorAppointmentRequestFilterParams,
+  enabled = true,
+) =>
+  useQuery({
+    queryKey: doctorWorkflowQueryKeys.appointmentRequests(params),
+    queryFn: () => doctorWorkflowService.getDoctorAppointmentRequests(params),
+    enabled,
+    placeholderData: (previousData) => previousData,
+  });
+
+export const useDoctorAppointmentRequestDetailsQuery = (
+  requestId: string | undefined,
+  enabled = true,
+) =>
+  useQuery({
+    queryKey: doctorWorkflowQueryKeys.appointmentRequestDetails(requestId ?? ""),
+    queryFn: () => doctorWorkflowService.getDoctorAppointmentRequestById(requestId ?? ""),
+    enabled: enabled && Boolean(requestId),
+  });
+
+export const useUpdateDoctorAppointmentRequestStatusMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      requestId,
+      payload,
+    }: {
+      requestId: string;
+      payload: UpdateDoctorAppointmentRequestStatusPayload;
+    }) => doctorWorkflowService.updateDoctorAppointmentRequestStatus(requestId, payload),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: doctorWorkflowQueryKeys.appointmentRequests() });
+      queryClient.invalidateQueries({ queryKey: doctorWorkflowQueryKeys.all });
+      queryClient.invalidateQueries({
+        queryKey: doctorWorkflowQueryKeys.appointmentRequestDetails(variables.requestId),
+      });
+    },
+  });
 };
 
 export const useDoctorAppointmentsQuery = (

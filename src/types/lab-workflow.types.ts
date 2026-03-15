@@ -105,6 +105,12 @@ export interface UpdateLabOrderStatusRequest {
   notes?: string | null;
 }
 
+export interface ReviewLabOrderRequest {
+  action: "approve" | "reject";
+  message?: string | null;
+  notes?: string | null;
+}
+
 export interface UploadLabResultValue {
   name: string;
   value?: string | null;

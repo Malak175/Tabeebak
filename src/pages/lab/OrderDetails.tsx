@@ -1,7 +1,7 @@
 import { ChangeEvent, useEffect, useState } from "react";
 import { format, isValid, parseISO } from "date-fns";
 import { ArrowLeft, FileUp, FlaskConical, Save } from "lucide-react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { labNavItems } from "@/components/settings/AccountSettingsContent";
@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import {
   useLabOrderDetailsQuery,
+  useReviewLabOrderMutation,
   useUpdateLabOrderStatusMutation,
   useUploadLabOrderResultMutation,
 } from "@/hooks/useLabWorkflow";
@@ -80,15 +81,19 @@ const createEmptyValue = (): UploadLabResultValue => ({
 
 const LabOrderDetailsPage = () => {
   const { orderId } = useParams();
+  const location = useLocation();
   const { user } = useAuth();
   const profileQuery = useLabProfileQuery(Boolean(user));
   const detailsQuery = useLabOrderDetailsQuery(orderId, Boolean(user));
+  const reviewMutation = useReviewLabOrderMutation();
   const updateStatusMutation = useUpdateLabOrderStatusMutation();
   const uploadResultMutation = useUploadLabOrderResultMutation();
   const userName = getDisplayName(profileQuery.data ?? user ?? {});
 
   const [status, setStatus] = useState("processing");
   const [statusNotes, setStatusNotes] = useState("");
+  const [reviewMessage, setReviewMessage] = useState("");
+  const [reviewNotes, setReviewNotes] = useState("");
   const [resultStatus, setResultStatus] = useState("completed");
   const [referenceNumber, setReferenceNumber] = useState("");
   const [summary, setSummary] = useState("");
@@ -105,6 +110,8 @@ const LabOrderDetailsPage = () => {
 
     setStatus(detail.status);
     setStatusNotes(detail.internalNotes ?? detail.notes ?? "");
+    setReviewMessage(detail.notes ?? "");
+    setReviewNotes(detail.internalNotes ?? detail.notes ?? "");
     setResultStatus(detail.resultStatus ?? "completed");
     setReferenceNumber(detail.resultId ?? detail.orderNumber ?? "");
     setResultNotes(detail.internalNotes ?? "");
@@ -152,6 +159,31 @@ const LabOrderDetailsPage = () => {
     );
   };
 
+  const submitReview = (action: "approve" | "reject") => {
+    if (!orderId) return;
+
+    reviewMutation.mutate(
+      {
+        orderId,
+        payload: {
+          action,
+          message: reviewMessage || null,
+          notes: reviewNotes || null,
+        },
+      },
+      {
+        onSuccess: () =>
+          toast.success(action === "approve" ? "Order approved successfully." : "Order rejected successfully."),
+        onError: (error: Error) => toast.error(error.message),
+      },
+    );
+  };
+
+  const backLink = location.pathname.startsWith("/lab/requests") ? "/lab/requests" : "/lab/pending";
+  const backLabel = location.pathname.startsWith("/lab/requests")
+    ? "Back to requests"
+    : "Back to lab workflow";
+
   const submitResultUpload = () => {
     if (!orderId) return;
 
@@ -198,14 +230,14 @@ const LabOrderDetailsPage = () => {
       <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <Button asChild variant="ghost" className="-ml-4 mb-2">
-            <Link to="/lab/pending">
+            <Link to={backLink}>
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to lab workflow
+              {backLabel}
             </Link>
           </Button>
           <h1 className="text-2xl font-bold md:text-3xl">Lab Order Details</h1>
           <p className="text-muted-foreground">
-            Review the live order record, update order status, and upload the final result.
+            Review the live order record, approve or reject the request, update order status, and upload the final result.
           </p>
         </div>
       </div>
@@ -277,6 +309,46 @@ const LabOrderDetailsPage = () => {
                   <DetailRow label="Sample collection" value={detail.sampleCollectionStatus} />
                   <DetailRow label="Collection address" value={detail.sampleCollectionAddress} />
                   <DetailRow label="Turnaround time" value={detail.service?.turnaroundTime} />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Request Review</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="reviewMessage">Patient-facing message</Label>
+                    <Textarea
+                      id="reviewMessage"
+                      value={reviewMessage}
+                      onChange={(event) => setReviewMessage(event.target.value)}
+                      placeholder="Optional approval or rejection message"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="reviewNotes">Review notes</Label>
+                    <Textarea
+                      id="reviewNotes"
+                      value={reviewNotes}
+                      onChange={(event) => setReviewNotes(event.target.value)}
+                      placeholder="Optional internal review note"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <Button onClick={() => submitReview("approve")} disabled={reviewMutation.isPending}>
+                      {reviewMutation.isPending ? "Saving..." : "Approve request"}
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={() => submitReview("reject")}
+                      disabled={reviewMutation.isPending}
+                    >
+                      {reviewMutation.isPending ? "Saving..." : "Reject request"}
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
 

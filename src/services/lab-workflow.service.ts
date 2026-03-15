@@ -6,6 +6,7 @@ import {
   LabResult,
   LabResultsFilterParams,
   PaginatedResponse,
+  ReviewLabOrderRequest,
   SampleCollectionRequest,
   SampleCollectionRequestFilterParams,
   UpdateLabOrderStatusRequest,
@@ -39,6 +40,22 @@ const pickString = (record: Record<string, unknown>, keys: string[]) => {
     const value = record[key];
     if (typeof value === "string" && value.trim()) {
       return value.trim();
+    }
+  }
+
+  return undefined;
+};
+
+const pickIdentifier = (record: Record<string, unknown>, keys: string[]) => {
+  for (const key of keys) {
+    const value = record[key];
+
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return String(value);
     }
   }
 
@@ -233,9 +250,29 @@ const normalizeLabOrder = (payload: unknown): LabOrder => {
   const patient = mergeRecords(pickRecord(raw, ["patient", "patientProfile"]));
   const doctor = mergeRecords(pickRecord(raw, ["doctor", "orderingDoctor", "provider"]));
   const service = mergeRecords(pickRecord(raw, ["service", "labService", "test", "panel"]));
+  const orderId =
+    pickIdentifier(raw, [
+      "id",
+      "_id",
+      "orderId",
+      "order_id",
+      "labOrderId",
+      "lab_order_id",
+      "testRequestId",
+      "test_request_id",
+    ]) ??
+    pickIdentifier(pickRecord(raw, ["order", "labOrder"]), [
+      "id",
+      "_id",
+      "orderId",
+      "order_id",
+      "labOrderId",
+      "lab_order_id",
+    ]) ??
+    pickIdentifier(raw, ["orderNumber", "order_number", "referenceNumber"]);
 
   return {
-    id: pickString(raw, ["id", "_id", "orderId", "order_id", "labOrderId", "lab_order_id"]) ?? "",
+    id: orderId ?? "",
     orderNumber: pickNullableString(raw, ["orderNumber", "order_number", "referenceNumber"]),
     patientName:
       pickString(raw, ["patientName", "patient_name"]) ??
@@ -501,6 +538,19 @@ export const labWorkflowService = {
     payload: UpdateLabOrderStatusRequest,
   ): Promise<LabOrderDetails> => {
     const response = await apiRequest<unknown>(`/api/v1/labs/me/orders/${orderId}/status`, {
+      method: "PATCH",
+      body: payload,
+      auth: true,
+    });
+
+    return normalizeLabOrderDetails(response);
+  },
+
+  reviewLabOrder: async (
+    orderId: string,
+    payload: ReviewLabOrderRequest,
+  ): Promise<LabOrderDetails> => {
+    const response = await apiRequest<unknown>(`/api/v1/labs/me/orders/${orderId}/review`, {
       method: "PATCH",
       body: payload,
       auth: true,

@@ -35,6 +35,8 @@ import PatientHelp from "./pages/patient/Help";
 import DoctorDashboard from "./pages/doctor/Dashboard";
 import DoctorAppointments from "./pages/doctor/Appointments";
 import DoctorAppointmentDetails from "./pages/doctor/AppointmentDetails";
+import DoctorRequestDetailsPage from "./pages/doctor/RequestDetails";
+import DoctorRequestsPage from "./pages/doctor/Requests";
 import DoctorPatients from "./pages/doctor/Patients";
 import DoctorPatientSummary from "./pages/doctor/PatientSummary";
 import DoctorPrescriptions from "./pages/doctor/Prescriptions";
@@ -46,6 +48,7 @@ import LabDashboard from "./pages/lab/Dashboard";
 import LabPending from "./pages/lab/Pending";
 import LabCompleted from "./pages/lab/Completed";
 import LabOrderDetailsPage from "./pages/lab/OrderDetails";
+import LabRequestsPage from "./pages/lab/Requests";
 import LabSettings from "./pages/lab/LabSettings";
 import LabHelp from "./pages/lab/Help";
 import NotFound from "./pages/NotFound";
@@ -92,6 +95,8 @@ const App = () => (
               
               {/* Doctor Routes */}
               <Route path="/doctor/dashboard" element={<ProtectedRoute allowedRoles={["Doctor"]}><DoctorDashboard /></ProtectedRoute>} />
+              <Route path="/doctor/requests" element={<ProtectedRoute allowedRoles={["Doctor"]}><DoctorRequestsPage /></ProtectedRoute>} />
+              <Route path="/doctor/requests/:requestId" element={<ProtectedRoute allowedRoles={["Doctor"]}><DoctorRequestDetailsPage /></ProtectedRoute>} />
               <Route path="/doctor/appointments" element={<ProtectedRoute allowedRoles={["Doctor"]}><DoctorAppointments /></ProtectedRoute>} />
               <Route path="/doctor/appointments/:appointmentId" element={<ProtectedRoute allowedRoles={["Doctor"]}><DoctorAppointmentDetails /></ProtectedRoute>} />
               <Route path="/doctor/patients" element={<ProtectedRoute allowedRoles={["Doctor"]}><DoctorPatients /></ProtectedRoute>} />
@@ -104,6 +109,8 @@ const App = () => (
               
               {/* Laboratory Routes */}
               <Route path="/lab/dashboard" element={<ProtectedRoute allowedRoles={["Lab"]}><LabDashboard /></ProtectedRoute>} />
+              <Route path="/lab/requests" element={<ProtectedRoute allowedRoles={["Lab"]}><LabRequestsPage /></ProtectedRoute>} />
+              <Route path="/lab/requests/:orderId" element={<ProtectedRoute allowedRoles={["Lab"]}><LabOrderDetailsPage /></ProtectedRoute>} />
               <Route path="/lab/pending" element={<ProtectedRoute allowedRoles={["Lab"]}><LabPending /></ProtectedRoute>} />
               <Route path="/lab/completed" element={<ProtectedRoute allowedRoles={["Lab"]}><LabCompleted /></ProtectedRoute>} />
               <Route path="/lab/orders/:orderId" element={<ProtectedRoute allowedRoles={["Lab"]}><LabOrderDetailsPage /></ProtectedRoute>} />

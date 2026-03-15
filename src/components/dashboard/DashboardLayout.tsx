@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useMemo } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,7 +16,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { NavLink } from "@/components/NavLink";
-import { LogOut, User, LucideIcon } from "lucide-react";
+import { Bell, ClipboardList, LogOut, User, LucideIcon } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import logo from "@/assets/logo.png";
 import { useAuth } from "@/hooks/useAuth";
@@ -47,6 +47,21 @@ const DashboardLayout = ({
   const location = useLocation();
   const navigate = useNavigate();
   const { logout } = useAuth();
+
+  const effectiveNavItems = useMemo(() => {
+    const requestItem =
+      userRole === "doctor"
+        ? { title: "Requests", url: "/doctor/requests", icon: Bell }
+        : userRole === "laboratory"
+        ? { title: "Requests", url: "/lab/requests", icon: ClipboardList }
+        : null;
+
+    if (!requestItem || navItems.some((item) => item.url === requestItem.url)) {
+      return navItems;
+    }
+
+    return [navItems[0], requestItem, ...navItems.slice(1)];
+  }, [navItems, userRole]);
 
   const isNavItemActive = (url: string) =>
     location.pathname === url ||
@@ -79,7 +94,7 @@ const DashboardLayout = ({
               <SidebarGroupLabel>Navigation</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {navItems.map((item) => (
+                  {effectiveNavItems.map((item) => (
                     <SidebarMenuItem key={item.title}>
                       <SidebarMenuButton
                         asChild

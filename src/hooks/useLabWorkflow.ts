@@ -3,6 +3,7 @@ import { labWorkflowService } from "@/services/lab-workflow.service";
 import {
   LabOrdersFilterParams,
   LabResultsFilterParams,
+  ReviewLabOrderRequest,
   SampleCollectionRequestFilterParams,
   UpdateLabOrderStatusRequest,
   UploadLabResultRequest,
@@ -68,6 +69,26 @@ export const useUpdateLabOrderStatusMutation = () => {
       orderId: string;
       payload: UpdateLabOrderStatusRequest;
     }) => labWorkflowService.updateLabOrderStatus(orderId, payload),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: labWorkflowQueryKeys.all });
+      queryClient.invalidateQueries({
+        queryKey: labWorkflowQueryKeys.orderDetails(variables.orderId),
+      });
+    },
+  });
+};
+
+export const useReviewLabOrderMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      orderId,
+      payload,
+    }: {
+      orderId: string;
+      payload: ReviewLabOrderRequest;
+    }) => labWorkflowService.reviewLabOrder(orderId, payload),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: labWorkflowQueryKeys.all });
       queryClient.invalidateQueries({
