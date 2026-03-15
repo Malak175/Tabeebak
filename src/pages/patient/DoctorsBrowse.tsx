@@ -1,6 +1,6 @@
 import { useDeferredValue, useMemo, useState } from "react";
 import { MapPin, Navigation, Search, User } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
   EmptyCard,
@@ -25,6 +25,7 @@ import { buildStableKey } from "@/lib/reactKeys";
 import { DiscoveryLocationParams } from "@/types/patient-booking.types";
 
 const PatientDoctorsBrowsePage = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const userName = getDisplayName(user ?? {});
   const [search, setSearch] = useState("");
@@ -83,6 +84,17 @@ const PatientDoctorsBrowsePage = () => {
       },
       () => toast.error("We couldn't access your location."),
     );
+  };
+
+  const handleDoctorNavigation = (routeId?: string | null, fallbackDoctorId?: string | null) => {
+    const targetId = routeId || fallbackDoctorId;
+
+    if (!targetId) {
+      toast.error("Doctor details are unavailable because the provider ID is missing.");
+      return;
+    }
+
+    navigate(`/patient/doctors/${targetId}`);
   };
 
   return (
@@ -191,11 +203,14 @@ const PatientDoctorsBrowsePage = () => {
                     <p className="text-sm text-muted-foreground">Location not published yet.</p>
                   )}
                   <div className="flex flex-wrap gap-2">
-                    <Button asChild>
-                      <Link to={`/patient/doctors/${doctor.id}`}>Open details</Link>
+                    <Button onClick={() => handleDoctorNavigation(doctor.id, doctor.doctorId)}>
+                      Open details
                     </Button>
-                    <Button asChild variant="outline">
-                      <Link to={`/patient/doctors/${doctor.id}`}>Request appointment</Link>
+                    <Button
+                      variant="outline"
+                      onClick={() => handleDoctorNavigation(doctor.id, doctor.doctorId)}
+                    >
+                      Request appointment
                     </Button>
                   </div>
                 </CardContent>

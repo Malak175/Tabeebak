@@ -1,6 +1,6 @@
 import { useDeferredValue, useMemo, useState } from "react";
 import { Building2, MapPin, Navigation, Search } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
   EmptyCard,
@@ -21,6 +21,7 @@ import { buildStableKey } from "@/lib/reactKeys";
 import { DiscoveryLocationParams } from "@/types/patient-booking.types";
 
 const PatientLabsBrowsePage = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const userName = getDisplayName(user ?? {});
   const [search, setSearch] = useState("");
@@ -62,6 +63,17 @@ const PatientLabsBrowsePage = () => {
       },
       () => toast.error("We couldn't access your location."),
     );
+  };
+
+  const handleLabNavigation = (routeId?: string | null, fallbackLabId?: string | null) => {
+    const targetId = routeId || fallbackLabId;
+
+    if (!targetId) {
+      toast.error("Lab details are unavailable because the provider ID is missing.");
+      return;
+    }
+
+    navigate(`/patient/labs/${targetId}`);
   };
 
   return (
@@ -148,11 +160,14 @@ const PatientLabsBrowsePage = () => {
                     <p className="text-sm text-muted-foreground">No lab description available yet.</p>
                   ) : null}
                   <div className="flex flex-wrap gap-2">
-                    <Button asChild>
-                      <Link to={`/patient/labs/${lab.id}`}>Open details</Link>
+                    <Button onClick={() => handleLabNavigation(lab.id, lab.labId)}>
+                      Open details
                     </Button>
-                    <Button asChild variant="outline">
-                      <Link to={`/patient/labs/${lab.id}`}>Request lab test</Link>
+                    <Button
+                      variant="outline"
+                      onClick={() => handleLabNavigation(lab.id, lab.labId)}
+                    >
+                      Request lab test
                     </Button>
                   </div>
                 </CardContent>

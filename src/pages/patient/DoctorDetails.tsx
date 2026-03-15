@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, CalendarDays, User } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -14,6 +14,7 @@ import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -35,7 +36,7 @@ const PatientDoctorDetailsPage = () => {
 
   const [preferredDate, setPreferredDate] = useState("");
   const [preferredTime, setPreferredTime] = useState("");
-  const [visitType, setVisitType] = useState("in-person");
+  const [visitType, setVisitType] = useState("");
   const [reason, setReason] = useState("");
   const [note, setNote] = useState("");
   const doctor = doctorQuery.data;
@@ -72,6 +73,20 @@ const PatientDoctorDetailsPage = () => {
       ].filter((item): item is { label: string; value: string } => Boolean(item)),
     [doctor],
   );
+  const consultationTypes = useMemo(
+    () => doctor?.servicesOffered.filter((item): item is string => Boolean(item?.trim())) ?? [],
+    [doctor],
+  );
+
+  useEffect(() => {
+    if (!consultationTypes.length) {
+      return;
+    }
+
+    if (!visitType || !consultationTypes.includes(visitType)) {
+      setVisitType(consultationTypes[0]);
+    }
+  }, [consultationTypes, visitType]);
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
@@ -215,12 +230,27 @@ const PatientDoctorDetailsPage = () => {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="visitType">Visit type</Label>
-                <Input
-                  id="visitType"
-                  value={visitType}
-                  onChange={(event) => setVisitType(event.target.value)}
-                  placeholder="in-person or video"
-                />
+                {consultationTypes.length ? (
+                  <Select value={visitType} onValueChange={setVisitType}>
+                    <SelectTrigger id="visitType">
+                      <SelectValue placeholder="Select consultation type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {consultationTypes.map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {type}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    id="visitType"
+                    value={visitType}
+                    onChange={(event) => setVisitType(event.target.value)}
+                    placeholder="Clinic, Video, Phone, or Home Visit"
+                  />
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="reason">Reason for visit</Label>

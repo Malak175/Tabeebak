@@ -95,6 +95,24 @@ const pickNullableString = (record: Record<string, unknown>, keys: string[]) => 
   return null;
 };
 
+const pickIdentifier = (record: Record<string, unknown>, keys: string[]) => {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return String(value);
+    }
+  }
+
+  return undefined;
+};
+
+const pickNullableIdentifier = (record: Record<string, unknown>, keys: string[]) =>
+  pickIdentifier(record, keys) ?? null;
+
 const pickNumber = (record: Record<string, unknown>, keys: string[]) => {
   for (const key of keys) {
     const value = record[key];
@@ -209,7 +227,10 @@ const resolveEntityId = (
   secondary: Record<string, unknown>,
   primaryKeys: string[],
   fallbackKeys: string[] = ["id", "_id"],
-) => pickString(primary, primaryKeys) ?? pickString(secondary, primaryKeys) ?? pickString(primary, fallbackKeys);
+) =>
+  pickIdentifier(primary, primaryKeys) ??
+  pickIdentifier(secondary, primaryKeys) ??
+  pickIdentifier(primary, fallbackKeys);
 
 const buildAddress = (record: Record<string, unknown>) => {
   const parts = [
@@ -257,6 +278,78 @@ const buildQueryParams = <T extends Record<string, unknown>>(params?: T) =>
       return true;
     }),
   );
+
+const normalizeConsultationType = (value?: string | null) => {
+  const normalized = value?.trim().toLowerCase();
+  if (!normalized) return undefined;
+
+  if (normalized === "in-person" || normalized === "in person" || normalized === "clinic") {
+    return "Clinic";
+  }
+
+  if (normalized === "video" || normalized === "virtual" || normalized === "online") {
+    return "Video";
+  }
+
+  if (normalized === "phone" || normalized === "call") {
+    return "Phone";
+  }
+
+  if (normalized === "home visit" || normalized === "home-visit" || normalized === "home_visit") {
+    return "Home Visit";
+  }
+
+  return value?.trim() || undefined;
+};
+
+const buildPreferredDateTimeValue = (date?: string, time?: string) => {
+  const normalizedDate = date?.trim();
+  const normalizedTime = time?.trim();
+
+  if (!normalizedDate || !normalizedTime) {
+    return undefined;
+  }
+
+  const timeWithSeconds = normalizedTime.length === 5 ? `${normalizedTime}:00` : normalizedTime;
+  return `${normalizedDate}T${timeWithSeconds}`;
+};
+
+const buildAppointmentRequestBody = (payload: CreateAppointmentRequestPayload) =>
+  buildQueryParams({
+    doctorId: payload.doctorId,
+    doctor_id: payload.doctorId,
+    preferredDate: payload.preferredDate,
+    preferred_date: payload.preferredDate,
+    preferredTime: payload.preferredTime,
+    preferred_time: buildPreferredDateTimeValue(payload.preferredDate, payload.preferredTime),
+    preferredDateTime: buildPreferredDateTimeValue(payload.preferredDate, payload.preferredTime),
+    preferred_datetime: buildPreferredDateTimeValue(payload.preferredDate, payload.preferredTime),
+    visitType: normalizeConsultationType(payload.visitType),
+    visit_type: normalizeConsultationType(payload.visitType),
+    consultationType: normalizeConsultationType(payload.visitType),
+    consultation_type: normalizeConsultationType(payload.visitType),
+    reason: payload.reason,
+    note: payload.note,
+  });
+
+const buildTestRequestBody = (payload: CreateTestRequestPayload) =>
+  buildQueryParams({
+    labId: payload.labId,
+    lab_id: payload.labId,
+    preferredDate: payload.preferredDate,
+    preferred_date: payload.preferredDate,
+    preferredTime: payload.preferredTime,
+    preferred_time: buildPreferredDateTimeValue(payload.preferredDate, payload.preferredTime),
+    preferredDateTime: buildPreferredDateTimeValue(payload.preferredDate, payload.preferredTime),
+    preferred_datetime: buildPreferredDateTimeValue(payload.preferredDate, payload.preferredTime),
+    branchId: payload.branchId,
+    branch_id: payload.branchId,
+    serviceIds: payload.serviceIds,
+    service_ids: payload.serviceIds,
+    note: payload.note,
+    homeCollection: payload.homeCollection,
+    home_collection: payload.homeCollection,
+  });
 
 const buildDiscoveryQueryParams = <T extends Record<string, unknown>>(params?: T) => {
   const normalized = buildQueryParams(params);
@@ -323,7 +416,7 @@ const normalizeDoctorItem = (payload: unknown): DoctorDirectoryItem => {
     pickRecord(raw, ["profile"]),
     pickRecord(raw, ["user"]),
   );
-  const routeId = resolveEntityId(raw, profile, ["id", "_id", "userId", "user_id"], ["doctorId", "doctor_id"]);
+  const routeId = resolveEntityId(raw, profile, ["id", "_id", "doctorId", "doctor_id"], ["userId", "user_id"]);
   const doctorId = resolveEntityId(raw, profile, ["doctorId", "doctor_id"], ["id", "_id"]);
   const bio =
     pickNullableString(raw, ["bio", "about", "description", "summary"]) ??
@@ -338,8 +431,8 @@ const normalizeDoctorItem = (payload: unknown): DoctorDirectoryItem => {
     pickNullableString(profile, ["location", "clinicAddress", "clinic_address"]);
 
   return {
-    id: routeId ?? "",
-    doctorId: doctorId ?? null,
+    id: routeId ? String(routeId) : "",
+    doctorId: doctorId ? String(doctorId) : null,
     name:
       (
         pickString(raw, ["displayName", "display_name", "fullName", "full_name", "name"]) ??
@@ -491,12 +584,12 @@ const normalizeDoctorAvailability = (payload: unknown): DoctorAvailability => {
 const normalizeLabItem = (payload: unknown): LabDirectoryItem => {
   const raw = unwrapPayload(payload);
   const address = buildAddress(raw) ?? pickNullableString(raw, ["location"]);
-  const routeId = resolveEntityId(raw, raw, ["id", "_id", "userId", "user_id"], ["labId", "lab_id"]);
+  const routeId = resolveEntityId(raw, raw, ["id", "_id", "labId", "lab_id"], ["userId", "user_id"]);
   const labId = resolveEntityId(raw, raw, ["labId", "lab_id"], ["id", "_id"]);
 
   return {
-    id: routeId ?? "",
-    labId: labId ?? null,
+    id: routeId ? String(routeId) : "",
+    labId: labId ? String(labId) : null,
     name:
       pickString(raw, ["displayName", "display_name", "legalName", "legal_name", "name"]) ??
       "Lab name unavailable",
@@ -629,11 +722,11 @@ const normalizeDoctorRequestSummary = (payload: unknown): DoctorRequestSummary =
     requestNumber: pickNullableString(raw, ["requestNumber", "request_number", "referenceNumber"]),
     status,
     providerId:
-      pickNullableString(raw, ["doctorId", "doctor_id"]) ??
-      pickNullableString(doctor, ["id", "_id", "doctorId", "doctor_id"]),
+      pickNullableIdentifier(raw, ["doctorId", "doctor_id"]) ??
+      pickNullableIdentifier(doctor, ["id", "_id", "doctorId", "doctor_id"]),
     doctorId:
-      pickNullableString(raw, ["doctorId", "doctor_id"]) ??
-      pickNullableString(doctor, ["id", "_id", "doctorId", "doctor_id"]),
+      pickNullableIdentifier(raw, ["doctorId", "doctor_id"]) ??
+      pickNullableIdentifier(doctor, ["id", "_id", "doctorId", "doctor_id"]),
     providerName:
       pickString(raw, ["doctorName", "doctor_name", "providerName"]) ??
       pickString(doctor, ["displayName", "name", "fullName", "full_name"]) ??
@@ -703,11 +796,11 @@ const normalizeLabRequestSummary = (payload: unknown): LabRequestSummary => {
     requestNumber: pickNullableString(raw, ["requestNumber", "request_number", "referenceNumber"]),
     status,
     providerId:
-      pickNullableString(raw, ["labId", "lab_id"]) ??
-      pickNullableString(lab, ["id", "_id", "labId", "lab_id"]),
+      pickNullableIdentifier(raw, ["labId", "lab_id"]) ??
+      pickNullableIdentifier(lab, ["id", "_id", "labId", "lab_id"]),
     labId:
-      pickNullableString(raw, ["labId", "lab_id"]) ??
-      pickNullableString(lab, ["id", "_id", "labId", "lab_id"]),
+      pickNullableIdentifier(raw, ["labId", "lab_id"]) ??
+      pickNullableIdentifier(lab, ["id", "_id", "labId", "lab_id"]),
     providerName:
       pickString(raw, ["labName", "lab_name", "providerName"]) ??
       pickString(lab, ["displayName", "name", "legalName", "legal_name"]) ??
@@ -741,8 +834,8 @@ const normalizeLabRequestSummary = (payload: unknown): LabRequestSummary => {
       pickBoolean(raw, ["canReply", "can_reply"]) ??
       (status === "pending" || status === "approved"),
     branchId:
-      pickNullableString(raw, ["branchId", "branch_id"]) ??
-      pickNullableString(branch, ["id", "_id", "branchId", "branch_id"]),
+      pickNullableIdentifier(raw, ["branchId", "branch_id"]) ??
+      pickNullableIdentifier(branch, ["id", "_id", "branchId", "branch_id"]),
     branchName:
       pickNullableString(raw, ["branchName", "branch_name"]) ??
       pickNullableString(branch, ["name"]),
@@ -913,7 +1006,7 @@ export const patientBookingService = {
     const response = await apiRequest<unknown>("/api/v1/appointment-requests", {
       method: "POST",
       auth: true,
-      body: payload,
+      body: buildAppointmentRequestBody(payload),
     });
 
     return normalizeDoctorRequestDetail(response);
@@ -979,7 +1072,7 @@ export const patientBookingService = {
     const response = await apiRequest<unknown>("/api/v1/test-requests", {
       method: "POST",
       auth: true,
-      body: payload,
+      body: buildTestRequestBody(payload),
     });
 
     return normalizeLabRequestDetail(response);
