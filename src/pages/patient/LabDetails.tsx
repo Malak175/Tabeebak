@@ -72,11 +72,14 @@ const PatientLabDetailsPage = () => {
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
-    if (!labId) return;
+    if (!labQuery.data?.labId) {
+      toast.error("Lab request cannot be submitted because the backend lab_id is missing.");
+      return;
+    }
 
     createRequestMutation.mutate(
       {
-        labId,
+        labId: labQuery.data.labId,
         preferredDate,
         preferredTime,
         branchId: branchId || undefined,
@@ -306,10 +309,20 @@ const PatientLabDetailsPage = () => {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={createRequestMutation.isPending || services.length === 0 || serviceIds.length === 0}
+                disabled={
+                  createRequestMutation.isPending ||
+                  services.length === 0 ||
+                  serviceIds.length === 0 ||
+                  !labQuery.data.labId
+                }
               >
                 {createRequestMutation.isPending ? "Submitting..." : "Submit lab request"}
               </Button>
+              {!labQuery.data.labId ? (
+                <p className="text-sm text-destructive">
+                  This profile is missing the backend lab ID required for request submission.
+                </p>
+              ) : null}
             </form>
           </SectionCard>
         </div>

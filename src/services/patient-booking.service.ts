@@ -164,6 +164,13 @@ const pickRecord = (record: Record<string, unknown>, keys: string[]) => {
   return {};
 };
 
+const resolveEntityId = (
+  primary: Record<string, unknown>,
+  secondary: Record<string, unknown>,
+  primaryKeys: string[],
+  fallbackKeys: string[] = ["id", "_id"],
+) => pickString(primary, primaryKeys) ?? pickString(secondary, primaryKeys) ?? pickString(primary, fallbackKeys);
+
 const buildAddress = (record: Record<string, unknown>) => {
   const parts = [
     pickNullableString(record, ["address", "location"]),
@@ -276,6 +283,8 @@ const normalizeDoctorItem = (payload: unknown): DoctorDirectoryItem => {
     pickRecord(raw, ["profile"]),
     pickRecord(raw, ["user"]),
   );
+  const routeId = resolveEntityId(raw, profile, ["id", "_id", "userId", "user_id"], ["doctorId", "doctor_id"]);
+  const doctorId = resolveEntityId(raw, profile, ["doctorId", "doctor_id"], ["id", "_id"]);
   const bio =
     pickNullableString(raw, ["bio", "about", "description", "summary"]) ??
     pickNullableString(profile, ["bio", "about", "description", "summary"]);
@@ -289,7 +298,8 @@ const normalizeDoctorItem = (payload: unknown): DoctorDirectoryItem => {
     pickNullableString(profile, ["location", "clinicAddress", "clinic_address"]);
 
   return {
-    id: String(raw.id ?? raw._id ?? raw.doctorId ?? raw.doctor_id ?? ""),
+    id: routeId ?? "",
+    doctorId: doctorId ?? null,
     name:
       (
         pickString(raw, ["displayName", "display_name", "fullName", "full_name", "name"]) ??
@@ -431,9 +441,12 @@ const normalizeDoctorAvailability = (payload: unknown): DoctorAvailability => {
 const normalizeLabItem = (payload: unknown): LabDirectoryItem => {
   const raw = unwrapPayload(payload);
   const address = buildAddress(raw) ?? pickNullableString(raw, ["location"]);
+  const routeId = resolveEntityId(raw, raw, ["id", "_id", "userId", "user_id"], ["labId", "lab_id"]);
+  const labId = resolveEntityId(raw, raw, ["labId", "lab_id"], ["id", "_id"]);
 
   return {
-    id: String(raw.id ?? raw._id ?? raw.labId ?? raw.lab_id ?? ""),
+    id: routeId ?? "",
+    labId: labId ?? null,
     name:
       pickString(raw, ["displayName", "display_name", "legalName", "legal_name", "name"]) ??
       "Lab name unavailable",

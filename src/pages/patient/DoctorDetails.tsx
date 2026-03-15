@@ -74,11 +74,14 @@ const PatientDoctorDetailsPage = () => {
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
-    if (!doctorId) return;
+    if (!doctor?.doctorId) {
+      toast.error("Doctor request cannot be submitted because the backend doctor_id is missing.");
+      return;
+    }
 
     createRequestMutation.mutate(
       {
-        doctorId,
+        doctorId: doctor.doctorId,
         preferredDate,
         preferredTime,
         visitType,
@@ -231,9 +234,18 @@ const PatientDoctorDetailsPage = () => {
                   rows={3}
                 />
               </div>
-              <Button type="submit" className="w-full" disabled={createRequestMutation.isPending}>
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={createRequestMutation.isPending || !doctor.doctorId}
+              >
                 {createRequestMutation.isPending ? "Submitting..." : "Submit appointment request"}
               </Button>
+              {!doctor.doctorId ? (
+                <p className="text-sm text-destructive">
+                  This profile is missing the backend doctor ID required for request submission.
+                </p>
+              ) : null}
             </form>
           </SectionCard>
         </div>

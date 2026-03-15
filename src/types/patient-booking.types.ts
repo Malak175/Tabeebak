@@ -34,6 +34,7 @@ export interface LabSearchParams extends ProviderSearchParams {
 
 export interface DoctorDirectoryItem {
   id: string;
+  doctorId?: string | null;
   name: string;
   specialty?: string | null;
   subspecialty?: string | null;
@@ -60,6 +61,7 @@ export interface DoctorDetail extends DoctorDirectoryItem {
 
 export interface LabDirectoryItem {
   id: string;
+  labId?: string | null;
   name: string;
   description?: string | null;
   address?: string | null;
