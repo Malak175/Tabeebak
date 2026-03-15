@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { useAppointmentRequestsQuery, useTestRequestsQuery } from "@/hooks/usePatientBooking";
 import { getDisplayName } from "@/lib/auth";
+import { buildStableKey } from "@/lib/reactKeys";
 
 const PatientRequestsPage = () => {
   const { user } = useAuth();
@@ -67,9 +68,12 @@ const PatientRequestsPage = () => {
             />
           ) : doctorRequestsQuery.data?.data.length ? (
             <div className="space-y-4">
-              {doctorRequestsQuery.data.data.map((request) => (
+              {doctorRequestsQuery.data.data.map((request, index) => (
                 <RequestSummaryCard
-                  key={request.id}
+                  key={buildStableKey(
+                    [request.id, request.requestNumber, request.doctorId, request.providerName, request.createdAt, index],
+                    `doctor-request-${index}`,
+                  )}
                   request={request}
                   href={`/patient/requests/doctor/${request.id}`}
                 />
@@ -103,9 +107,12 @@ const PatientRequestsPage = () => {
             <ErrorCard title="Unable to load lab requests" message={(labRequestsQuery.error as Error).message} />
           ) : labRequestsQuery.data?.data.length ? (
             <div className="space-y-4">
-              {labRequestsQuery.data.data.map((request) => (
+              {labRequestsQuery.data.data.map((request, index) => (
                 <RequestSummaryCard
-                  key={request.id}
+                  key={buildStableKey(
+                    [request.id, request.requestNumber, request.labId, request.providerName, request.createdAt, index],
+                    `lab-request-${index}`,
+                  )}
                   request={request}
                   href={`/patient/requests/lab/${request.id}`}
                 />

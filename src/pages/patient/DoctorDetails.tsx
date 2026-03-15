@@ -22,6 +22,7 @@ import {
   useDoctorBookingDetailQuery,
 } from "@/hooks/usePatientBooking";
 import { getDisplayName } from "@/lib/auth";
+import { buildStableKey } from "@/lib/reactKeys";
 
 const PatientDoctorDetailsPage = () => {
   const { doctorId } = useParams();
@@ -127,8 +128,11 @@ const PatientDoctorDetailsPage = () => {
                 </p>
                 {detailRows.length ? (
                   <div className="grid gap-3 md:grid-cols-2">
-                    {detailRows.map((item) => (
-                      <div key={item.label} className="rounded-lg border p-4">
+                    {detailRows.map((item, index) => (
+                      <div
+                        key={buildStableKey([item.label, item.value, index], `doctor-detail-${index}`)}
+                        className="rounded-lg border p-4"
+                      >
                         <p className="text-sm font-medium">{item.label}</p>
                         <p className="mt-1 text-sm text-muted-foreground">{item.value}</p>
                       </div>
@@ -167,8 +171,11 @@ const PatientDoctorDetailsPage = () => {
             {extras.length ? (
               <SectionCard title="Profile extras" description="Optional data published by the provider">
                 <div className="grid gap-4 md:grid-cols-2">
-                  {extras.map((item) => (
-                    <div key={item.label} className="rounded-lg border p-4">
+                  {extras.map((item, index) => (
+                    <div
+                      key={buildStableKey([item.label, item.value, index], `doctor-extra-${index}`)}
+                      className="rounded-lg border p-4"
+                    >
                       <p className="text-sm font-medium">{item.label}</p>
                       <p className="mt-1 text-sm text-muted-foreground">{item.value}</p>
                     </div>

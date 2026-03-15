@@ -24,6 +24,7 @@ import {
   useLabServicesDetailQuery,
 } from "@/hooks/usePatientBooking";
 import { getDisplayName } from "@/lib/auth";
+import { buildStableKey } from "@/lib/reactKeys";
 
 const PatientLabDetailsPage = () => {
   const { labId } = useParams();
@@ -126,8 +127,11 @@ const PatientLabDetailsPage = () => {
                 </p>
                 {profileRows.length ? (
                   <div className="grid gap-3 md:grid-cols-2">
-                    {profileRows.map((item) => (
-                      <div key={item.label} className="rounded-lg border p-4">
+                    {profileRows.map((item, index) => (
+                      <div
+                        key={buildStableKey([item.label, item.value, index], `lab-profile-${index}`)}
+                        className="rounded-lg border p-4"
+                      >
                         <p className="text-sm font-medium">{item.label}</p>
                         <p className="mt-1 text-sm text-muted-foreground">{item.value}</p>
                       </div>
@@ -153,8 +157,14 @@ const PatientLabDetailsPage = () => {
                 <ErrorCard title="Unable to load branches" message={(branchesQuery.error as Error).message} />
               ) : branches.length ? (
                 <div className="space-y-3">
-                  {branches.map((branch) => (
-                    <div key={branch.id} className="rounded-lg border p-4">
+                  {branches.map((branch, index) => (
+                    <div
+                      key={buildStableKey(
+                        [branch.id, branch.name, branch.address, branch.phone, index],
+                        `lab-branch-${index}`,
+                      )}
+                      className="rounded-lg border p-4"
+                    >
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="font-medium">{branch.name}</p>
                         {branch.isMainBranch ? <Badge>Main branch</Badge> : null}
@@ -180,8 +190,14 @@ const PatientLabDetailsPage = () => {
                 <ErrorCard title="Unable to load services" message={(servicesQuery.error as Error).message} />
               ) : services.length ? (
                 <div className="space-y-3">
-                  {services.map((service) => (
-                    <div key={service.id} className="rounded-lg border p-4">
+                  {services.map((service, index) => (
+                    <div
+                      key={buildStableKey(
+                        [service.id, service.name, service.category, service.sampleType, index],
+                        `lab-service-${index}`,
+                      )}
+                      className="rounded-lg border p-4"
+                    >
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <p className="font-medium">{service.name}</p>
                         {service.price != null ? (
@@ -240,8 +256,14 @@ const PatientLabDetailsPage = () => {
                       <p className="text-sm text-muted-foreground">Choose a branch if you have a preferred location.</p>
                     )}
                     <div className="max-h-44 space-y-2 overflow-auto rounded-lg border p-3">
-                      {branches.map((branch) => (
-                        <label key={branch.id} className="flex cursor-pointer items-start gap-3 rounded-md p-2 hover:bg-muted/50">
+                      {branches.map((branch, index) => (
+                        <label
+                          key={buildStableKey(
+                            [branch.id, branch.name, branch.address, branch.phone, index],
+                            `branch-choice-${index}`,
+                          )}
+                          className="flex cursor-pointer items-start gap-3 rounded-md p-2 hover:bg-muted/50"
+                        >
                           <input
                             type="radio"
                             name="branch"
@@ -267,8 +289,14 @@ const PatientLabDetailsPage = () => {
                 <Label>Select services</Label>
                 {services.length ? (
                   <div className="max-h-56 space-y-2 overflow-auto rounded-lg border p-3">
-                    {services.map((service) => (
-                      <label key={service.id} className="flex cursor-pointer items-start gap-3 rounded-md p-2 hover:bg-muted/50">
+                    {services.map((service, index) => (
+                      <label
+                        key={buildStableKey(
+                          [service.id, service.name, service.category, service.sampleType, index],
+                          `service-choice-${index}`,
+                        )}
+                        className="flex cursor-pointer items-start gap-3 rounded-md p-2 hover:bg-muted/50"
+                      >
                         <Checkbox
                           checked={serviceIds.includes(service.id)}
                           onCheckedChange={(checked) => handleServiceToggle(service.id, Boolean(checked))}

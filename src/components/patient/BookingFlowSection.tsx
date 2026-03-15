@@ -3,6 +3,7 @@ import { Calendar, Clock, MapPin, MessageSquare, XCircle } from "lucide-react";
 import { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { DoctorAvailability } from "@/types/doctor-profile.types";
+import { buildStableKey } from "@/lib/reactKeys";
 import {
   DoctorRequestSummary,
   LabRequestSummary,
@@ -181,13 +182,16 @@ export const MessageThread = ({
   return (
     <ScrollArea className="h-[320px] rounded-lg border">
       <div className="space-y-4 p-4">
-        {messages.map((message) => {
+        {messages.map((message, index) => {
           const isCurrentUser =
             message.senderRole.toLowerCase() === currentUserRole.toLowerCase();
 
           return (
             <div
-              key={message.id}
+              key={buildStableKey(
+                [message.id, message.createdAt, message.senderRole, message.senderName, message.message, index],
+                `message-${index}`,
+              )}
               className={`flex ${isCurrentUser ? "justify-end" : "justify-start"}`}
             >
               <div
@@ -279,9 +283,12 @@ export const AvailabilityPanel = ({ availability }: { availability?: DoctorAvail
 
   return (
     <div className="space-y-3">
-      {publishedAvailableDays.map((day) => (
+      {publishedAvailableDays.map((day, index) => (
         <div
-          key={day.dayOfWeek}
+          key={buildStableKey(
+            [day.dayOfWeek, day.startTime, day.endTime, day.breakStartTime, day.breakEndTime, index],
+            `availability-${index}`,
+          )}
           className="flex flex-col gap-2 rounded-lg border p-4 md:flex-row md:items-center md:justify-between"
         >
           <div>

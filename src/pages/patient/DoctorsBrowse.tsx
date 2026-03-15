@@ -21,6 +21,7 @@ import {
   useNearbyDoctorDirectoryQuery,
 } from "@/hooks/usePatientBooking";
 import { getDisplayName } from "@/lib/auth";
+import { buildStableKey } from "@/lib/reactKeys";
 import { DiscoveryLocationParams } from "@/types/patient-booking.types";
 
 const PatientDoctorsBrowsePage = () => {
@@ -154,8 +155,14 @@ const PatientDoctorsBrowsePage = () => {
           <ErrorCard title="Unable to load doctors" message={(activeQuery.error as Error).message} />
         ) : doctors.length ? (
           <div className="grid gap-4 xl:grid-cols-2">
-            {doctors.map((doctor) => (
-              <Card key={doctor.id} className="border-border/70">
+            {doctors.map((doctor, index) => (
+              <Card
+                key={buildStableKey(
+                  [doctor.id, doctor.doctorId, doctor.name, doctor.specialty, doctor.location, index],
+                  `doctor-${index}`,
+                )}
+                className="border-border/70"
+              >
                 <CardContent className="space-y-4 p-6">
                   <div className="flex items-start justify-between gap-4">
                     <div>

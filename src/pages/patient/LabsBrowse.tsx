@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { useLabDirectoryQuery, useNearbyLabDirectoryQuery } from "@/hooks/usePatientBooking";
 import { getDisplayName } from "@/lib/auth";
+import { buildStableKey } from "@/lib/reactKeys";
 import { DiscoveryLocationParams } from "@/types/patient-booking.types";
 
 const PatientLabsBrowsePage = () => {
@@ -110,8 +111,13 @@ const PatientLabsBrowsePage = () => {
           <ErrorCard title="Unable to load labs" message={(activeQuery.error as Error).message} />
         ) : labs.length ? (
           <div className="grid gap-4 xl:grid-cols-2">
-            {labs.map((lab) => (
-              <Card key={lab.id}>
+            {labs.map((lab, index) => (
+              <Card
+                key={buildStableKey(
+                  [lab.id, lab.labId, lab.name, lab.address, lab.phone, index],
+                  `lab-${index}`,
+                )}
+              >
                 <CardContent className="space-y-4 p-6">
                   <div className="flex items-start justify-between gap-4">
                     <div>
