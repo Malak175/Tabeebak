@@ -1,3 +1,5 @@
+import type { CreateRequestMessagePayload, RequestMessage } from "@/types/patient-booking.types";
+
 export type DoctorWorkflowSortOrder = "asc" | "desc";
 
 export interface PaginatedResponse<T> {
@@ -114,10 +116,12 @@ export interface DoctorAppointmentRequest {
   providerMessage?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
+  canReply: boolean;
 }
 
 export interface DoctorAppointmentRequestDetails extends DoctorAppointmentRequest {
   patient: DoctorAppointmentRequestPatientSummary;
+  messages: RequestMessage[];
 }
 
 export interface UpdateDoctorAppointmentRequestStatusPayload {
@@ -125,6 +129,8 @@ export interface UpdateDoctorAppointmentRequestStatusPayload {
   message?: string | null;
   scheduledAt?: string | null;
 }
+
+export type CreateDoctorAppointmentRequestMessagePayload = CreateRequestMessagePayload;
 
 export interface DoctorPatientListItem {
   id: string;

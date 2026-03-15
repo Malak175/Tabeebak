@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { doctorWorkflowService } from "@/services/doctor-workflow.service";
 import {
+  CreateDoctorAppointmentRequestMessagePayload,
   DoctorAppointmentRequestFilterParams,
   DoctorAppointmentFilterParams,
   DoctorPatientFilterParams,
@@ -79,6 +80,21 @@ export const useUpdateDoctorAppointmentRequestStatusMutation = () => {
       queryClient.invalidateQueries({
         queryKey: doctorWorkflowQueryKeys.appointmentRequestDetails(variables.requestId),
       });
+    },
+  });
+};
+
+export const useDoctorAppointmentRequestMessageMutation = (requestId: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: CreateDoctorAppointmentRequestMessagePayload) =>
+      doctorWorkflowService.sendDoctorAppointmentRequestMessage(requestId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: doctorWorkflowQueryKeys.appointmentRequestDetails(requestId),
+      });
+      queryClient.invalidateQueries({ queryKey: doctorWorkflowQueryKeys.appointmentRequests() });
     },
   });
 };

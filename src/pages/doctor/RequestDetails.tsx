@@ -3,6 +3,11 @@ import { format, isValid, parseISO } from "date-fns";
 import { ArrowLeft, CalendarClock, MessageSquareText, Stethoscope, User } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
+import {
+  MessageThread,
+  ReplyComposer,
+  SectionCard,
+} from "@/components/patient/BookingFlowSection";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { doctorNavItems } from "@/components/settings/AccountSettingsContent";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -15,6 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import {
   useDoctorAppointmentRequestDetailsQuery,
+  useDoctorAppointmentRequestMessageMutation,
   useUpdateDoctorAppointmentRequestStatusMutation,
 } from "@/hooks/useDoctorWorkflow";
 import { useAuth } from "@/hooks/useAuth";
@@ -66,10 +72,13 @@ const DoctorRequestDetailsPage = () => {
   const { user } = useAuth();
   const query = useDoctorAppointmentRequestDetailsQuery(requestId, Boolean(user));
   const mutation = useUpdateDoctorAppointmentRequestStatusMutation();
+  const replyMutation = useDoctorAppointmentRequestMessageMutation(requestId ?? "");
   const userName = getDisplayName(user ?? {});
 
   const [message, setMessage] = useState("");
   const [scheduledAt, setScheduledAt] = useState("");
+  const [reply, setReply] = useState("");
+  const [sendError, setSendError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!query.data) return;
@@ -96,6 +105,25 @@ const DoctorRequestDetailsPage = () => {
           navigate("/doctor/requests");
         },
         onError: (error: Error) => toast.error(error.message),
+      },
+    );
+  };
+
+  const handleSendReply = () => {
+    if (!requestId || !reply.trim()) return;
+
+    setSendError(null);
+    replyMutation.mutate(
+      { message: reply.trim() },
+      {
+        onSuccess: () => {
+          toast.success("Message sent.");
+          setReply("");
+        },
+        onError: (error: Error) => {
+          setSendError(error.message);
+          toast.error(error.message);
+        },
       },
     );
   };
@@ -260,19 +288,40 @@ const DoctorRequestDetailsPage = () => {
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <MessageSquareText className="h-5 w-5" />
-                    Provider Message
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="whitespace-pre-wrap text-sm text-muted-foreground">
-                    {query.data.providerMessage || "No provider message has been saved yet."}
-                  </p>
-                </CardContent>
-              </Card>
+              <SectionCard
+                title="Request Thread"
+                description="Shared conversation with the patient for this appointment request."
+              >
+                <div className="space-y-4">
+                  {query.isFetching ? (
+                    <p className="text-xs text-muted-foreground">Refreshing thread...</p>
+                  ) : null}
+                  {sendError ? (
+                    <Alert variant="destructive">
+                      <AlertTitle>Unable to send message</AlertTitle>
+                      <AlertDescription>{sendError}</AlertDescription>
+                    </Alert>
+                  ) : null}
+                  <MessageThread messages={query.data.messages} currentUserRole={user?.role || "DOCTOR"} />
+                  <ReplyComposer
+                    value={reply}
+                    onChange={(value) => {
+                      setReply(value);
+                      if (sendError) {
+                        setSendError(null);
+                      }
+                    }}
+                    onSubmit={handleSendReply}
+                    isSending={replyMutation.isPending}
+                    disabled={!requestId || !query.data.canReply}
+                  />
+                  {!query.data.canReply ? (
+                    <p className="text-sm text-muted-foreground">
+                      Replies are unavailable for this request in its current state.
+                    </p>
+                  ) : null}
+                </div>
+              </SectionCard>
             </div>
           </div>
         </div>

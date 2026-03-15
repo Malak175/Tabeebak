@@ -1,5 +1,10 @@
 import { apiRequest } from "@/services/api";
 import {
+  CreateRequestMessagePayload,
+  RequestMessage,
+} from "@/types/patient-booking.types";
+import {
+  CreateDoctorAppointmentRequestMessagePayload,
   DoctorAppointment,
   DoctorAppointmentRequest,
   DoctorAppointmentRequestDetails,
@@ -155,6 +160,27 @@ const pickRecord = (record: Record<string, unknown>, keys: string[]) => {
   return {};
 };
 
+const unwrapListPayload = (payload: unknown, nestedKeys: string[] = []) => {
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+
+  const record = asRecord(payload);
+  const data = record.data;
+  if (Array.isArray(data)) {
+    return data;
+  }
+
+  for (const key of nestedKeys) {
+    const nested = record[key];
+    if (Array.isArray(nested)) {
+      return nested;
+    }
+  }
+
+  return [];
+};
+
 const buildDateTime = (record: Record<string, unknown>, dateKeys: string[], timeKeys: string[]) => {
   const explicit = pickString(record, [
     "scheduledAt",
@@ -180,6 +206,43 @@ const buildDateTime = (record: Record<string, unknown>, dateKeys: string[], time
 
   return explicit ?? date ?? null;
 };
+
+const normalizeMessage = (payload: unknown): RequestMessage => {
+  const raw = unwrapPayload(payload);
+  const sender = mergeRecords(
+    pickRecord(raw, ["sender", "author", "createdBy"]),
+    pickRecord(raw, ["doctor"]),
+    pickRecord(raw, ["patient"]),
+  );
+
+  return {
+    id:
+      pickIdentifier(raw, ["id", "_id", "messageId", "message_id"]) ??
+      ([
+        pickNullableString(raw, ["createdAt", "created_at", "sentAt", "sent_at"]),
+        pickString(raw, ["message", "content", "text", "body"]),
+        pickString(sender, ["role"]),
+        pickNullableString(sender, ["name", "fullName", "full_name"]),
+      ]
+        .filter(Boolean)
+        .join("::") ||
+        "message"),
+    senderRole:
+      pickString(raw, ["senderRole", "sender_role", "role"]) ??
+      pickString(sender, ["role"]) ??
+      "Unknown",
+    senderName:
+      pickNullableString(raw, ["senderName", "sender_name"]) ??
+      pickNullableString(sender, ["displayName", "name", "fullName", "full_name"]),
+    message: pickString(raw, ["message", "content", "text", "body"]) ?? "",
+    createdAt: pickNullableString(raw, ["createdAt", "created_at", "sentAt", "sent_at"]),
+  };
+};
+
+const resolveMessageList = (raw: Record<string, unknown>) =>
+  [...unwrapListPayload(raw.messages, ["items"]), ...unwrapListPayload(raw.thread, ["messages"])].map(
+    normalizeMessage,
+  );
 
 const getListEnvelope = (payload: unknown) => {
   if (Array.isArray(payload)) {
@@ -327,6 +390,8 @@ const normalizeDoctorAppointmentRequest = (payload: unknown): DoctorAppointmentR
     pickRecord(raw, ["patient", "patientProfile"]),
     pickRecord(raw, ["patientDetails"]),
   );
+  const messages = resolveMessageList(raw);
+  const latestMessage = messages[messages.length - 1];
   const requestId =
     pickIdentifier(raw, [
       "id",
@@ -355,6 +420,7 @@ const normalizeDoctorAppointmentRequest = (payload: unknown): DoctorAppointmentR
       "requestSummary",
       "request_summary",
     ]) ??
+    latestMessage?.message ??
     pickNullableString(raw, ["reason", "chiefComplaint", "chief_complaint", "note", "notes"]);
 
   return {
@@ -416,6 +482,9 @@ const normalizeDoctorAppointmentRequest = (payload: unknown): DoctorAppointmentR
     ]),
     createdAt: pickNullableString(raw, ["createdAt", "created_at"]),
     updatedAt: pickNullableString(raw, ["updatedAt", "updated_at"]),
+    canReply:
+      pickBoolean(raw, ["canReply", "can_reply"]) ??
+      !["cancelled", "canceled"].includes((pickString(raw, ["status"]) ?? "").toLowerCase()),
   };
 };
 
@@ -443,6 +512,7 @@ const normalizeDoctorAppointmentRequestDetails = (
       phone: pickNullableString(patient, ["phone", "phoneNumber", "mobile"]),
       email: pickNullableString(patient, ["email"]),
     },
+    messages: resolveMessageList(raw),
   };
 };
 
@@ -667,6 +737,19 @@ export const doctorWorkflowService = {
     );
 
     return normalizeDoctorAppointmentRequestDetails(response);
+  },
+
+  sendDoctorAppointmentRequestMessage: async (
+    requestId: string,
+    payload: CreateDoctorAppointmentRequestMessagePayload | CreateRequestMessagePayload,
+  ): Promise<RequestMessage> => {
+    const response = await apiRequest<unknown>(`/api/v1/appointment-requests/${requestId}/messages`, {
+      method: "POST",
+      body: payload,
+      auth: true,
+    });
+
+    return normalizeMessage(response);
   },
 
   getDoctorAppointments: async (
