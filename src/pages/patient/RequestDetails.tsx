@@ -15,6 +15,7 @@ import {
 } from "@/components/patient/BookingFlowSection";
 import { patientBookingNavItems } from "@/components/patient/patientNavigation";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -32,6 +33,7 @@ const PatientRequestDetailsPage = () => {
   const { user } = useAuth();
   const userName = getDisplayName(user ?? {});
   const [reply, setReply] = useState("");
+  const [sendError, setSendError] = useState<string | null>(null);
 
   const isDoctorRequest = requestType === "doctor";
   const doctorQuery = useAppointmentRequestDetailQuery(requestId, isDoctorRequest);
@@ -49,6 +51,7 @@ const PatientRequestDetailsPage = () => {
   const handleSendReply = () => {
     if (!requestId || !reply.trim()) return;
 
+    setSendError(null);
     sendingMutation.mutate(
       { message: reply.trim() },
       {
@@ -56,7 +59,10 @@ const PatientRequestDetailsPage = () => {
           toast.success("Message sent.");
           setReply("");
         },
-        onError: (error: Error) => toast.error(error.message),
+        onError: (error: Error) => {
+          setSendError(error.message);
+          toast.error(error.message);
+        },
       },
     );
   };
@@ -175,11 +181,25 @@ const PatientRequestDetailsPage = () => {
             }
           >
             <div className="space-y-4">
+              {activeQuery.isFetching ? (
+                <p className="text-xs text-muted-foreground">Refreshing thread...</p>
+              ) : null}
+              {sendError ? (
+                <Alert variant="destructive">
+                  <AlertTitle>Unable to send message</AlertTitle>
+                  <AlertDescription>{sendError}</AlertDescription>
+                </Alert>
+              ) : null}
               <MessageThread messages={activeRequest.messages} currentUserRole={user?.role || "Patient"} />
               {activeRequest.canReply ? (
                 <ReplyComposer
                   value={reply}
-                  onChange={setReply}
+                  onChange={(value) => {
+                    setReply(value);
+                    if (sendError) {
+                      setSendError(null);
+                    }
+                  }}
                   onSubmit={handleSendReply}
                   isSending={sendingMutation.isPending}
                 />

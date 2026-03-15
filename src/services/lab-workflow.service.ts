@@ -207,15 +207,15 @@ const normalizeMessage = (payload: unknown): RequestMessage => {
 
   return {
     id:
-      pickIdentifier(raw, ["id", "_id", "messageId", "message_id"]) ??
-      [
-        pickNullableString(raw, ["createdAt", "created_at", "sentAt", "sent_at"]),
-        pickString(raw, ["message", "content", "text", "body"]),
-        pickString(sender, ["role"]),
-        pickNullableString(sender, ["displayName", "name", "fullName", "full_name"]),
-      ]
-        .filter(Boolean)
-        .join("::") ||
+      (pickIdentifier(raw, ["id", "_id", "messageId", "message_id"]) ??
+        [
+          pickNullableString(raw, ["createdAt", "created_at", "sentAt", "sent_at"]),
+          pickString(raw, ["message", "content", "text", "body"]),
+          pickString(sender, ["role"]),
+          pickNullableString(sender, ["displayName", "name", "fullName", "full_name"]),
+        ]
+          .filter(Boolean)
+          .join("::")) ||
       "message",
     senderRole:
       pickString(raw, ["senderRole", "sender_role", "role"]) ??

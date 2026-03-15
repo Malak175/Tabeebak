@@ -106,7 +106,9 @@ export const useLabOrderMessageMutation = (requestId: string) => {
     mutationFn: (payload: SendLabOrderMessageRequest) =>
       labWorkflowService.sendLabOrderMessage(requestId, payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: labWorkflowQueryKeys.all });
+      queryClient.invalidateQueries({ queryKey: labWorkflowQueryKeys.orders() });
+      queryClient.invalidateQueries({ queryKey: labWorkflowQueryKeys.pendingOrders() });
+      queryClient.invalidateQueries({ queryKey: ["lab-workflow", "orders", "detail"] });
     },
   });
 };

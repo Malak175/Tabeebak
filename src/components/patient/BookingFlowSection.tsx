@@ -171,6 +171,35 @@ export const MessageThread = ({
   messages: RequestMessage[];
   currentUserRole: string;
 }) => {
+  const normalizeRole = (role?: string | null) => role?.trim().toLowerCase() ?? "";
+  const getRoleLabel = (role?: string | null) => {
+    const normalizedRole = normalizeRole(role);
+
+    if (normalizedRole === "lab" || normalizedRole === "laboratory") return "Lab";
+    if (normalizedRole === "doctor") return "Doctor";
+    if (normalizedRole === "patient") return "Patient";
+
+    return role?.trim() || "Unknown";
+  };
+
+  const getRoleAccentClassName = (role?: string | null, isCurrentUser?: boolean) => {
+    if (isCurrentUser) {
+      return "bg-primary/15 text-primary-foreground/80";
+    }
+
+    switch (normalizeRole(role)) {
+      case "lab":
+      case "laboratory":
+        return "bg-amber-100 text-amber-800";
+      case "doctor":
+        return "bg-emerald-100 text-emerald-800";
+      case "patient":
+        return "bg-sky-100 text-sky-800";
+      default:
+        return "bg-muted text-muted-foreground";
+    }
+  };
+
   if (!messages.length) {
     return (
       <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
@@ -184,7 +213,9 @@ export const MessageThread = ({
       <div className="space-y-4 p-4">
         {messages.map((message, index) => {
           const isCurrentUser =
-            message.senderRole.toLowerCase() === currentUserRole.toLowerCase();
+            normalizeRole(message.senderRole) === normalizeRole(currentUserRole);
+          const displayRole = getRoleLabel(message.senderRole);
+          const displayName = message.senderName || displayRole;
 
           return (
             <div
@@ -201,9 +232,16 @@ export const MessageThread = ({
                     : "bg-muted text-foreground"
                 }`}
               >
-                <p className="text-xs font-medium opacity-80">
-                  {message.senderName || message.senderRole}
-                </p>
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <span className="font-medium opacity-90">{displayName}</span>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                      getRoleAccentClassName(message.senderRole, isCurrentUser)
+                    }`}
+                  >
+                    {displayRole}
+                  </span>
+                </div>
                 <p className="mt-1 text-sm">{message.message}</p>
                 <p className="mt-2 text-[11px] opacity-75">{formatDateTime(message.createdAt)}</p>
               </div>

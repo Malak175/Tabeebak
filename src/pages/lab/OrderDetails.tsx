@@ -20,8 +20,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  useLabOrderMessageMutation,
   useLabOrderDetailsQuery,
+  useLabOrderMessageMutation,
   useReviewLabOrderMutation,
   useUpdateLabOrderStatusMutation,
   useUploadLabOrderResultMutation,
@@ -99,7 +99,7 @@ const LabOrderDetailsPage = () => {
 
   const [status, setStatus] = useState("processing");
   const [statusNotes, setStatusNotes] = useState("");
-  const [reviewNotes, setReviewNotes] = useState("");
+  const [reviewMessage, setReviewMessage] = useState("");
   const [reply, setReply] = useState("");
   const [replyError, setReplyError] = useState<string | null>(null);
   const [resultStatus, setResultStatus] = useState("completed");
@@ -112,7 +112,7 @@ const LabOrderDetailsPage = () => {
   const [values, setValues] = useState<UploadLabResultValue[]>([createEmptyValue()]);
 
   const detail = detailsQuery.data;
-  const labNotes = [detail?.instructions, detail?.diagnosis, detail?.specimenNotes]
+  const patientNote = [detail?.instructions, detail?.diagnosis, detail?.specimenNotes]
     .filter(Boolean)
     .join("\n\n");
 
@@ -121,7 +121,7 @@ const LabOrderDetailsPage = () => {
 
     setStatus(detail.status);
     setStatusNotes(detail.internalNotes ?? detail.notes ?? "");
-    setReviewNotes(detail.internalNotes ?? detail.notes ?? "");
+    setReviewMessage(detail.notes ?? "");
     setResultStatus(detail.resultStatus ?? "completed");
     setReferenceNumber(detail.resultId ?? detail.orderNumber ?? "");
     setResultNotes(detail.internalNotes ?? "");
@@ -151,6 +151,26 @@ const LabOrderDetailsPage = () => {
     event.target.value = "";
   };
 
+  const submitReview = (action: "approve" | "reject") => {
+    if (!orderId) return;
+
+    reviewMutation.mutate(
+      {
+        orderId,
+        payload: {
+          action,
+          message: reviewMessage || null,
+          notes: statusNotes || null,
+        },
+      },
+      {
+        onSuccess: () =>
+          toast.success(action === "approve" ? "Order approved successfully." : "Order rejected successfully."),
+        onError: (error: Error) => toast.error(error.message),
+      },
+    );
+  };
+
   const submitStatusUpdate = () => {
     if (!orderId) return;
 
@@ -164,26 +184,6 @@ const LabOrderDetailsPage = () => {
       },
       {
         onSuccess: () => toast.success("Order status updated successfully."),
-        onError: (error: Error) => toast.error(error.message),
-      },
-    );
-  };
-
-  const submitReview = (action: "approve" | "reject") => {
-    if (!orderId) return;
-
-    reviewMutation.mutate(
-      {
-        orderId,
-        payload: {
-          action,
-          message: statusNotes || null,
-          notes: reviewNotes || null,
-        },
-      },
-      {
-        onSuccess: () =>
-          toast.success(action === "approve" ? "Order approved successfully." : "Order rejected successfully."),
         onError: (error: Error) => toast.error(error.message),
       },
     );
@@ -207,11 +207,6 @@ const LabOrderDetailsPage = () => {
       },
     );
   };
-
-  const backLink = location.pathname.startsWith("/lab/requests") ? "/lab/requests" : "/lab/pending";
-  const backLabel = location.pathname.startsWith("/lab/requests")
-    ? "Back to requests"
-    : "Back to lab workflow";
 
   const submitResultUpload = () => {
     if (!orderId) return;
@@ -248,6 +243,11 @@ const LabOrderDetailsPage = () => {
     );
   };
 
+  const backLink = location.pathname.startsWith("/lab/requests") ? "/lab/requests" : "/lab/pending";
+  const backLabel = location.pathname.startsWith("/lab/requests")
+    ? "Back to requests"
+    : "Back to lab workflow";
+
   return (
     <DashboardLayout
       userRole="laboratory"
@@ -266,7 +266,7 @@ const LabOrderDetailsPage = () => {
           </Button>
           <h1 className="text-2xl font-bold md:text-3xl">Lab Request Details</h1>
           <p className="text-muted-foreground">
-            Review the full patient request, reply in the shared thread, and continue the lab workflow.
+            Review the full patient request, manage the shared thread, and continue the lab workflow.
           </p>
         </div>
       </div>
@@ -274,19 +274,14 @@ const LabOrderDetailsPage = () => {
       {detailsQuery.isLoading ? (
         <div className="space-y-6">
           <Skeleton className="h-40 w-full" />
-          <Skeleton className="h-72 w-full" />
+          <Skeleton className="h-80 w-full" />
         </div>
       ) : detailsQuery.isError ? (
         <Alert variant="destructive">
           <AlertTitle>Unable to load lab order details</AlertTitle>
           <AlertDescription>
             {(detailsQuery.error as Error).message}
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-3"
-              onClick={() => void detailsQuery.refetch()}
-            >
+            <Button variant="outline" size="sm" className="mt-3" onClick={() => void detailsQuery.refetch()}>
               Retry
             </Button>
           </AlertDescription>
@@ -300,12 +295,19 @@ const LabOrderDetailsPage = () => {
                   <h2 className="text-2xl font-semibold">{detail.patientName}</h2>
                   <Badge className={getStatusClassName(detail.status)}>{detail.status}</Badge>
                   {detail.service?.sampleType ? <Badge variant="outline">{detail.service.sampleType}</Badge> : null}
+                  {detail.service?.category ? <Badge variant="outline">{detail.service.category}</Badge> : null}
                 </div>
                 <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                  <span>Requested: {formatDateTime(detail.orderedAt)}</span>
                   <span>Preferred: {formatDateTime(detail.scheduledAt)}</span>
                   <span>Collected: {formatDateTime(detail.collectedAt)}</span>
-                  <span>Requested: {formatDateTime(detail.orderedAt)}</span>
                 </div>
+                <p className="text-sm text-muted-foreground">
+                  {detail.testName}
+                  {detail.orderingDoctor?.fullName || detail.orderingDoctorName
+                    ? ` • Ordered by ${detail.orderingDoctor?.fullName || detail.orderingDoctorName}`
+                    : ""}
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -316,35 +318,104 @@ const LabOrderDetailsPage = () => {
                 <CardHeader>
                   <CardTitle>Request Snapshot</CardTitle>
                 </CardHeader>
-                <CardContent className="grid gap-4 md:grid-cols-2">
-                  <DetailRow label="Request number" value={detail.orderNumber || detail.requestId || detail.id} />
-                  <DetailRow label="Patient name" value={detail.patient.fullName} />
-                  <DetailRow
-                    label="Patient details"
-                    value={[
-                      detail.patient.age ? `${detail.patient.age} years` : null,
-                      detail.patient.gender,
-                    ]
-                      .filter(Boolean)
-                      .join(" - ")}
-                  />
-                  <DetailRow label="Patient phone" value={detail.patient.phone} />
-                  <DetailRow label="Ordering doctor" value={detail.orderingDoctor?.fullName || detail.orderingDoctorName} />
-                  <DetailRow label="Doctor specialty" value={detail.orderingDoctor?.specialty} />
-                  <DetailRow label="Requested test" value={detail.testName} />
-                  <DetailRow label="Service category" value={detail.service?.category} />
-                  <DetailRow label="Sample type" value={detail.specimenType || detail.service?.sampleType} />
-                  <DetailRow label="Sample collection" value={detail.sampleCollectionStatus || (detail.sampleCollectionRequested ? "Requested" : null)} />
-                  <DetailRow label="Collection address" value={detail.sampleCollectionAddress} />
-                  <DetailRow label="Turnaround time" value={detail.service?.turnaroundTime} />
+                <CardContent className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <DetailRow label="Request number" value={detail.orderNumber || detail.requestId || detail.id} />
+                    <DetailRow label="Requested test" value={detail.testName} />
+                    <DetailRow label="Patient name" value={detail.patient.fullName} />
+                    <DetailRow
+                      label="Patient details"
+                      value={[
+                        detail.patient.age ? `${detail.patient.age} years` : null,
+                        detail.patient.gender,
+                      ]
+                        .filter(Boolean)
+                        .join(" - ")}
+                    />
+                    <DetailRow label="Phone" value={detail.patient.phone} />
+                    <DetailRow label="Preferred time" value={formatDateTime(detail.scheduledAt)} />
+                    <DetailRow label="Ordering doctor" value={detail.orderingDoctor?.fullName || detail.orderingDoctorName} />
+                    <DetailRow label="Doctor specialty" value={detail.orderingDoctor?.specialty} />
+                    <DetailRow label="Service category" value={detail.service?.category} />
+                    <DetailRow label="Selected service" value={detail.service?.name || detail.testName} />
+                    <DetailRow label="Sample type" value={detail.specimenType || detail.service?.sampleType} />
+                    <DetailRow
+                      label="Sample collection"
+                      value={detail.sampleCollectionStatus || (detail.sampleCollectionRequested ? "Requested" : null)}
+                    />
+                    <DetailRow label="Collection address" value={detail.sampleCollectionAddress} />
+                    <DetailRow label="Turnaround time" value={detail.service?.turnaroundTime} />
+                  </div>
+
+                  <div className="rounded-lg border bg-muted/10 p-4">
+                    <p className="text-sm text-muted-foreground">Patient note</p>
+                    <p className="mt-2 whitespace-pre-wrap text-sm">
+                      {patientNote || "No patient-facing lab request notes were returned."}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <CalendarClock className="h-5 w-5" />
+                    Review Request
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="reviewMessage">Message to patient</Label>
+                    <Textarea
+                      id="reviewMessage"
+                      value={reviewMessage}
+                      onChange={(event) => setReviewMessage(event.target.value)}
+                      placeholder="Optional approval or rejection note"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      This message is sent with the review decision. The shared thread stays separate below.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <Button onClick={() => submitReview("approve")} disabled={reviewMutation.isPending}>
+                      {reviewMutation.isPending ? "Saving..." : "Approve request"}
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={() => submitReview("reject")}
+                      disabled={reviewMutation.isPending}
+                    >
+                      {reviewMutation.isPending ? "Saving..." : "Reject request"}
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Request Review</CardTitle>
+                  <CardTitle className="flex items-center gap-2">
+                    <User className="h-5 w-5" />
+                    Follow-up
+                  </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-3">
+                  <Button asChild className="w-full" variant="outline">
+                    <Link to="/lab/completed">View results history</Link>
+                  </Button>
+                  <Button asChild className="w-full" variant="outline">
+                    <Link to="/lab/requests">Back to request inbox</Link>
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <SectionCard
+                title="Request Thread"
+                description="Shared conversation with the patient for this lab request."
+              >
+                <div className="space-y-4">
                   {detailsQuery.isFetching ? (
                     <p className="text-xs text-muted-foreground">Refreshing thread...</p>
                   ) : null}
@@ -377,154 +448,44 @@ const LabOrderDetailsPage = () => {
                       Replies are unavailable for this request in its current state.
                     </p>
                   ) : null}
-
-                  <div className="space-y-2">
-                    <Label htmlFor="reviewMessage">Patient-facing message</Label>
-                    <Textarea
-                      id="reviewMessage"
-                      value={reviewMessage}
-                      onChange={(event) => setReviewMessage(event.target.value)}
-                      placeholder="Optional approval or rejection message"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="reviewNotes">Review notes</Label>
-                    <Textarea
-                      id="reviewNotes"
-                      value={reviewNotes}
-                      onChange={(event) => setReviewNotes(event.target.value)}
-                      placeholder="Optional internal review note"
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <Button onClick={() => submitReview("approve")} disabled={reviewMutation.isPending}>
-                      {reviewMutation.isPending ? "Saving..." : "Approve request"}
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      onClick={() => submitReview("reject")}
-                      disabled={reviewMutation.isPending}
-                    >
-                      {reviewMutation.isPending ? "Saving..." : "Reject request"}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Patient Notes</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4 text-sm text-muted-foreground">
-                  <p className="whitespace-pre-wrap">{labNotes || "No patient-facing lab request notes were returned."}</p>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <CalendarClock className="h-5 w-5" />
-                    Review Request
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="status">Order status</Label>
-                    <Select value={status} onValueChange={setStatus}>
-                      <SelectTrigger id="status">
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="sample_collected">Sample collected</SelectItem>
-                        <SelectItem value="processing">Processing</SelectItem>
-                        <SelectItem value="completed">Completed</SelectItem>
-                        <SelectItem value="cancelled">Cancelled</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground">
-                      Use this to keep the request and order workflow aligned.
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="statusNotes">Message to patient</Label>
-                    <Textarea
-                      id="statusNotes"
-                      value={statusNotes}
-                      onChange={(event) => setStatusNotes(event.target.value)}
-                      placeholder="Optional approval or rejection note"
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <Button
-                      onClick={() => {
-                        submitReview("approve");
-                        submitStatusUpdate();
-                      }}
-                      disabled={reviewMutation.isPending || updateStatusMutation.isPending}
-                    >
-                      {reviewMutation.isPending || updateStatusMutation.isPending ? "Saving..." : "Approve request"}
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      onClick={() => submitReview("reject")}
-                      disabled={reviewMutation.isPending}
-                    >
-                      {reviewMutation.isPending ? "Saving..." : "Reject request"}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <User className="h-5 w-5" />
-                    Follow-up
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <Button asChild className="w-full" variant="outline">
-                    <Link to="/lab/completed">View results history</Link>
-                  </Button>
-                  <Button asChild className="w-full" variant="outline">
-                    <Link to="/lab/requests">Back to request inbox</Link>
-                  </Button>
-                </CardContent>
-              </Card>
-
+                </div>
+              </SectionCard>
             </div>
           </div>
 
-          <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+          <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
             <Card>
               <CardHeader>
                 <CardTitle>Status Update</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="reviewNotes">Internal workflow note</Label>
-                  <Textarea
-                    id="reviewNotes"
-                    value={reviewNotes}
-                    onChange={(event) => setReviewNotes(event.target.value)}
-                    placeholder="Optional internal review note"
-                  />
+                  <Label htmlFor="status">Order status</Label>
+                  <Select value={status} onValueChange={setStatus}>
+                    <SelectTrigger id="status">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="sample_collected">Sample collected</SelectItem>
+                      <SelectItem value="processing">Processing</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="resultNotes">Lab notes</Label>
+                  <Label htmlFor="statusNotes">Internal workflow note</Label>
                   <Textarea
-                    id="resultNotes"
-                    value={resultNotes}
-                    onChange={(event) => setResultNotes(event.target.value)}
-                    placeholder="Optional lab notes"
+                    id="statusNotes"
+                    value={statusNotes}
+                    onChange={(event) => setStatusNotes(event.target.value)}
+                    placeholder="Optional internal note for the request workflow"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Kept separate from the patient-facing review message and the shared request thread.
+                  </p>
                 </div>
 
                 <Button onClick={submitStatusUpdate} disabled={updateStatusMutation.isPending}>
@@ -654,6 +615,16 @@ const LabOrderDetailsPage = () => {
                       </div>
                     ))}
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="resultNotes">Lab notes</Label>
+                  <Textarea
+                    id="resultNotes"
+                    value={resultNotes}
+                    onChange={(event) => setResultNotes(event.target.value)}
+                    placeholder="Optional result note"
+                  />
                 </div>
 
                 <div className="space-y-2">
