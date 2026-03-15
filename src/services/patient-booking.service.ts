@@ -509,6 +509,8 @@ const normalizeLabItem = (payload: unknown): LabDirectoryItem => {
     homeCollectionAvailable: pickBoolean(raw, [
       "homeCollectionAvailable",
       "home_collection_available",
+      "homeSampleCollection",
+      "home_sample_collection",
       "supportsHomeCollection",
     ]) ?? null,
     rating: pickNullableNumber(raw, ["rating", "averageRating", "average_rating"]),
