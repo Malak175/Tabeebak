@@ -15,14 +15,20 @@ import Doctors from "./pages/Doctors";
 import LabServices from "./pages/LabServices";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
+import PatientBookingEntryPage from "./pages/patient/Booking";
 import PatientDashboard from "./pages/patient/Dashboard";
-import PatientDoctors from "./pages/patient/Doctors";
+import PatientDoctorDetailsPage from "./pages/patient/DoctorDetails";
+import PatientDoctorsBrowsePage from "./pages/patient/DoctorsBrowse";
+import PatientLabDetailsPage from "./pages/patient/LabDetails";
+import PatientLabsBrowsePage from "./pages/patient/LabsBrowse";
 import PatientAppointments from "./pages/patient/Appointments";
 import PatientAppointmentDetails from "./pages/patient/AppointmentDetails";
 import PatientLabResults from "./pages/patient/LabResults";
 import PatientLabResultDetails from "./pages/patient/LabResultDetails";
 import PatientPrescriptions from "./pages/patient/Prescriptions";
 import PatientPrescriptionDetails from "./pages/patient/PrescriptionDetails";
+import PatientRequestDetailsPage from "./pages/patient/RequestDetails";
+import PatientRequestsPage from "./pages/patient/Requests";
 import PatientHealthTips from "./pages/patient/HealthTips";
 import PatientSettings from "./pages/patient/PatientSettings";
 import PatientHelp from "./pages/patient/Help";
@@ -67,7 +73,13 @@ const App = () => (
               
               {/* Patient Routes */}
               <Route path="/patient/dashboard" element={<ProtectedRoute allowedRoles={["Patient"]}><PatientDashboard /></ProtectedRoute>} />
-              <Route path="/patient/doctors" element={<ProtectedRoute allowedRoles={["Patient"]}><PatientDoctors /></ProtectedRoute>} />
+              <Route path="/patient/book" element={<ProtectedRoute allowedRoles={["Patient"]}><PatientBookingEntryPage /></ProtectedRoute>} />
+              <Route path="/patient/doctors" element={<ProtectedRoute allowedRoles={["Patient"]}><PatientDoctorsBrowsePage /></ProtectedRoute>} />
+              <Route path="/patient/doctors/:doctorId" element={<ProtectedRoute allowedRoles={["Patient"]}><PatientDoctorDetailsPage /></ProtectedRoute>} />
+              <Route path="/patient/labs" element={<ProtectedRoute allowedRoles={["Patient"]}><PatientLabsBrowsePage /></ProtectedRoute>} />
+              <Route path="/patient/labs/:labId" element={<ProtectedRoute allowedRoles={["Patient"]}><PatientLabDetailsPage /></ProtectedRoute>} />
+              <Route path="/patient/requests" element={<ProtectedRoute allowedRoles={["Patient"]}><PatientRequestsPage /></ProtectedRoute>} />
+              <Route path="/patient/requests/:requestType/:requestId" element={<ProtectedRoute allowedRoles={["Patient"]}><PatientRequestDetailsPage /></ProtectedRoute>} />
               <Route path="/patient/appointments" element={<ProtectedRoute allowedRoles={["Patient"]}><PatientAppointments /></ProtectedRoute>} />
               <Route path="/patient/appointments/:appointmentId" element={<ProtectedRoute allowedRoles={["Patient"]}><PatientAppointmentDetails /></ProtectedRoute>} />
               <Route path="/patient/prescriptions" element={<ProtectedRoute allowedRoles={["Patient"]}><PatientPrescriptions /></ProtectedRoute>} />

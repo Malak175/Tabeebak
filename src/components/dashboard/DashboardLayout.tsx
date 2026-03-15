@@ -48,6 +48,10 @@ const DashboardLayout = ({
   const navigate = useNavigate();
   const { logout } = useAuth();
 
+  const isNavItemActive = (url: string) =>
+    location.pathname === url ||
+    (url !== `/${userRole}/dashboard` && location.pathname.startsWith(`${url}/`));
+
   const getRoleColor = () => {
     switch (userRole) {
       case "doctor":
@@ -79,7 +83,7 @@ const DashboardLayout = ({
                     <SidebarMenuItem key={item.title}>
                       <SidebarMenuButton
                         asChild
-                        isActive={location.pathname === item.url}
+                        isActive={isNavItemActive(item.url)}
                         tooltip={item.title}
                       >
                         <NavLink
