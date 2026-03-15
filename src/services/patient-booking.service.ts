@@ -234,9 +234,11 @@ const resolveEntityId = (
 
 const buildAddress = (record: Record<string, unknown>) => {
   const parts = [
-    pickNullableString(record, ["address", "location"]),
+    pickNullableString(record, ["address", "location", "addressText", "address_text", "locationText", "location_text"]),
     pickNullableString(record, ["addressLine1", "address_line_1", "address1"]),
     pickNullableString(record, ["addressLine2", "address_line_2", "address2"]),
+    pickNullableString(record, ["street", "streetName", "street_name"]),
+    pickNullableString(record, ["district", "area", "neighborhood"]),
     pickNullableString(record, ["city"]),
     pickNullableString(record, ["state", "province"]),
     pickNullableString(record, ["country"]),
@@ -395,10 +397,17 @@ const normalizeRequestStatus = (value?: string | null): RequestStatus => {
   if (!normalized) return "unknown";
 
   if (normalized === "canceled") return "cancelled";
+  if (["accepted", "approve", "approved", "confirmed", "ready", "reported"].includes(normalized)) {
+    return "approved";
+  }
+  if (["declined", "deny", "denied", "reject", "rejected"].includes(normalized)) {
+    return "rejected";
+  }
+  if (["requested", "request_submitted", "under_review", "in_review", "review"].includes(normalized)) {
+    return "pending";
+  }
   if (
     normalized === "pending" ||
-    normalized === "approved" ||
-    normalized === "rejected" ||
     normalized === "cancelled" ||
     normalized === "completed"
   ) {
@@ -782,13 +791,37 @@ const normalizeLabRequestSummary = (payload: unknown): LabRequestSummary => {
   const messages = resolveMessageList(raw);
   const latestMessage = messages[messages.length - 1];
   const serviceNames = [
-    ...pickStringArray(raw, ["serviceNames", "service_names", "selectedServices"]),
+    ...pickStringArray(raw, [
+      "serviceNames",
+      "service_names",
+      "selectedServices",
+      "selected_services",
+      "requestedServices",
+      "requested_services",
+      "testNames",
+      "test_names",
+    ]),
+    ...pickStringArray(branch, ["serviceNames", "service_names"]),
+    ...pickStringArray(lab, ["serviceNames", "service_names"]),
     ...unwrapListPayload(raw.services, ["items"]).map((item) =>
       pickString(asRecord(item), ["name", "serviceName", "service_name"]) ?? "",
     ),
+    ...unwrapListPayload(raw.selectedServices, ["items"]).map((item) =>
+      pickString(asRecord(item), ["name", "serviceName", "service_name", "testName", "test_name"]) ?? "",
+    ),
+    ...unwrapListPayload(raw.testItems, ["items"]).map((item) =>
+      pickString(asRecord(item), ["name", "serviceName", "service_name", "testName", "test_name"]) ?? "",
+    ),
   ].filter(Boolean);
   const status = normalizeRequestStatus(
-    pickNullableString(raw, ["status", "requestStatus", "request_status"]),
+    pickNullableString(raw, [
+      "status",
+      "requestStatus",
+      "request_status",
+      "reviewStatus",
+      "review_status",
+      "decision",
+    ]),
   );
 
   return {
@@ -797,18 +830,27 @@ const normalizeLabRequestSummary = (payload: unknown): LabRequestSummary => {
     status,
     providerId:
       pickNullableIdentifier(raw, ["labId", "lab_id"]) ??
+      pickNullableIdentifier(raw, ["providerId", "provider_id"]) ??
       pickNullableIdentifier(lab, ["id", "_id", "labId", "lab_id"]),
     labId:
       pickNullableIdentifier(raw, ["labId", "lab_id"]) ??
+      pickNullableIdentifier(raw, ["providerId", "provider_id"]) ??
       pickNullableIdentifier(lab, ["id", "_id", "labId", "lab_id"]),
     providerName:
-      pickString(raw, ["labName", "lab_name", "providerName"]) ??
-      pickString(lab, ["displayName", "name", "legalName", "legal_name"]) ??
+      pickString(raw, ["labName", "lab_name", "providerName", "provider_name"]) ??
+      pickString(lab, ["displayName", "name", "legalName", "legal_name", "labName", "lab_name"]) ??
+      pickString(branch, ["labName", "lab_name"]) ??
       "Laboratory",
     providerSubtitle:
-      pickNullableString(raw, ["branchName", "branch_name"]) ??
-      pickNullableString(branch, ["name"]),
-    providerLocation: buildAddress(raw) ?? buildAddress(branch) ?? buildAddress(lab),
+      pickNullableString(raw, ["branchName", "branch_name", "branchLabel", "branch_label"]) ??
+      pickNullableString(branch, ["name", "branchName", "branch_name"]),
+    providerLocation:
+      buildAddress(raw) ??
+      buildAddress(branch) ??
+      buildAddress(lab) ??
+      pickNullableString(raw, ["location", "locationText", "location_text"]) ??
+      pickNullableString(branch, ["location", "locationText", "location_text"]) ??
+      pickNullableString(lab, ["location", "locationText", "location_text"]),
     preferredDate: pickNullableString(raw, ["preferredDate", "preferred_date", "date"]),
     preferredTime: pickNullableString(raw, ["preferredTime", "preferred_time", "time"]),
     preferredDateTime: buildDateTime(
@@ -837,11 +879,13 @@ const normalizeLabRequestSummary = (payload: unknown): LabRequestSummary => {
       pickNullableIdentifier(raw, ["branchId", "branch_id"]) ??
       pickNullableIdentifier(branch, ["id", "_id", "branchId", "branch_id"]),
     branchName:
-      pickNullableString(raw, ["branchName", "branch_name"]) ??
-      pickNullableString(branch, ["name"]),
+      pickNullableString(raw, ["branchName", "branch_name", "branchLabel", "branch_label"]) ??
+      pickNullableString(branch, ["name", "branchName", "branch_name"]),
     selectedServices: serviceNames,
     homeCollection:
-      pickBoolean(raw, ["homeCollection", "home_collection", "homeCollectionRequested"]) ?? null,
+      pickBoolean(raw, ["homeCollection", "home_collection", "homeCollectionRequested", "home_collection_requested"]) ??
+      pickBoolean(lab, ["homeCollectionAvailable", "home_collection_available"]) ??
+      null,
   };
 };
 

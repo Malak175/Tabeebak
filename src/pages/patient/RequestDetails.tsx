@@ -133,6 +133,24 @@ const PatientRequestDetailsPage = () => {
                         : "No services listed"}
                     </p>
                   </div>
+                  <div className="rounded-lg border p-4">
+                    <p className="text-sm font-medium">Home collection</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {"homeCollection" in activeRequest
+                        ? activeRequest.homeCollection === true
+                          ? "Requested"
+                          : activeRequest.homeCollection === false
+                            ? "Not requested"
+                            : "Not specified"
+                        : "Not specified"}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border p-4">
+                    <p className="text-sm font-medium">Lab location</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {activeRequest.providerLocation || "Location not provided"}
+                    </p>
+                  </div>
                 </div>
               )
             }
