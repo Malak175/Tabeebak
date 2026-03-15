@@ -13,6 +13,9 @@ export interface DiscoveryLocationParams {
   latitude: number;
   longitude: number;
   radiusKm?: number;
+  search?: string;
+  specialty?: string;
+  service?: string;
 }
 
 export interface ProviderSearchParams {

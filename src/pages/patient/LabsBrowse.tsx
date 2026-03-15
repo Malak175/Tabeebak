@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { Building2, MapPin, Navigation, Search } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -24,23 +24,26 @@ const PatientLabsBrowsePage = () => {
   const userName = getDisplayName(user ?? {});
   const [search, setSearch] = useState("");
   const [nearbyParams, setNearbyParams] = useState<DiscoveryLocationParams | null>(null);
+  const deferredSearch = useDeferredValue(search);
+  const normalizedSearch = deferredSearch.trim();
+  const discoveryParams = useMemo(
+    () => ({
+      search: normalizedSearch || undefined,
+    }),
+    [normalizedSearch],
+  );
 
-  const labsQuery = useLabDirectoryQuery(search ? { search } : undefined);
-  const nearQuery = useNearbyLabDirectoryQuery(nearbyParams);
+  const labsQuery = useLabDirectoryQuery(discoveryParams);
+  const nearQuery = useNearbyLabDirectoryQuery(
+    nearbyParams
+      ? {
+          ...nearbyParams,
+          search: discoveryParams.search,
+        }
+      : null,
+  );
   const activeQuery = nearbyParams ? nearQuery : labsQuery;
   const labs = useMemo(() => activeQuery.data ?? [], [activeQuery.data]);
-
-  const categories = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          labs
-            .map((lab) => lab.accreditation)
-            .filter((value): value is string => Boolean(value)),
-        ),
-      ),
-    [labs],
-  );
 
   const handleNearMe = () => {
     if (!navigator.geolocation) {
@@ -82,21 +85,16 @@ const PatientLabsBrowsePage = () => {
             <Navigation className="h-4 w-4" />
             Near me
           </Button>
-          {nearbyParams ? (
-            <Button variant="ghost" onClick={() => setNearbyParams(null)}>
-              Clear nearby
-            </Button>
-          ) : null}
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setSearch("");
+              setNearbyParams(null);
+            }}
+          >
+            Clear filters
+          </Button>
         </div>
-        {categories.length ? (
-          <div className="mt-4 flex flex-wrap gap-2">
-            {categories.map((category) => (
-              <Badge key={category} variant="secondary">
-                {category}
-              </Badge>
-            ))}
-          </div>
-        ) : null}
       </section>
 
       <SectionCard
@@ -118,23 +116,31 @@ const PatientLabsBrowsePage = () => {
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <h3 className="text-lg font-semibold">{lab.name}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {lab.description || "No description published yet."}
-                      </p>
+                      {lab.description ? (
+                        <p className="text-sm text-muted-foreground">{lab.description}</p>
+                      ) : null}
                     </div>
                     {lab.distanceKm ? (
                       <Badge variant="outline">{lab.distanceKm.toFixed(1)} km away</Badge>
                     ) : null}
                   </div>
                   <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                    <span>{lab.rating ? `${lab.rating.toFixed(1)} rating` : "No rating yet"}</span>
-                    <span>{lab.accreditation || "Accreditation pending"}</span>
-                    <span>{lab.homeCollectionAvailable ? "Home collection supported" : "In-branch testing"}</span>
+                    {lab.rating != null ? <span>{lab.rating.toFixed(1)} rating</span> : null}
+                    {lab.accreditation ? <span>{lab.accreditation}</span> : null}
+                    {lab.homeCollectionAvailable === true ? <span>Home collection supported</span> : null}
+                    {lab.homeCollectionAvailable === false ? <span>Home collection not supported</span> : null}
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <MapPin className="h-4 w-4" />
-                    {lab.address || "Address pending"}
-                  </div>
+                  {lab.address ? (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <MapPin className="h-4 w-4" />
+                      {lab.address}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Address not published yet.</p>
+                  )}
+                  {!lab.description ? (
+                    <p className="text-sm text-muted-foreground">No lab description available yet.</p>
+                  ) : null}
                   <div className="flex flex-wrap gap-2">
                     <Button asChild>
                       <Link to={`/patient/labs/${lab.id}`}>Open details</Link>
@@ -150,7 +156,11 @@ const PatientLabsBrowsePage = () => {
         ) : (
           <EmptyCard
             title="No labs matched your search"
-            description="Try a broader search term or switch off the nearby filter."
+            description={
+              nearbyParams
+                ? "Try a broader search term, a different tag, or clear Near me."
+                : "Try a broader search term or clear the active filter."
+            }
           />
         )}
       </SectionCard>

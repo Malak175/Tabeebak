@@ -211,6 +211,45 @@ const buildQueryParams = <T extends Record<string, unknown>>(params?: T) =>
     }),
   );
 
+const buildDiscoveryQueryParams = <T extends Record<string, unknown>>(params?: T) => {
+  const normalized = buildQueryParams(params);
+  const search =
+    typeof normalized.search === "string" && normalized.search.trim()
+      ? normalized.search.trim()
+      : undefined;
+  const specialty =
+    typeof normalized.specialty === "string" && normalized.specialty.trim()
+      ? normalized.specialty.trim()
+      : undefined;
+  const service =
+    typeof normalized.service === "string" && normalized.service.trim()
+      ? normalized.service.trim()
+      : undefined;
+
+  return {
+    ...normalized,
+    ...(search
+      ? {
+          search,
+          q: search,
+          query: search,
+        }
+      : {}),
+    ...(specialty
+      ? {
+          specialty,
+          specialization: specialty,
+        }
+      : {}),
+    ...(service
+      ? {
+          service,
+          category: service,
+        }
+      : {}),
+  };
+};
+
 const normalizeRequestStatus = (value?: string | null): RequestStatus => {
   const normalized = value?.trim().toLowerCase();
   if (!normalized) return "unknown";
@@ -234,38 +273,54 @@ const normalizeDoctorItem = (payload: unknown): DoctorDirectoryItem => {
   const profile = mergeRecords(
     pickRecord(raw, ["doctorProfile", "doctor_profile"]),
     pickRecord(raw, ["professionalProfile", "professional_profile"]),
+    pickRecord(raw, ["profile"]),
+    pickRecord(raw, ["user"]),
   );
+  const bio =
+    pickNullableString(raw, ["bio", "about", "description", "summary"]) ??
+    pickNullableString(profile, ["bio", "about", "description", "summary"]);
+  const clinicName =
+    pickNullableString(raw, ["clinicName", "clinic_name", "clinic"]) ??
+    pickNullableString(profile, ["clinicName", "clinic_name", "clinic"]);
+  const location =
+    buildAddress(raw) ??
+    buildAddress(profile) ??
+    pickNullableString(raw, ["location", "clinicAddress", "clinic_address"]) ??
+    pickNullableString(profile, ["location", "clinicAddress", "clinic_address"]);
 
   return {
     id: String(raw.id ?? raw._id ?? raw.doctorId ?? raw.doctor_id ?? ""),
     name:
       (
         pickString(raw, ["displayName", "display_name", "fullName", "full_name", "name"]) ??
+        pickString(profile, ["displayName", "display_name", "fullName", "full_name", "name"]) ??
         [pickString(raw, ["firstName", "first_name"]), pickString(raw, ["lastName", "last_name"])]
           .filter(Boolean)
           .join(" ")
-      ) || "Doctor",
+      ) || "Doctor name unavailable",
     specialty:
-      pickNullableString(raw, ["specialty", "specialization"]) ??
-      pickNullableString(profile, ["specialty", "specialization"]),
+      pickNullableString(raw, ["specialty", "specialization", "department"]) ??
+      pickNullableString(profile, ["specialty", "specialization", "department"]),
     subspecialty:
       pickNullableString(raw, ["subspecialty", "sub_specialty"]) ??
       pickNullableString(profile, ["subspecialty", "sub_specialty"]),
-    bio: pickNullableString(raw, ["bio", "about", "description"]),
-    clinicName:
-      pickNullableString(raw, ["clinicName", "clinic_name"]) ??
-      pickNullableString(profile, ["clinicName", "clinic_name"]),
-    location: buildAddress(raw) ?? buildAddress(profile),
-    avatarUrl: pickNullableString(raw, ["avatarUrl", "avatar", "profileImageUrl"]),
+    bio,
+    clinicName,
+    location,
+    avatarUrl:
+      pickNullableString(raw, ["avatarUrl", "avatar", "profileImageUrl", "imageUrl"]) ??
+      pickNullableString(profile, ["avatarUrl", "avatar", "profileImageUrl", "imageUrl"]),
     experienceYears:
-      pickNullableNumber(raw, ["yearsOfExperience", "years_of_experience"]) ??
-      pickNullableNumber(profile, ["yearsOfExperience", "years_of_experience"]),
+      pickNullableNumber(raw, ["yearsOfExperience", "years_of_experience", "experienceYears", "experience"]) ??
+      pickNullableNumber(profile, ["yearsOfExperience", "years_of_experience", "experienceYears", "experience"]),
     consultationFee:
-      pickNullableNumber(raw, ["consultationFee", "consultation_fee", "fee"]) ??
-      pickNullableNumber(profile, ["consultationFee", "consultation_fee", "fee"]),
-    currency: pickNullableString(raw, ["currency"]) ?? pickNullableString(profile, ["currency"]),
+      pickNullableNumber(raw, ["consultationFee", "consultation_fee", "fee", "price", "consultationPrice"]) ??
+      pickNullableNumber(profile, ["consultationFee", "consultation_fee", "fee", "price", "consultationPrice"]),
+    currency:
+      pickNullableString(raw, ["currency", "currencyCode", "currency_code"]) ??
+      pickNullableString(profile, ["currency", "currencyCode", "currency_code"]),
     rating: pickNullableNumber(raw, ["rating", "averageRating", "average_rating"]),
-    reviewCount: pickNullableNumber(raw, ["reviewCount", "review_count", "reviewsCount"]),
+    reviewCount: pickNullableNumber(raw, ["reviewCount", "review_count", "reviewsCount", "reviews"]),
     distanceKm: pickNullableNumber(raw, ["distanceKm", "distance_km", "distance"]),
   };
 };
@@ -280,8 +335,12 @@ const normalizeDoctorDetail = (payload: unknown): DoctorDetail => {
 
   return {
     ...base,
-    phone: pickNullableString(raw, ["phone", "phoneNumber", "mobile"]),
-    email: pickNullableString(raw, ["email"]),
+    phone:
+      pickNullableString(raw, ["phone", "phoneNumber", "mobile"]) ??
+      pickNullableString(professional, ["phone", "phoneNumber", "mobile"]),
+    email:
+      pickNullableString(raw, ["email"]) ??
+      pickNullableString(professional, ["email"]),
     languages: pickStringArray(raw, ["languages"]).length
       ? pickStringArray(raw, ["languages"])
       : pickStringArray(professional, ["languages"]),
@@ -299,28 +358,56 @@ const normalizeDoctorDetail = (payload: unknown): DoctorDetail => {
 
 const normalizeDoctorAvailability = (payload: unknown): DoctorAvailability => {
   const raw = unwrapPayload(payload);
-  const weeklyScheduleSource = [
+  const scheduleContainer = mergeRecords(
+    pickRecord(raw, ["weeklySchedule", "weekly_schedule"]),
+    pickRecord(raw, ["schedule"]),
+  );
+  const daysSource = [
     ...unwrapListPayload(raw.weeklySchedule, []),
     ...unwrapListPayload(raw.schedule, ["days"]),
+    ...unwrapListPayload(raw.days, []),
+    ...unwrapListPayload(scheduleContainer.days, []),
   ];
 
-  const weeklySchedule = weeklyScheduleSource.map((item) => {
-    const record = asRecord(item);
-    return {
-      dayOfWeek:
-        pickString(record, ["dayOfWeek", "day_of_week", "day", "weekday"]) ?? "Unknown",
-      isAvailable: pickBoolean(record, ["isAvailable", "is_available", "available"]) ?? false,
-      startTime: pickNullableString(record, ["startTime", "start_time", "from"]),
-      endTime: pickNullableString(record, ["endTime", "end_time", "to"]),
-      breakStartTime: pickNullableString(record, ["breakStartTime", "break_start_time"]),
-      breakEndTime: pickNullableString(record, ["breakEndTime", "break_end_time"]),
-      maxAppointments: pickNullableNumber(record, ["maxAppointments", "max_appointments", "capacity"]),
-    };
-  });
+  const weeklySchedule =
+    daysSource.length > 0
+      ? daysSource.map((item) => {
+          const record = asRecord(item);
+          return {
+            dayOfWeek:
+              pickString(record, ["dayOfWeek", "day_of_week", "day", "weekday"]) ?? "Unknown",
+            isAvailable: pickBoolean(record, ["isAvailable", "is_available", "available"]) ?? false,
+            startTime: pickNullableString(record, ["startTime", "start_time", "from"]),
+            endTime: pickNullableString(record, ["endTime", "end_time", "to"]),
+            breakStartTime: pickNullableString(record, ["breakStartTime", "break_start_time"]),
+            breakEndTime: pickNullableString(record, ["breakEndTime", "break_end_time"]),
+            maxAppointments: pickNullableNumber(record, ["maxAppointments", "max_appointments", "capacity"]),
+          };
+        })
+      : ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+          .map((dayKey) => {
+            const record = asRecord(scheduleContainer[dayKey] ?? raw[dayKey]);
+            if (!Object.keys(record).length) return null;
+
+            return {
+              dayOfWeek: dayKey.charAt(0).toUpperCase() + dayKey.slice(1),
+              isAvailable: pickBoolean(record, ["isAvailable", "is_available", "available"]) ?? false,
+              startTime: pickNullableString(record, ["startTime", "start_time", "from"]),
+              endTime: pickNullableString(record, ["endTime", "end_time", "to"]),
+              breakStartTime: pickNullableString(record, ["breakStartTime", "break_start_time"]),
+              breakEndTime: pickNullableString(record, ["breakEndTime", "break_end_time"]),
+              maxAppointments: pickNullableNumber(record, ["maxAppointments", "max_appointments", "capacity"]),
+            };
+          })
+          .filter((day): day is NonNullable<typeof day> => Boolean(day));
 
   return {
-    timezone: pickString(raw, ["timezone", "timeZone"]),
+    timezone: pickString(raw, ["timezone", "timeZone"]) ?? pickString(scheduleContainer, ["timezone", "timeZone"]),
     appointmentDurationMinutes: pickNullableNumber(raw, [
+      "appointmentDurationMinutes",
+      "appointment_duration_minutes",
+      "slotDurationMinutes",
+    ]) ?? pickNullableNumber(scheduleContainer, [
       "appointmentDurationMinutes",
       "appointment_duration_minutes",
       "slotDurationMinutes",
@@ -329,21 +416,29 @@ const normalizeDoctorAvailability = (payload: unknown): DoctorAvailability => {
       "bufferBetweenAppointmentsMinutes",
       "buffer_between_appointments_minutes",
       "bufferMinutes",
+    ]) ?? pickNullableNumber(scheduleContainer, [
+      "bufferBetweenAppointmentsMinutes",
+      "buffer_between_appointments_minutes",
+      "bufferMinutes",
     ]),
-    notes: pickNullableString(raw, ["notes", "availabilityNotes", "availability_notes"]),
+    notes:
+      pickNullableString(raw, ["notes", "availabilityNotes", "availability_notes"]) ??
+      pickNullableString(scheduleContainer, ["notes", "availabilityNotes", "availability_notes"]),
     weeklySchedule,
   };
 };
 
 const normalizeLabItem = (payload: unknown): LabDirectoryItem => {
   const raw = unwrapPayload(payload);
+  const address = buildAddress(raw) ?? pickNullableString(raw, ["location"]);
 
   return {
     id: String(raw.id ?? raw._id ?? raw.labId ?? raw.lab_id ?? ""),
     name:
-      pickString(raw, ["displayName", "display_name", "legalName", "legal_name", "name"]) ?? "Lab",
-    description: pickNullableString(raw, ["description", "about", "bio"]),
-    address: buildAddress(raw),
+      pickString(raw, ["displayName", "display_name", "legalName", "legal_name", "name"]) ??
+      "Lab name unavailable",
+    description: pickNullableString(raw, ["description", "about", "bio", "summary"]),
+    address,
     phone: pickNullableString(raw, ["phone", "phoneNumber", "mobile"]),
     email: pickNullableString(raw, ["email"]),
     logoUrl: pickNullableString(raw, ["logoUrl", "logo", "imageUrl"]),
@@ -376,8 +471,8 @@ const normalizeLabBranch = (payload: unknown): LabBranchDirectoryItem => {
 
   return {
     id: String(raw.id ?? raw._id ?? raw.branchId ?? raw.branch_id ?? ""),
-    name: pickString(raw, ["name", "branchName", "branch_name"]) ?? "Branch",
-    address: buildAddress(raw),
+    name: pickString(raw, ["name", "branchName", "branch_name"]) ?? "Branch name unavailable",
+    address: buildAddress(raw) ?? pickNullableString(raw, ["location"]),
     phone: pickNullableString(raw, ["phone", "phoneNumber"]),
     email: pickNullableString(raw, ["email"]),
     operatingHours: pickNullableString(raw, ["operatingHours", "operating_hours", "hours"]),
@@ -390,7 +485,7 @@ const normalizeLabService = (payload: unknown): LabServiceDirectoryItem => {
 
   return {
     id: String(raw.id ?? raw._id ?? raw.serviceId ?? raw.service_id ?? ""),
-    name: pickString(raw, ["name", "serviceName", "service_name"]) ?? "Service",
+    name: pickString(raw, ["name", "serviceName", "service_name"]) ?? "Service name unavailable",
     category: pickNullableString(raw, ["category", "serviceCategory", "service_category"]),
     description: pickNullableString(raw, ["description", "details"]),
     sampleType: pickNullableString(raw, ["sampleType", "sample_type"]),
@@ -615,7 +710,7 @@ export const patientBookingService = {
   async getDoctors(params?: DoctorSearchParams): Promise<DoctorDirectoryItem[]> {
     const response = await apiRequest<unknown>("/api/v1/doctors", {
       method: "GET",
-      params: buildQueryParams(params),
+      params: buildDiscoveryQueryParams(params),
     });
 
     return unwrapListPayload(response, ["doctors", "items"]).map(normalizeDoctorItem);
@@ -626,6 +721,13 @@ export const patientBookingService = {
       lat: String(params.latitude),
       lng: String(params.longitude),
       radiusKm: String(params.radiusKm ?? 20),
+    });
+    const discoveryParams = buildDiscoveryQueryParams({
+      search: params.search,
+      specialty: params.specialty,
+    });
+    Object.entries(discoveryParams).forEach(([key, value]) => {
+      query.set(key, String(value));
     });
 
     const response = await apiRequest<unknown>(`/api/v1/doctors/near?${query.toString()}`, {
@@ -654,7 +756,7 @@ export const patientBookingService = {
   async getLabs(params?: LabSearchParams): Promise<LabDirectoryItem[]> {
     const response = await apiRequest<unknown>("/api/v1/labs", {
       method: "GET",
-      params: buildQueryParams(params),
+      params: buildDiscoveryQueryParams(params),
     });
 
     return unwrapListPayload(response, ["labs", "items"]).map(normalizeLabItem);
@@ -665,6 +767,13 @@ export const patientBookingService = {
       lat: String(params.latitude),
       lng: String(params.longitude),
       radiusKm: String(params.radiusKm ?? 20),
+    });
+    const discoveryParams = buildDiscoveryQueryParams({
+      search: params.search,
+      service: params.service,
+    });
+    Object.entries(discoveryParams).forEach(([key, value]) => {
+      query.set(key, String(value));
     });
 
     const response = await apiRequest<unknown>(`/api/v1/labs/near?${query.toString()}`, {

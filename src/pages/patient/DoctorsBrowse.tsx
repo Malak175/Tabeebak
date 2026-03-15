@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { MapPin, Navigation, Search, User } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
 import {
   useDoctorDirectoryQuery,
@@ -26,16 +27,43 @@ const PatientDoctorsBrowsePage = () => {
   const { user } = useAuth();
   const userName = getDisplayName(user ?? {});
   const [search, setSearch] = useState("");
+  const [specialty, setSpecialty] = useState("all");
   const [nearbyParams, setNearbyParams] = useState<DiscoveryLocationParams | null>(null);
+  const deferredSearch = useDeferredValue(search);
+  const normalizedSearch = deferredSearch.trim();
+  const selectedSpecialty = specialty === "all" ? undefined : specialty;
+  const discoveryParams = useMemo(
+    () => ({
+      search: normalizedSearch || undefined,
+      specialty: selectedSpecialty,
+    }),
+    [normalizedSearch, selectedSpecialty],
+  );
 
-  const doctorsQuery = useDoctorDirectoryQuery(search ? { search } : undefined);
-  const nearQuery = useNearbyDoctorDirectoryQuery(nearbyParams);
+  const doctorsQuery = useDoctorDirectoryQuery(discoveryParams);
+  const nearQuery = useNearbyDoctorDirectoryQuery(
+    nearbyParams
+      ? {
+          ...nearbyParams,
+          search: discoveryParams.search,
+          specialty: discoveryParams.specialty,
+        }
+      : null,
+  );
   const activeQuery = nearbyParams ? nearQuery : doctorsQuery;
   const doctors = useMemo(() => activeQuery.data ?? [], [activeQuery.data]);
+  const directoryDoctors = useMemo(() => doctorsQuery.data ?? [], [doctorsQuery.data]);
 
   const specialties = useMemo(
-    () => Array.from(new Set(doctors.map((doctor) => doctor.specialty).filter(Boolean))),
-    [doctors],
+    () =>
+      Array.from(
+        new Set(
+          directoryDoctors
+            .map((doctor) => doctor.specialty)
+            .filter((value): value is string => Boolean(value)),
+        ),
+      ),
+    [directoryDoctors],
   );
 
   const handleNearMe = () => {
@@ -74,15 +102,33 @@ const PatientDoctorsBrowsePage = () => {
               placeholder="Search by doctor name or specialty"
             />
           </div>
+          <Select value={specialty} onValueChange={setSpecialty}>
+            <SelectTrigger className="w-full lg:w-56">
+              <SelectValue placeholder="All specialties" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All specialties</SelectItem>
+              {specialties.map((specialtyOption) => (
+                <SelectItem key={specialtyOption} value={specialtyOption}>
+                  {specialtyOption}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button variant="outline" onClick={handleNearMe} className="gap-2">
             <Navigation className="h-4 w-4" />
             Near me
           </Button>
-          {nearbyParams ? (
-            <Button variant="ghost" onClick={() => setNearbyParams(null)}>
-              Clear nearby
-            </Button>
-          ) : null}
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setSearch("");
+              setSpecialty("all");
+              setNearbyParams(null);
+            }}
+          >
+            Clear filters
+          </Button>
         </div>
         {specialties.length ? (
           <div className="mt-4 flex flex-wrap gap-2">
@@ -114,22 +160,29 @@ const PatientDoctorsBrowsePage = () => {
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <h3 className="text-lg font-semibold">{doctor.name}</h3>
-                      <p className="text-sm text-primary">{doctor.specialty || "Specialty not listed"}</p>
+                      {doctor.specialty ? <p className="text-sm text-primary">{doctor.specialty}</p> : null}
                     </div>
                     {doctor.distanceKm ? (
                       <Badge variant="outline">{doctor.distanceKm.toFixed(1)} km away</Badge>
                     ) : null}
                   </div>
-                  <p className="text-sm text-muted-foreground">{doctor.bio || "No bio provided yet."}</p>
-                  <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                    <span>{doctor.experienceYears ? `${doctor.experienceYears} years experience` : "Experience pending"}</span>
-                    <span>{doctor.consultationFee ? `${doctor.consultationFee} ${doctor.currency || ""}`.trim() : "Fee on profile"}</span>
-                    <span>{doctor.rating ? `${doctor.rating.toFixed(1)} rating` : "No rating yet"}</span>
+                  <p className="text-sm text-muted-foreground">{doctor.bio || "No bio available yet."}</p>
+                  <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
+                    {doctor.experienceYears != null ? <span>{doctor.experienceYears} years experience</span> : null}
+                    {doctor.consultationFee != null ? (
+                      <span>{`${doctor.consultationFee} ${doctor.currency || ""}`.trim()}</span>
+                    ) : null}
+                    {doctor.rating != null ? <span>{doctor.rating.toFixed(1)} rating</span> : null}
+                    {doctor.reviewCount != null ? <span>{doctor.reviewCount} reviews</span> : null}
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <MapPin className="h-4 w-4" />
-                    {doctor.location || doctor.clinicName || "Location pending"}
-                  </div>
+                  {doctor.location || doctor.clinicName ? (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <MapPin className="h-4 w-4" />
+                      {doctor.location || doctor.clinicName}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Location not published yet.</p>
+                  )}
                   <div className="flex flex-wrap gap-2">
                     <Button asChild>
                       <Link to={`/patient/doctors/${doctor.id}`}>Open details</Link>
@@ -145,7 +198,11 @@ const PatientDoctorsBrowsePage = () => {
         ) : (
           <EmptyCard
             title="No doctors matched your search"
-            description="Try a broader search term or switch off the nearby filter."
+            description={
+              nearbyParams
+                ? "Try a broader search term, a different specialty, or clear Near me."
+                : "Try a broader search term or clear the specialty filter."
+            }
           />
         )}
       </SectionCard>
