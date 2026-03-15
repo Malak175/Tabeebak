@@ -257,12 +257,29 @@ export const CancelRequestButton = ({
 
 export const AvailabilityPanel = ({ availability }: { availability?: DoctorAvailability | null }) => {
   if (!availability?.weeklySchedule?.length) {
-    return <p className="text-sm text-muted-foreground">No availability has been published yet.</p>;
+    return <p className="text-sm text-muted-foreground">Availability not published yet.</p>;
+  }
+
+  const publishedAvailableDays = availability.weeklySchedule.filter((day) => day.isAvailable);
+
+  if (!publishedAvailableDays.length) {
+    return (
+      <div className="space-y-3">
+        <p className="text-sm text-muted-foreground">
+          Availability exists for this provider, but no open days or times are currently published.
+        </p>
+        {availability.notes ? (
+          <div className="rounded-lg border bg-muted/40 p-4 text-sm text-muted-foreground">
+            {availability.notes}
+          </div>
+        ) : null}
+      </div>
+    );
   }
 
   return (
     <div className="space-y-3">
-      {availability.weeklySchedule.map((day) => (
+      {publishedAvailableDays.map((day) => (
         <div
           key={day.dayOfWeek}
           className="flex flex-col gap-2 rounded-lg border p-4 md:flex-row md:items-center md:justify-between"
@@ -270,9 +287,9 @@ export const AvailabilityPanel = ({ availability }: { availability?: DoctorAvail
           <div>
             <p className="font-medium">{day.dayOfWeek}</p>
             <p className="text-sm text-muted-foreground">
-              {day.isAvailable
+              {day.startTime || day.endTime
                 ? `${day.startTime || "--"} - ${day.endTime || "--"}`
-                : "Not available"}
+                : "Open times not published yet"}
             </p>
           </div>
           {day.breakStartTime || day.breakEndTime ? (

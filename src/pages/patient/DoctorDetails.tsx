@@ -1,4 +1,4 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import { ArrowLeft, CalendarDays, User } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -37,6 +37,40 @@ const PatientDoctorDetailsPage = () => {
   const [visitType, setVisitType] = useState("in-person");
   const [reason, setReason] = useState("");
   const [note, setNote] = useState("");
+  const doctor = doctorQuery.data;
+  const detailRows = useMemo(
+    () =>
+      [
+        doctor?.clinicName ? { label: "Clinic", value: doctor.clinicName } : null,
+        doctor?.location ? { label: "Location", value: doctor.location } : null,
+        doctor?.experienceYears != null
+          ? { label: "Experience", value: `${doctor.experienceYears} years` }
+          : null,
+        doctor?.consultationFee != null
+          ? {
+              label: "Consultation fee",
+              value: `${doctor.consultationFee} ${doctor.currency || ""}`.trim(),
+            }
+          : null,
+        doctor?.phone ? { label: "Phone", value: doctor.phone } : null,
+        doctor?.email ? { label: "Email", value: doctor.email } : null,
+      ].filter((item): item is { label: string; value: string } => Boolean(item)),
+    [doctor],
+  );
+  const extras = useMemo(
+    () =>
+      [
+        doctor?.languages.length ? { label: "Languages", value: doctor.languages.join(", ") } : null,
+        doctor?.servicesOffered.length
+          ? { label: "Services", value: doctor.servicesOffered.join(", ") }
+          : null,
+        doctor?.education.length ? { label: "Education", value: doctor.education.join(", ") } : null,
+        doctor?.certifications.length
+          ? { label: "Certifications", value: doctor.certifications.join(", ") }
+          : null,
+      ].filter((item): item is { label: string; value: string } => Boolean(item)),
+    [doctor],
+  );
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
@@ -80,41 +114,32 @@ const PatientDoctorDetailsPage = () => {
         <LoadingCard lines={6} />
       ) : doctorQuery.isError ? (
         <ErrorCard title="Unable to load doctor profile" message={(doctorQuery.error as Error).message} />
-      ) : doctorQuery.data ? (
+      ) : doctor ? (
         <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
           <div className="space-y-6">
-            <SectionCard title={doctorQuery.data.name} description={doctorQuery.data.specialty || undefined}>
+            <SectionCard title={doctor.name} description={doctor.specialty || undefined}>
               <div className="space-y-4">
                 <p className="text-sm leading-6 text-muted-foreground">
-                  {doctorQuery.data.bio || "This doctor has not added a bio yet."}
+                  {doctor.bio || "No bio available yet."}
                 </p>
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div className="rounded-lg border p-4">
-                    <p className="text-sm font-medium">Clinic</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {doctorQuery.data.clinicName || "Not available"}
-                    </p>
+                {detailRows.length ? (
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {detailRows.map((item) => (
+                      <div key={item.label} className="rounded-lg border p-4">
+                        <p className="text-sm font-medium">{item.label}</p>
+                        <p className="mt-1 text-sm text-muted-foreground">{item.value}</p>
+                      </div>
+                    ))}
                   </div>
-                  <div className="rounded-lg border p-4">
-                    <p className="text-sm font-medium">Location</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {doctorQuery.data.location || "Not available"}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border p-4">
-                    <p className="text-sm font-medium">Experience</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {doctorQuery.data.experienceYears ? `${doctorQuery.data.experienceYears} years` : "Not available"}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border p-4">
-                    <p className="text-sm font-medium">Consultation fee</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {doctorQuery.data.consultationFee
-                        ? `${doctorQuery.data.consultationFee} ${doctorQuery.data.currency || ""}`.trim()
-                        : "Not available"}
-                    </p>
-                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No clinic, fee, or contact details have been published yet.
+                  </p>
+                )}
+                <div className="space-y-1 text-sm text-muted-foreground">
+                  {doctor.consultationFee == null ? <p>Consultation fee not published yet.</p> : null}
+                  {!doctor.clinicName ? <p>Clinic information not published yet.</p> : null}
+                  {doctor.experienceYears == null ? <p>Experience not published yet.</p> : null}
                 </div>
               </div>
             </SectionCard>
@@ -136,34 +161,24 @@ const PatientDoctorDetailsPage = () => {
               )}
             </SectionCard>
 
-            <SectionCard title="Profile extras" description="Optional data published by the provider">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="rounded-lg border p-4">
-                  <p className="text-sm font-medium">Languages</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {doctorQuery.data.languages.join(", ") || "Not available"}
-                  </p>
+            {extras.length ? (
+              <SectionCard title="Profile extras" description="Optional data published by the provider">
+                <div className="grid gap-4 md:grid-cols-2">
+                  {extras.map((item) => (
+                    <div key={item.label} className="rounded-lg border p-4">
+                      <p className="text-sm font-medium">{item.label}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">{item.value}</p>
+                    </div>
+                  ))}
                 </div>
-                <div className="rounded-lg border p-4">
-                  <p className="text-sm font-medium">Services</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {doctorQuery.data.servicesOffered.join(", ") || "Not available"}
-                  </p>
-                </div>
-                <div className="rounded-lg border p-4">
-                  <p className="text-sm font-medium">Education</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {doctorQuery.data.education.join(", ") || "Not available"}
-                  </p>
-                </div>
-                <div className="rounded-lg border p-4">
-                  <p className="text-sm font-medium">Certifications</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {doctorQuery.data.certifications.join(", ") || "Not available"}
-                  </p>
-                </div>
-              </div>
-            </SectionCard>
+              </SectionCard>
+            ) : (
+              <SectionCard title="Profile extras" description="Optional data published by the provider">
+                <p className="text-sm text-muted-foreground">
+                  No additional profile details have been published yet.
+                </p>
+              </SectionCard>
+            )}
           </div>
 
           <SectionCard title="Send appointment request" description="Patient-only mutation against /api/v1/appointment-requests">

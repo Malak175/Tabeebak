@@ -49,6 +49,20 @@ const PatientLabDetailsPage = () => {
     () => branches.find((branch) => branch.id === branchId),
     [branchId, branches],
   );
+  const profileRows = useMemo(
+    () =>
+      [
+        labQuery.data?.address ? { label: "Address", value: labQuery.data.address } : null,
+        labQuery.data?.website ? { label: "Website", value: labQuery.data.website } : null,
+        labQuery.data?.establishedYear != null
+          ? { label: "Established", value: String(labQuery.data.establishedYear) }
+          : null,
+        labQuery.data?.licenseNumber ? { label: "License", value: labQuery.data.licenseNumber } : null,
+        labQuery.data?.phone ? { label: "Phone", value: labQuery.data.phone } : null,
+        labQuery.data?.email ? { label: "Email", value: labQuery.data.email } : null,
+      ].filter((item): item is { label: string; value: string } => Boolean(item)),
+    [labQuery.data],
+  );
 
   const handleServiceToggle = (serviceId: string, checked: boolean) => {
     setServiceIds((current) =>
@@ -105,33 +119,26 @@ const PatientLabDetailsPage = () => {
             <SectionCard title={labQuery.data.name} description={labQuery.data.accreditation || undefined}>
               <div className="space-y-4">
                 <p className="text-sm leading-6 text-muted-foreground">
-                  {labQuery.data.description || "This lab has not added a description yet."}
+                  {labQuery.data.description || "No lab description available yet."}
                 </p>
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div className="rounded-lg border p-4">
-                    <p className="text-sm font-medium">Address</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {labQuery.data.address || "Not available"}
-                    </p>
+                {profileRows.length ? (
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {profileRows.map((item) => (
+                      <div key={item.label} className="rounded-lg border p-4">
+                        <p className="text-sm font-medium">{item.label}</p>
+                        <p className="mt-1 text-sm text-muted-foreground">{item.value}</p>
+                      </div>
+                    ))}
                   </div>
-                  <div className="rounded-lg border p-4">
-                    <p className="text-sm font-medium">Home collection</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {labQuery.data.homeCollectionAvailable ? "Supported" : "Not listed"}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border p-4">
-                    <p className="text-sm font-medium">Website</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {labQuery.data.website || "Not available"}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border p-4">
-                    <p className="text-sm font-medium">Established</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {labQuery.data.establishedYear || "Not available"}
-                    </p>
-                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No additional lab profile details have been published yet.
+                  </p>
+                )}
+                <div className="space-y-1 text-sm text-muted-foreground">
+                  {labQuery.data.homeCollectionAvailable === true ? <p>Home collection is supported.</p> : null}
+                  {labQuery.data.homeCollectionAvailable === false ? <p>Home collection is not supported.</p> : null}
+                  {labQuery.data.homeCollectionAvailable == null ? <p>Home collection availability has not been published yet.</p> : null}
                 </div>
               </div>
             </SectionCard>
@@ -149,10 +156,12 @@ const PatientLabDetailsPage = () => {
                         <p className="font-medium">{branch.name}</p>
                         {branch.isMainBranch ? <Badge>Main branch</Badge> : null}
                       </div>
-                      <p className="mt-1 text-sm text-muted-foreground">{branch.address || "Address pending"}</p>
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        {branch.operatingHours || "Hours not published"}
-                      </p>
+                      {branch.address ? <p className="mt-1 text-sm text-muted-foreground">{branch.address}</p> : null}
+                      {branch.operatingHours ? (
+                        <p className="mt-2 text-sm text-muted-foreground">{branch.operatingHours}</p>
+                      ) : (
+                        <p className="mt-2 text-sm text-muted-foreground">Operating hours not published yet.</p>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -172,16 +181,21 @@ const PatientLabDetailsPage = () => {
                     <div key={service.id} className="rounded-lg border p-4">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <p className="font-medium">{service.name}</p>
-                        <Badge variant="outline">
-                          {service.price ? `${service.price} ${service.currency || ""}`.trim() : "Price pending"}
-                        </Badge>
+                        {service.price != null ? (
+                          <Badge variant="outline">{`${service.price} ${service.currency || ""}`.trim()}</Badge>
+                        ) : null}
                       </div>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {service.description || service.category || "No description"}
-                      </p>
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        {service.turnaroundTime || "Turnaround time pending"}
-                      </p>
+                      {service.description ? (
+                        <p className="mt-1 text-sm text-muted-foreground">{service.description}</p>
+                      ) : null}
+                      <div className="mt-2 flex flex-wrap gap-3 text-sm text-muted-foreground">
+                        {service.category ? <span>{service.category}</span> : null}
+                        {service.sampleType ? <span>{service.sampleType}</span> : null}
+                        {service.turnaroundTime ? <span>{service.turnaroundTime}</span> : null}
+                      </div>
+                      {!service.description && !service.category && !service.sampleType && !service.turnaroundTime && service.price == null ? (
+                        <p className="mt-2 text-sm text-muted-foreground">No extra service details published yet.</p>
+                      ) : null}
                     </div>
                   ))}
                 </div>
@@ -214,50 +228,62 @@ const PatientLabDetailsPage = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="branchId">Preferred branch</Label>
-                <Input
-                  id="branchId"
-                  value={branchSummary?.name || ""}
-                  onChange={() => undefined}
-                  placeholder="Select below"
-                  readOnly
-                />
-                <div className="max-h-44 space-y-2 overflow-auto rounded-lg border p-3">
-                  {branches.map((branch) => (
-                    <label key={branch.id} className="flex cursor-pointer items-start gap-3 rounded-md p-2 hover:bg-muted/50">
-                      <input
-                        type="radio"
-                        name="branch"
-                        className="mt-1"
-                        checked={branchId === branch.id}
-                        onChange={() => setBranchId(branch.id)}
-                      />
-                      <span className="text-sm">
-                        <span className="block font-medium">{branch.name}</span>
-                        <span className="text-muted-foreground">{branch.address || "Address pending"}</span>
-                      </span>
-                    </label>
-                  ))}
-                </div>
+                <Label>Preferred branch</Label>
+                {branches.length ? (
+                  <>
+                    {branchSummary ? (
+                      <p className="text-sm text-muted-foreground">Selected: {branchSummary.name}</p>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Choose a branch if you have a preferred location.</p>
+                    )}
+                    <div className="max-h-44 space-y-2 overflow-auto rounded-lg border p-3">
+                      {branches.map((branch) => (
+                        <label key={branch.id} className="flex cursor-pointer items-start gap-3 rounded-md p-2 hover:bg-muted/50">
+                          <input
+                            type="radio"
+                            name="branch"
+                            className="mt-1"
+                            checked={branchId === branch.id}
+                            onChange={() => setBranchId(branch.id)}
+                          />
+                          <span className="text-sm">
+                            <span className="block font-medium">{branch.name}</span>
+                            {branch.address ? (
+                              <span className="text-muted-foreground">{branch.address}</span>
+                            ) : null}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No branches have been published yet.</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Select services</Label>
-                <div className="max-h-56 space-y-2 overflow-auto rounded-lg border p-3">
-                  {services.map((service) => (
-                    <label key={service.id} className="flex cursor-pointer items-start gap-3 rounded-md p-2 hover:bg-muted/50">
-                      <Checkbox
-                        checked={serviceIds.includes(service.id)}
-                        onCheckedChange={(checked) => handleServiceToggle(service.id, Boolean(checked))}
-                      />
-                      <span className="text-sm">
-                        <span className="block font-medium">{service.name}</span>
-                        <span className="text-muted-foreground">
-                          {service.turnaroundTime || "Turnaround pending"}
+                {services.length ? (
+                  <div className="max-h-56 space-y-2 overflow-auto rounded-lg border p-3">
+                    {services.map((service) => (
+                      <label key={service.id} className="flex cursor-pointer items-start gap-3 rounded-md p-2 hover:bg-muted/50">
+                        <Checkbox
+                          checked={serviceIds.includes(service.id)}
+                          onCheckedChange={(checked) => handleServiceToggle(service.id, Boolean(checked))}
+                        />
+                        <span className="text-sm">
+                          <span className="block font-medium">{service.name}</span>
+                          <span className="text-muted-foreground">
+                            {service.turnaroundTime || service.category || "No extra service details published yet."}
+                          </span>
                         </span>
-                      </span>
-                    </label>
-                  ))}
-                </div>
+                      </label>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No services are available yet, so a lab request cannot be submitted from this page.
+                  </p>
+                )}
               </div>
               <label className="flex items-start gap-3 rounded-lg border p-4">
                 <Checkbox checked={homeCollection} onCheckedChange={(checked) => setHomeCollection(Boolean(checked))} />
@@ -280,7 +306,7 @@ const PatientLabDetailsPage = () => {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={createRequestMutation.isPending || serviceIds.length === 0}
+                disabled={createRequestMutation.isPending || services.length === 0 || serviceIds.length === 0}
               >
                 {createRequestMutation.isPending ? "Submitting..." : "Submit lab request"}
               </Button>
