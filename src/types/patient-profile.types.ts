@@ -36,6 +36,8 @@ export interface PatientProfile {
   displayName?: string;
   phone?: string;
   secondaryPhone?: string;
+  preferredContactMethod?: string;
+  preferredLanguage?: string;
   dateOfBirth?: string;
   gender?: string;
   address?: PatientProfileAddress;
@@ -46,8 +48,11 @@ export interface UpdatePatientProfileRequest {
   firstName?: string | null;
   lastName?: string | null;
   displayName?: string | null;
+  email?: string | null;
   phone?: string | null;
   secondaryPhone?: string | null;
+  preferredContactMethod?: string | null;
+  preferredLanguage?: string | null;
   dateOfBirth?: string | null;
   gender?: string | null;
   address?: PatientProfileAddress;
@@ -110,9 +115,24 @@ export interface UpdateInsuranceInfoRequest {
 }
 
 export interface MedicalHistorySummary {
+  patientId?: string | number;
+  bloodType?: string | null;
+  bmi?: number | null;
+  counts?: {
+    allergies?: number;
+    currentMedications?: number;
+    chronicConditions?: number;
+    pastSurgeries?: number;
+    familyHistory?: number;
+  };
+  highlights?: {
+    hasEmergencyContact?: boolean;
+    hasInsurance?: boolean;
+    lastMedicalProfileUpdateAt?: string | null;
+  };
   allergies: string[];
+  currentMedications: string[];
   chronicConditions: string[];
-  medications: string[];
-  surgeries: string[];
+  pastSurgeries: string[];
   familyHistory: string[];
 }

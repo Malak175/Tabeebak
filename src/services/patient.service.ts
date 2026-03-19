@@ -167,23 +167,14 @@ const pickRecord = (record: Record<string, unknown>, keys: string[]) => {
   return {};
 };
 
-const normalizeAddress = (
-  raw: Record<string, unknown>,
-  addressRecord: Record<string, unknown>,
-) => {
+const normalizeAddress = (addressRecord: Record<string, unknown>) => {
   const address = {
-    line1:
-      pickString(addressRecord, ["line1", "line_1", "addressLine1", "address_line_1", "address1"]) ??
-      pickString(raw, ["addressLine1", "address_line_1", "address1"]),
-    line2:
-      pickString(addressRecord, ["line2", "line_2", "addressLine2", "address_line_2", "address2"]) ??
-      pickString(raw, ["addressLine2", "address_line_2", "address2"]),
-    city: pickString(addressRecord, ["city"]) ?? pickString(raw, ["city"]),
-    state: pickString(addressRecord, ["state", "province"]) ?? pickString(raw, ["state", "province"]),
-    country: pickString(addressRecord, ["country"]) ?? pickString(raw, ["country"]),
-    postalCode:
-      pickString(addressRecord, ["postalCode", "postal_code", "zip", "zipCode", "zip_code"]) ??
-      pickString(raw, ["postalCode", "postal_code", "zip", "zipCode", "zip_code"]),
+    line1: pickString(addressRecord, ["line1"]),
+    line2: pickString(addressRecord, ["line2"]),
+    city: pickString(addressRecord, ["city"]),
+    state: pickString(addressRecord, ["state"]),
+    country: pickString(addressRecord, ["country"]),
+    postalCode: pickString(addressRecord, ["postalCode"]),
   };
 
   const hasAddress = Object.values(address).some(
@@ -310,20 +301,20 @@ const buildQueryParams = <T extends Record<string, unknown>>(params?: T) => {
 
 const normalizePatientProfile = (payload: unknown): PatientProfile => {
   const raw = unwrapPayload(payload);
-  const addressRecord = mergeRecords(
-    pickRecord(raw, ["address", "location", "addressInfo"]),
-  );
-  const address = normalizeAddress(raw, addressRecord);
+  const addressRecord = mergeRecords(pickRecord(raw, ["address"]));
+  const address = normalizeAddress(addressRecord);
 
   return {
     id: pickString(raw, ["id", "_id", "patientId", "userId"]),
     email: pickString(raw, ["email"]),
-    firstName: pickString(raw, ["firstName", "first_name"]),
-    lastName: pickString(raw, ["lastName", "last_name"]),
-    displayName: pickString(raw, ["displayName", "display_name", "fullName", "full_name", "name"]),
-    phone: pickString(raw, ["phone", "phoneNumber", "mobile"]),
-    secondaryPhone: pickString(raw, ["secondaryPhone", "secondary_phone", "alternatePhone", "alternate_phone"]),
-    dateOfBirth: pickString(raw, ["dateOfBirth", "date_of_birth", "dob"]),
+    firstName: pickString(raw, ["firstName"]),
+    lastName: pickString(raw, ["lastName"]),
+    displayName: pickString(raw, ["displayName"]),
+    phone: pickString(raw, ["phone"]),
+    secondaryPhone: pickString(raw, ["secondaryPhone"]),
+    preferredContactMethod: pickString(raw, ["preferredContactMethod"]),
+    preferredLanguage: pickString(raw, ["preferredLanguage"]),
+    dateOfBirth: pickString(raw, ["dateOfBirth"]),
     gender: pickString(raw, ["gender"]),
     address,
     avatarUrl: pickNullableString(raw, ["avatarUrl", "avatar", "profileImageUrl", "imageUrl"]),
@@ -394,23 +385,15 @@ const normalizePatientMedicalProfile = (payload: unknown): PatientMedicalProfile
   const raw = unwrapPayload(payload);
 
   return {
-    bloodType: pickString(raw, ["bloodType", "blood_type"]),
-    heightCm: pickNullableNumber(raw, ["heightCm", "height_cm", "height"]),
-    weightKg: pickNullableNumber(raw, ["weightKg", "weight_kg", "weight"]),
+    bloodType: pickString(raw, ["bloodType"]),
+    heightCm: pickNullableNumber(raw, ["heightCm"]),
+    weightKg: pickNullableNumber(raw, ["weightKg"]),
     allergies: pickStringArray(raw, ["allergies"]),
-    currentMedications: pickStringArray(raw, [
-      "currentMedications",
-      "current_medications",
-      "medications",
-    ]),
-    chronicConditions: pickStringArray(raw, [
-      "chronicConditions",
-      "chronic_conditions",
-      "conditions",
-    ]),
-    pastSurgeries: pickStringArray(raw, ["pastSurgeries", "past_surgeries", "surgeries"]),
-    familyHistory: pickStringArray(raw, ["familyHistory", "family_history"]),
-    medicalNotes: pickNullableString(raw, ["medicalNotes", "medical_notes", "notes"]),
+    currentMedications: pickStringArray(raw, ["currentMedications"]),
+    chronicConditions: pickStringArray(raw, ["chronicConditions"]),
+    pastSurgeries: pickStringArray(raw, ["pastSurgeries"]),
+    familyHistory: pickStringArray(raw, ["familyHistory"]),
+    medicalNotes: pickNullableString(raw, ["medicalNotes"]),
   };
 };
 
@@ -418,15 +401,10 @@ const normalizeEmergencyContact = (payload: unknown): EmergencyContact => {
   const raw = unwrapPayload(payload);
 
   return {
-    fullName: pickString(raw, ["fullName", "full_name", "name"]),
+    fullName: pickString(raw, ["fullName"]),
     relationship: pickString(raw, ["relationship"]),
-    phone: pickString(raw, ["phone", "phoneNumber"]),
-    secondaryPhone: pickString(raw, [
-      "secondaryPhone",
-      "secondary_phone",
-      "alternatePhone",
-      "alternate_phone",
-    ]),
+    phone: pickString(raw, ["phone"]),
+    secondaryPhone: pickString(raw, ["secondaryPhone"]),
   };
 };
 
@@ -434,24 +412,50 @@ const normalizeInsuranceInfo = (payload: unknown): InsuranceInfo => {
   const raw = unwrapPayload(payload);
 
   return {
-    providerName: pickString(raw, ["providerName", "provider_name", "provider"]),
-    memberId: pickString(raw, ["memberId", "member_id"]),
-    groupNumber: pickNullableString(raw, ["groupNumber", "group_number"]),
-    policyHolderName: pickNullableString(raw, ["policyHolderName", "policy_holder_name"]),
-    policyHolderRelation: pickNullableString(raw, ["policyHolderRelation", "policy_holder_relation"]),
-    providerPhone: pickNullableString(raw, ["providerPhone", "provider_phone", "phone"]),
+    providerName: pickString(raw, ["providerName"]),
+    memberId: pickString(raw, ["memberId"]),
+    groupNumber: pickNullableString(raw, ["groupNumber"]),
+    policyHolderName: pickNullableString(raw, ["policyHolderName"]),
+    policyHolderRelation: pickNullableString(raw, ["policyHolderRelation"]),
+    providerPhone: pickNullableString(raw, ["providerPhone"]),
   };
 };
 
 const normalizeMedicalHistorySummary = (payload: unknown): MedicalHistorySummary => {
   const raw = unwrapPayload(payload);
+  const items = mergeRecords(
+    pickRecord(raw, ["items"]),
+    pickRecord(raw, ["data"]),
+    pickRecord(raw, ["summary"]),
+  );
+  const counts = mergeRecords(pickRecord(raw, ["counts"]));
+  const highlights = mergeRecords(pickRecord(raw, ["highlights"]));
 
   return {
-    allergies: pickStringArray(raw, ["allergies"]),
-    chronicConditions: pickStringArray(raw, ["chronicConditions", "chronic_conditions"]),
-    medications: pickStringArray(raw, ["medications", "currentMedications", "current_medications"]),
-    surgeries: pickStringArray(raw, ["surgeries", "pastSurgeries", "past_surgeries"]),
-    familyHistory: pickStringArray(raw, ["familyHistory", "family_history"]),
+    patientId: pickString(raw, ["patientId", "patient_id"]) ?? pickNumber(raw, ["patientId"]),
+    bloodType: pickNullableString(raw, ["bloodType"]),
+    bmi: pickNullableNumber(raw, ["bmi"]),
+    counts: {
+      allergies: pickNumber(counts, ["allergies"]) ?? 0,
+      currentMedications: pickNumber(counts, ["currentMedications", "current_medications"]) ?? 0,
+      chronicConditions: pickNumber(counts, ["chronicConditions", "chronic_conditions"]) ?? 0,
+      pastSurgeries: pickNumber(counts, ["pastSurgeries", "past_surgeries"]) ?? 0,
+      familyHistory: pickNumber(counts, ["familyHistory", "family_history"]) ?? 0,
+    },
+    highlights: {
+      hasEmergencyContact:
+        pickBoolean(highlights, ["hasEmergencyContact", "has_emergency_contact"]) ?? false,
+      hasInsurance: pickBoolean(highlights, ["hasInsurance", "has_insurance"]) ?? false,
+      lastMedicalProfileUpdateAt: pickNullableString(highlights, [
+        "lastMedicalProfileUpdateAt",
+        "last_medical_profile_update_at",
+      ]),
+    },
+    allergies: pickStringArray(items, ["allergies"]),
+    currentMedications: pickStringArray(items, ["currentMedications", "current_medications"]),
+    chronicConditions: pickStringArray(items, ["chronicConditions", "chronic_conditions"]),
+    pastSurgeries: pickStringArray(items, ["pastSurgeries", "past_surgeries"]),
+    familyHistory: pickStringArray(items, ["familyHistory", "family_history"]),
   };
 };
 
@@ -691,9 +695,16 @@ export const patientService = {
   updateEmergencyContact: async (
     payload: UpdateEmergencyContactRequest,
   ): Promise<EmergencyContact> => {
+    const normalizedPayload: UpdateEmergencyContactRequest = {
+      fullName: payload.fullName,
+      relationship: payload.relationship,
+      phone: payload.phone,
+      secondaryPhone: payload.secondaryPhone ?? null,
+    };
+
     const response = await apiRequest<unknown>("/api/v1/patients/me/emergency-contact", {
       method: "PUT",
-      body: payload,
+      body: normalizedPayload,
       auth: true,
     });
 
@@ -710,9 +721,18 @@ export const patientService = {
   },
 
   updateInsurance: async (payload: UpdateInsuranceInfoRequest): Promise<InsuranceInfo> => {
+    const normalizedPayload: UpdateInsuranceInfoRequest = {
+      providerName: payload.providerName,
+      memberId: payload.memberId,
+      groupNumber: payload.groupNumber ?? null,
+      policyHolderName: payload.policyHolderName ?? null,
+      policyHolderRelation: payload.policyHolderRelation ?? null,
+      providerPhone: payload.providerPhone ?? null,
+    };
+
     const response = await apiRequest<unknown>("/api/v1/patients/me/insurance", {
       method: "PUT",
-      body: payload,
+      body: normalizedPayload,
       auth: true,
     });
 

@@ -1305,21 +1305,63 @@ const PatientSettings = () => {
                   </p>
                 </div>
                 <div className="rounded-lg border p-4">
+                  <p className="mb-2 text-sm font-medium">Current Medications</p>
+                  <p className="text-sm text-muted-foreground">
+                    {medicalHistoryQuery.data?.currentMedications.join(", ") || "None recorded"}
+                  </p>
+                </div>
+                <div className="rounded-lg border p-4">
                   <p className="mb-2 text-sm font-medium">Chronic Conditions</p>
                   <p className="text-sm text-muted-foreground">
                     {medicalHistoryQuery.data?.chronicConditions.join(", ") || "None recorded"}
                   </p>
                 </div>
                 <div className="rounded-lg border p-4">
-                  <p className="mb-2 text-sm font-medium">Medications</p>
+                  <p className="mb-2 text-sm font-medium">Past Surgeries</p>
                   <p className="text-sm text-muted-foreground">
-                    {medicalHistoryQuery.data?.medications.join(", ") || "None recorded"}
+                    {medicalHistoryQuery.data?.pastSurgeries.join(", ") || "None recorded"}
                   </p>
                 </div>
                 <div className="rounded-lg border p-4">
-                  <p className="mb-2 text-sm font-medium">Surgeries</p>
+                  <p className="mb-2 text-sm font-medium">Family History</p>
                   <p className="text-sm text-muted-foreground">
-                    {medicalHistoryQuery.data?.surgeries.join(", ") || "None recorded"}
+                    {medicalHistoryQuery.data?.familyHistory.join(", ") || "None recorded"}
+                  </p>
+                </div>
+                <div className="rounded-lg border p-4">
+                  <p className="mb-2 text-sm font-medium">Blood Type</p>
+                  <p className="text-sm text-muted-foreground">
+                    {medicalHistoryQuery.data?.bloodType ?? "Not reported"}
+                  </p>
+                </div>
+                <div className="rounded-lg border p-4">
+                  <p className="mb-2 text-sm font-medium">BMI</p>
+                  <p className="text-sm text-muted-foreground">
+                    {medicalHistoryQuery.data?.bmi ?? "Not available"}
+                  </p>
+                </div>
+                <div className="rounded-lg border p-4">
+                  <p className="mb-2 text-sm font-medium">Emergency Contact</p>
+                  <p className="text-sm text-muted-foreground">
+                    {medicalHistoryQuery.data?.highlights?.hasEmergencyContact
+                      ? "On file"
+                      : "Not on file"}
+                  </p>
+                </div>
+                <div className="rounded-lg border p-4">
+                  <p className="mb-2 text-sm font-medium">Insurance</p>
+                  <p className="text-sm text-muted-foreground">
+                    {medicalHistoryQuery.data?.highlights?.hasInsurance ? "On file" : "Not on file"}
+                  </p>
+                </div>
+                <div className="rounded-lg border p-4 md:col-span-2">
+                  <p className="mb-2 text-sm font-medium">Last Updated</p>
+                  <p className="text-sm text-muted-foreground">
+                    {medicalHistoryQuery.data?.highlights?.lastMedicalProfileUpdateAt
+                      ? new Date(
+                          medicalHistoryQuery.data.highlights.lastMedicalProfileUpdateAt,
+                        ).toLocaleString()
+                      : "Not available"}
                   </p>
                 </div>
               </div>
