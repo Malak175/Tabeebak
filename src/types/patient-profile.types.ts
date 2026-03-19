@@ -1,3 +1,12 @@
+﻿export interface PatientProfileAddress {
+  line1?: string | null;
+  line2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  country?: string | null;
+  postalCode?: string | null;
+}
+
 export interface PatientDashboardSummary {
   patientId?: string;
   name?: string;
@@ -26,32 +35,22 @@ export interface PatientProfile {
   lastName?: string;
   displayName?: string;
   phone?: string;
-  alternatePhone?: string;
+  secondaryPhone?: string;
   dateOfBirth?: string;
   gender?: string;
-  addressLine1?: string;
-  addressLine2?: string;
-  city?: string;
-  state?: string;
-  country?: string;
-  postalCode?: string;
+  address?: PatientProfileAddress;
   avatarUrl?: string | null;
 }
 
 export interface UpdatePatientProfileRequest {
-  firstName?: string;
-  lastName?: string;
-  displayName?: string;
-  phone?: string;
-  alternatePhone?: string;
-  dateOfBirth?: string;
-  gender?: string;
-  addressLine1?: string;
-  addressLine2?: string;
-  city?: string;
-  state?: string;
-  country?: string;
-  postalCode?: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  displayName?: string | null;
+  phone?: string | null;
+  secondaryPhone?: string | null;
+  dateOfBirth?: string | null;
+  gender?: string | null;
+  address?: PatientProfileAddress;
 }
 
 export interface PatientMedicalProfile {
@@ -63,57 +62,51 @@ export interface PatientMedicalProfile {
   chronicConditions?: string[];
   pastSurgeries?: string[];
   familyHistory?: string[];
-  notes?: string;
+  medicalNotes?: string | null;
 }
 
 export interface UpdatePatientMedicalProfileRequest {
-  bloodType?: string;
+  bloodType?: string | null;
   heightCm?: number | null;
   weightKg?: number | null;
-  allergies?: string[];
-  currentMedications?: string[];
-  chronicConditions?: string[];
-  pastSurgeries?: string[];
-  familyHistory?: string[];
-  notes?: string;
+  allergies?: string[] | null;
+  currentMedications?: string[] | null;
+  chronicConditions?: string[] | null;
+  pastSurgeries?: string[] | null;
+  familyHistory?: string[] | null;
+  medicalNotes?: string | null;
 }
 
 export interface EmergencyContact {
-  name?: string;
+  fullName?: string;
   relationship?: string;
   phone?: string;
-  alternatePhone?: string;
-  email?: string;
-  address?: string;
+  secondaryPhone?: string;
 }
 
 export interface UpdateEmergencyContactRequest {
-  name?: string;
+  fullName?: string;
   relationship?: string;
   phone?: string;
-  alternatePhone?: string;
-  email?: string;
-  address?: string;
+  secondaryPhone?: string | null;
 }
 
 export interface InsuranceInfo {
   providerName?: string;
-  planName?: string;
   memberId?: string;
-  policyNumber?: string;
-  groupNumber?: string;
-  expiryDate?: string;
-  coverageDetails?: string;
+  groupNumber?: string | null;
+  policyHolderName?: string | null;
+  policyHolderRelation?: string | null;
+  providerPhone?: string | null;
 }
 
 export interface UpdateInsuranceInfoRequest {
   providerName?: string;
-  planName?: string;
   memberId?: string;
-  policyNumber?: string;
-  groupNumber?: string;
-  expiryDate?: string;
-  coverageDetails?: string;
+  groupNumber?: string | null;
+  policyHolderName?: string | null;
+  policyHolderRelation?: string | null;
+  providerPhone?: string | null;
 }
 
 export interface MedicalHistorySummary {

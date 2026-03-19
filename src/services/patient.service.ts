@@ -167,6 +167,32 @@ const pickRecord = (record: Record<string, unknown>, keys: string[]) => {
   return {};
 };
 
+const normalizeAddress = (
+  raw: Record<string, unknown>,
+  addressRecord: Record<string, unknown>,
+) => {
+  const address = {
+    line1:
+      pickString(addressRecord, ["line1", "line_1", "addressLine1", "address_line_1", "address1"]) ??
+      pickString(raw, ["addressLine1", "address_line_1", "address1"]),
+    line2:
+      pickString(addressRecord, ["line2", "line_2", "addressLine2", "address_line_2", "address2"]) ??
+      pickString(raw, ["addressLine2", "address_line_2", "address2"]),
+    city: pickString(addressRecord, ["city"]) ?? pickString(raw, ["city"]),
+    state: pickString(addressRecord, ["state", "province"]) ?? pickString(raw, ["state", "province"]),
+    country: pickString(addressRecord, ["country"]) ?? pickString(raw, ["country"]),
+    postalCode:
+      pickString(addressRecord, ["postalCode", "postal_code", "zip", "zipCode", "zip_code"]) ??
+      pickString(raw, ["postalCode", "postal_code", "zip", "zipCode", "zip_code"]),
+  };
+
+  const hasAddress = Object.values(address).some(
+    (value) => value !== undefined && value !== null,
+  );
+
+  return hasAddress ? address : undefined;
+};
+
 const buildDateTime = (record: Record<string, unknown>, dateKeys: string[], timeKeys: string[]) => {
   const explicit = pickString(record, [
     "scheduledAt",
@@ -284,6 +310,10 @@ const buildQueryParams = <T extends Record<string, unknown>>(params?: T) => {
 
 const normalizePatientProfile = (payload: unknown): PatientProfile => {
   const raw = unwrapPayload(payload);
+  const addressRecord = mergeRecords(
+    pickRecord(raw, ["address", "location", "addressInfo"]),
+  );
+  const address = normalizeAddress(raw, addressRecord);
 
   return {
     id: pickString(raw, ["id", "_id", "patientId", "userId"]),
@@ -292,15 +322,10 @@ const normalizePatientProfile = (payload: unknown): PatientProfile => {
     lastName: pickString(raw, ["lastName", "last_name"]),
     displayName: pickString(raw, ["displayName", "display_name", "fullName", "full_name", "name"]),
     phone: pickString(raw, ["phone", "phoneNumber", "mobile"]),
-    alternatePhone: pickString(raw, ["alternatePhone", "alternate_phone", "secondaryPhone"]),
+    secondaryPhone: pickString(raw, ["secondaryPhone", "secondary_phone", "alternatePhone", "alternate_phone"]),
     dateOfBirth: pickString(raw, ["dateOfBirth", "date_of_birth", "dob"]),
     gender: pickString(raw, ["gender"]),
-    addressLine1: pickString(raw, ["addressLine1", "address_line_1", "address1"]),
-    addressLine2: pickString(raw, ["addressLine2", "address_line_2", "address2"]),
-    city: pickString(raw, ["city"]),
-    state: pickString(raw, ["state", "province"]),
-    country: pickString(raw, ["country"]),
-    postalCode: pickString(raw, ["postalCode", "postal_code", "zipCode", "zip_code"]),
+    address,
     avatarUrl: pickNullableString(raw, ["avatarUrl", "avatar", "profileImageUrl", "imageUrl"]),
   };
 };
@@ -385,7 +410,7 @@ const normalizePatientMedicalProfile = (payload: unknown): PatientMedicalProfile
     ]),
     pastSurgeries: pickStringArray(raw, ["pastSurgeries", "past_surgeries", "surgeries"]),
     familyHistory: pickStringArray(raw, ["familyHistory", "family_history"]),
-    notes: pickString(raw, ["notes", "medicalNotes", "medical_notes"]),
+    medicalNotes: pickNullableString(raw, ["medicalNotes", "medical_notes", "notes"]),
   };
 };
 
@@ -393,12 +418,15 @@ const normalizeEmergencyContact = (payload: unknown): EmergencyContact => {
   const raw = unwrapPayload(payload);
 
   return {
-    name: pickString(raw, ["name", "fullName", "full_name"]),
+    fullName: pickString(raw, ["fullName", "full_name", "name"]),
     relationship: pickString(raw, ["relationship"]),
     phone: pickString(raw, ["phone", "phoneNumber"]),
-    alternatePhone: pickString(raw, ["alternatePhone", "alternate_phone", "secondaryPhone"]),
-    email: pickString(raw, ["email"]),
-    address: pickString(raw, ["address"]),
+    secondaryPhone: pickString(raw, [
+      "secondaryPhone",
+      "secondary_phone",
+      "alternatePhone",
+      "alternate_phone",
+    ]),
   };
 };
 
@@ -407,12 +435,11 @@ const normalizeInsuranceInfo = (payload: unknown): InsuranceInfo => {
 
   return {
     providerName: pickString(raw, ["providerName", "provider_name", "provider"]),
-    planName: pickString(raw, ["planName", "plan_name"]),
     memberId: pickString(raw, ["memberId", "member_id"]),
-    policyNumber: pickString(raw, ["policyNumber", "policy_number"]),
-    groupNumber: pickString(raw, ["groupNumber", "group_number"]),
-    expiryDate: pickString(raw, ["expiryDate", "expiry_date", "expirationDate"]),
-    coverageDetails: pickString(raw, ["coverageDetails", "coverage_details", "coverage"]),
+    groupNumber: pickNullableString(raw, ["groupNumber", "group_number"]),
+    policyHolderName: pickNullableString(raw, ["policyHolderName", "policy_holder_name"]),
+    policyHolderRelation: pickNullableString(raw, ["policyHolderRelation", "policy_holder_relation"]),
+    providerPhone: pickNullableString(raw, ["providerPhone", "provider_phone", "phone"]),
   };
 };
 
