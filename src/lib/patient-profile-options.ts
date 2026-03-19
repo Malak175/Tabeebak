@@ -35,6 +35,8 @@ export const RELATIONSHIP_OPTIONS = [
 
 export const COUNTRY_OPTIONS = [{ value: "Egypt", label: "Egypt" }] as const;
 
+export const OTHER_CITY_VALUE = "Other";
+
 export const EGYPT_GOVERNORATES = [
   "Cairo",
   "Giza",
@@ -65,32 +67,68 @@ export const EGYPT_GOVERNORATES = [
 ] as const;
 
 export const EGYPT_CITIES_BY_GOVERNORATE: Record<string, readonly string[]> = {
-  Cairo: ["Cairo", "Heliopolis", "Nasr City", "Maadi", "New Cairo"],
-  Giza: ["Giza", "6th of October", "Sheikh Zayed", "Haram", "Dokki"],
-  Alexandria: ["Alexandria", "Smouha", "Stanley", "Sidi Gaber", "Miami"],
-  Qalyubia: ["Banha", "Qalyub", "Shubra El Kheima"],
+  Cairo: [
+    "Cairo",
+    "Heliopolis",
+    "Nasr City",
+    "Maadi",
+    "New Cairo",
+    "Zamalek",
+    "Shubra",
+    "Garden City",
+    "Downtown",
+    "Helwan",
+  ],
+  Giza: [
+    "Giza",
+    "6th of October",
+    "Sheikh Zayed",
+    "Haram",
+    "Dokki",
+    "Mohandessin",
+    "Agouza",
+    "Faisal",
+  ],
+  Alexandria: [
+    "Alexandria",
+    "Smouha",
+    "Stanley",
+    "Sidi Gaber",
+    "Miami",
+    "Gleem",
+    "Laurent",
+    "Sporting",
+  ],
+  Qalyubia: [
+    "Banha",
+    "Qalyub",
+    "Shubra El Kheima",
+    "Qaha",
+    "Khanka",
+    "Kafr Shukr",
+  ],
   "Port Said": ["Port Said"],
   Suez: ["Suez"],
-  Dakahlia: ["Mansoura", "Talkha"],
-  Sharqia: ["Zagazig", "10th of Ramadan"],
-  Gharbia: ["Tanta", "Mahalla"],
-  Monufia: ["Shebin El Kom"],
-  Beheira: ["Damanhur"],
+  Dakahlia: ["Mansoura", "Talkha", "Mit Ghamr", "Belqas"],
+  Sharqia: ["Zagazig", "10th of Ramadan", "Belbeis", "Abu Hammad"],
+  Gharbia: ["Tanta", "Mahalla", "Kafr El Zayat"],
+  Monufia: ["Shebin El Kom", "Menouf", "Sadat City"],
+  Beheira: ["Damanhur", "Kafr El Dawwar", "Rashid"],
   "Kafr El Sheikh": ["Kafr El Sheikh"],
   Damietta: ["Damietta"],
   Ismailia: ["Ismailia"],
-  Faiyum: ["Faiyum"],
+  Faiyum: ["Faiyum", "Ibsheway"],
   "Beni Suef": ["Beni Suef"],
-  Minya: ["Minya"],
-  Asyut: ["Asyut"],
-  Sohag: ["Sohag"],
-  Qena: ["Qena"],
+  Minya: ["Minya", "Mallawi"],
+  Asyut: ["Asyut", "Dairut"],
+  Sohag: ["Sohag", "Akhmim"],
+  Qena: ["Qena", "Nag Hammadi"],
   Luxor: ["Luxor"],
   Aswan: ["Aswan"],
   "Red Sea": ["Hurghada", "Safaga", "Marsa Alam"],
   Matruh: ["Marsa Matruh"],
   "North Sinai": ["Arish"],
-  "South Sinai": ["Sharm El Sheikh", "Dahab", "Nuweiba"],
+  "South Sinai": ["Sharm El Sheikh", "Dahab", "Nuweiba", "Taba"],
 };
 
 export const getGovernorateOptions = (country?: string) =>

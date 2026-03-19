@@ -35,6 +35,7 @@ import {
   COUNTRY_OPTIONS,
   GENDER_LABELS,
   GENDER_OPTIONS,
+  OTHER_CITY_VALUE,
   RELATIONSHIP_OPTIONS,
   ensureObjectOption,
   ensureOption,
@@ -205,6 +206,7 @@ const PatientSettings = () => {
     addressLine1: "",
     addressLine2: "",
     city: "",
+    cityOther: "",
     state: "",
     country: "",
     postalCode: "",
@@ -258,6 +260,10 @@ const PatientSettings = () => {
     );
     const cityOptions = getCityOptions(normalizedCountry, normalizedState);
     const normalizedCity = normalizeSelectValue(profileAddress.city ?? "", cityOptions);
+    const isKnownCity =
+      Boolean(normalizedCity) &&
+      cityOptions.some((city) => city.toLowerCase() === normalizedCity.toLowerCase());
+    const initialCity = profileAddress.city ?? "";
 
     setProfileForm({
       firstName: profileQuery.data.firstName ?? "",
@@ -269,7 +275,8 @@ const PatientSettings = () => {
       gender: normalizeSelectValue(profileQuery.data.gender ?? "", GENDER_OPTIONS),
       addressLine1: profileAddress.line1 ?? "",
       addressLine2: profileAddress.line2 ?? "",
-      city: normalizedCity,
+      city: isKnownCity || !initialCity ? normalizedCity : OTHER_CITY_VALUE,
+      cityOther: isKnownCity ? "" : initialCity,
       state: normalizedState,
       country: normalizedCountry,
       postalCode: profileAddress.postalCode ?? "",
@@ -352,7 +359,8 @@ const PatientSettings = () => {
 
   const cityOptions = useMemo(() => {
     const base = getCityOptions(profileForm.country, profileForm.state);
-    return ensureOption(base, profileForm.city);
+    const withOther = base.includes(OTHER_CITY_VALUE) ? base : [...base, OTHER_CITY_VALUE];
+    return ensureOption(withOther, profileForm.city);
   }, [profileForm.country, profileForm.state, profileForm.city]);
 
   const handleCountryChange = (value: string) => {
@@ -363,6 +371,7 @@ const PatientSettings = () => {
         country: value,
         state: "",
         city: "",
+        cityOther: "",
       };
     });
   };
@@ -370,8 +379,10 @@ const PatientSettings = () => {
   const handleStateChange = (value: string) => {
     setProfileForm((current) => {
       const nextCities = getCityOptions(current.country, value);
-      const nextCity = nextCities.includes(current.city) ? current.city : "";
-      return { ...current, state: value, city: nextCity };
+      const isOtherSelected = current.city === OTHER_CITY_VALUE;
+      const nextCity =
+        !isOtherSelected && nextCities.includes(current.city) ? current.city : "";
+      return { ...current, state: value, city: nextCity, cityOther: "" };
     });
   };
 
@@ -381,6 +392,13 @@ const PatientSettings = () => {
       profileForm.secondaryPhone,
       "Secondary phone number",
     );
+    const resolvedCity =
+      profileForm.city === OTHER_CITY_VALUE ? profileForm.cityOther.trim() : profileForm.city;
+
+    if (profileForm.city === OTHER_CITY_VALUE && !resolvedCity) {
+      toast.error("Please enter a city name when selecting Other.");
+      return;
+    }
 
     if (phoneError || secondaryPhoneError) {
       setProfileErrors({
@@ -397,7 +415,7 @@ const PatientSettings = () => {
     const addressPayload = withoutUndefined({
       line1: buildPatchString(profileForm.addressLine1, profileAddress.line1),
       line2: buildPatchString(profileForm.addressLine2, profileAddress.line2),
-      city: buildPatchString(profileForm.city, profileAddress.city),
+      city: buildPatchString(resolvedCity, profileAddress.city),
       state: buildPatchString(profileForm.state, profileAddress.state),
       country: buildPatchString(profileForm.country, profileAddress.country),
       postalCode: buildPatchString(profileForm.postalCode, profileAddress.postalCode),
@@ -763,7 +781,11 @@ const PatientSettings = () => {
                     <Select
                       value={profileForm.city}
                       onValueChange={(value) =>
-                        setProfileForm((current) => ({ ...current, city: value }))
+                        setProfileForm((current) => ({
+                          ...current,
+                          city: value,
+                          cityOther: value === OTHER_CITY_VALUE ? current.cityOther : "",
+                        }))
                       }
                       disabled={cityOptions.length === 0}
                     >
@@ -784,6 +806,21 @@ const PatientSettings = () => {
                         ))}
                       </SelectContent>
                     </Select>
+                    {profileForm.city === OTHER_CITY_VALUE && (
+                      <div className="mt-2">
+                        <Label htmlFor="cityOther">Enter City</Label>
+                        <Input
+                          id="cityOther"
+                          value={profileForm.cityOther}
+                          onChange={(event) =>
+                            setProfileForm((current) => ({
+                              ...current,
+                              cityOther: event.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="state">State / Governorate</Label>
