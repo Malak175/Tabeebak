@@ -21,6 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   useMedicalHistorySummaryQuery,
   usePatientDashboardSummaryQuery,
+  usePatientMedicalProfileQuery,
 } from "@/hooks/usePatientProfile";
 import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName, getInitials } from "@/lib/auth";
@@ -31,6 +32,11 @@ const formatMetric = (value: number | string | null | undefined, suffix?: string
   }
 
   return suffix ? `${value} ${suffix}` : String(value);
+};
+
+const formatNumber = (value: number | null | undefined, digits = 1) => {
+  if (value === null || value === undefined || Number.isNaN(value)) return null;
+  return value.toFixed(digits);
 };
 
 const SummaryStat = ({
@@ -99,8 +105,10 @@ const PatientDashboard = () => {
   const { user } = useAuth();
   const dashboardSummaryQuery = usePatientDashboardSummaryQuery(Boolean(user));
   const historyQuery = useMedicalHistorySummaryQuery(Boolean(user));
+  const medicalProfileQuery = usePatientMedicalProfileQuery(Boolean(user));
 
   const summary = dashboardSummaryQuery.data;
+  const medicalProfile = medicalProfileQuery.data;
   const userName = getDisplayName({
     name: summary?.name ?? user?.name,
     displayName: summary?.displayName,
@@ -108,6 +116,17 @@ const PatientDashboard = () => {
     lastName: summary?.lastName ?? user?.lastName,
     email: summary?.email ?? user?.email,
   });
+
+  const weightKg =
+    summary?.latestWeightKg ?? (medicalProfile?.weightKg ?? null);
+  const heightCm = medicalProfile?.heightCm ?? null;
+  const heightMeters = heightCm !== null && heightCm > 0 ? heightCm / 100 : null;
+  const bmiValue =
+    weightKg !== null && heightMeters !== null
+      ? weightKg / (heightMeters * heightMeters)
+      : null;
+  const hasWeight = weightKg !== null;
+  const hasHeight = heightCm !== null;
 
   return (
     <DashboardLayout userRole="patient" userName={userName} navItems={patientNavItems} userIcon={User}>
@@ -190,17 +209,24 @@ const PatientDashboard = () => {
             <div className="flex items-center justify-between gap-4">
               <span className="text-muted-foreground">Weight</span>
               <span className="font-medium">
-                {formatMetric(summary?.latestWeightKg, "kg")}
+                {hasWeight ? `${weightKg} kg` : "No weight recorded"}
               </span>
             </div>
             <div className="flex items-center justify-between gap-4">
               <span className="text-muted-foreground">BMI</span>
-              <span className="font-medium">{formatMetric(summary?.bmi)}</span>
+              <span className="font-medium">
+                {formatNumber(bmiValue, 1) ??
+                  (!hasWeight && !hasHeight
+                    ? "Complete your medical profile to see health metrics"
+                    : "Add height & weight")}
+              </span>
             </div>
             <div className="flex items-center justify-between gap-4">
               <span className="text-muted-foreground">Blood Sugar</span>
               <span className="font-medium">
-                {formatMetric(summary?.bloodSugarMgDl, "mg/dL")}
+                {summary?.bloodSugarMgDl !== null && summary?.bloodSugarMgDl !== undefined
+                  ? `${summary.bloodSugarMgDl} mg/dL`
+                  : "No blood sugar data yet"}
               </span>
             </div>
             <div className="rounded-lg bg-muted p-3 text-muted-foreground">
