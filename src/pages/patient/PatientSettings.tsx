@@ -734,7 +734,7 @@ const PatientSettings = () => {
                       <SelectContent>
                         {ensureOption(GENDER_OPTIONS, profileForm.gender).map((option) => (
                           <SelectItem key={option} value={option}>
-                            {option}
+                            {GENDER_LABELS[option] ?? option}
                           </SelectItem>
                         ))}
                       </SelectContent>
