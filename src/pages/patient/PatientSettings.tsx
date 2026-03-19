@@ -8,6 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
@@ -24,6 +31,24 @@ import {
 } from "@/hooks/usePatientProfile";
 import { getDisplayName } from "@/lib/auth";
 import {
+  BLOOD_TYPE_OPTIONS,
+  COUNTRY_OPTIONS,
+  GENDER_LABELS,
+  GENDER_OPTIONS,
+  RELATIONSHIP_OPTIONS,
+  ensureObjectOption,
+  ensureOption,
+  getCityOptions,
+  getGovernorateOptions,
+  normalizeSelectObjectValue,
+  normalizeSelectValue,
+} from "@/lib/patient-profile-options";
+import {
+  formatEgyptianPhoneForDisplay,
+  getEgyptianPhoneValidationError,
+  normalizeEgyptianPhone,
+} from "@/lib/phone";
+import {
   EmergencyContact,
   InsuranceInfo,
   PatientMedicalProfile,
@@ -38,6 +63,53 @@ const fromCommaSeparated = (value: string) =>
     .map((item) => item.trim())
     .filter(Boolean);
 
+const toNullableString = (value: string) => {
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : null;
+};
+
+const normalizeOptionalString = (value: string | null | undefined) =>
+  typeof value === "string" ? value.trim() : value ?? null;
+
+const buildPatchString = (current: string, original?: string | null) => {
+  const next = toNullableString(current);
+  const prev = normalizeOptionalString(original);
+  return next === prev ? undefined : next;
+};
+
+const buildPatchDate = (current: string, original?: string | null) => {
+  const next = current.trim() ? current.trim() : null;
+  const prev = original ? original.slice(0, 10) : null;
+  return next === prev ? undefined : next;
+};
+
+const buildPatchNumber = (current: string, original?: number | null) => {
+  const next = current.trim() ? Number(current) : null;
+  const prev = original ?? null;
+  if (Number.isNaN(next as number)) return undefined;
+  return next === prev ? undefined : next;
+};
+
+const arraysEqual = (left: string[], right: string[]) =>
+  left.length === right.length && left.every((item, index) => item === right[index]);
+
+const buildPatchArray = (current: string, original?: string[]) => {
+  const next = fromCommaSeparated(current);
+  const prev = original ?? [];
+  return arraysEqual(next, prev) ? undefined : next;
+};
+
+const buildPatchPhone = (current: string, original?: string | null) => {
+  const trimmed = current.trim();
+  const prev = original ?? null;
+  if (!trimmed) return prev ? null : undefined;
+  const normalized = normalizeEgyptianPhone(trimmed).e164;
+  return normalized === prev ? undefined : normalized ?? null;
+};
+
+const withoutUndefined = <T extends Record<string, unknown>>(value: T) =>
+  Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined)) as Partial<T>;
+
 const hasValue = (value: string | number | null | undefined) =>
   !(value === undefined || value === null || `${value}`.trim() === "");
 
@@ -48,9 +120,9 @@ const hasAnyProfileValue = (profile: PatientProfile) =>
     profile.phone,
     profile.dateOfBirth,
     profile.gender,
-    profile.addressLine1,
-    profile.city,
-    profile.country,
+    profile.address?.line1,
+    profile.address?.city,
+    profile.address?.country,
   ].some(hasValue);
 
 const hasAnyMedicalValue = (profile: PatientMedicalProfile) =>
@@ -63,28 +135,20 @@ const hasAnyMedicalValue = (profile: PatientMedicalProfile) =>
       profile.chronicConditions.length ||
       profile.pastSurgeries.length ||
       profile.familyHistory.length ||
-      hasValue(profile.notes),
+      hasValue(profile.medicalNotes),
   );
 
 const hasAnyEmergencyValue = (contact: EmergencyContact) =>
-  [
-    contact.name,
-    contact.relationship,
-    contact.phone,
-    contact.alternatePhone,
-    contact.email,
-    contact.address,
-  ].some(hasValue);
+  [contact.fullName, contact.relationship, contact.phone, contact.secondaryPhone].some(hasValue);
 
 const hasAnyInsuranceValue = (insurance: InsuranceInfo) =>
   [
     insurance.providerName,
-    insurance.planName,
     insurance.memberId,
-    insurance.policyNumber,
     insurance.groupNumber,
-    insurance.expiryDate,
-    insurance.coverageDetails,
+    insurance.policyHolderName,
+    insurance.policyHolderRelation,
+    insurance.providerPhone,
   ].some(hasValue);
 
 const SectionSkeleton = () => (
@@ -135,7 +199,7 @@ const PatientSettings = () => {
     lastName: "",
     displayName: "",
     phone: "",
-    alternatePhone: "",
+    secondaryPhone: "",
     dateOfBirth: "",
     gender: "",
     addressLine1: "",
@@ -154,51 +218,70 @@ const PatientSettings = () => {
     chronicConditions: "",
     pastSurgeries: "",
     familyHistory: "",
-    notes: "",
+    medicalNotes: "",
   });
   const [emergencyForm, setEmergencyForm] = useState({
-    name: "",
+    fullName: "",
     relationship: "",
     phone: "",
-    alternatePhone: "",
-    email: "",
-    address: "",
+    secondaryPhone: "",
   });
   const [insuranceForm, setInsuranceForm] = useState({
     providerName: "",
-    planName: "",
     memberId: "",
-    policyNumber: "",
     groupNumber: "",
-    expiryDate: "",
-    coverageDetails: "",
+    policyHolderName: "",
+    policyHolderRelation: "",
+    providerPhone: "",
+  });
+  const [profileErrors, setProfileErrors] = useState({
+    phone: "",
+    secondaryPhone: "",
+  });
+  const [emergencyErrors, setEmergencyErrors] = useState({
+    phone: "",
+    secondaryPhone: "",
   });
 
   useEffect(() => {
     if (!profileQuery.data) return;
 
+    const profileAddress = profileQuery.data.address ?? {};
+    const normalizedCountry = normalizeSelectObjectValue(
+      profileAddress.country ?? "",
+      COUNTRY_OPTIONS,
+    );
+    const governorateOptions = getGovernorateOptions(normalizedCountry);
+    const normalizedState = normalizeSelectValue(
+      profileAddress.state ?? "",
+      governorateOptions,
+    );
+    const cityOptions = getCityOptions(normalizedCountry, normalizedState);
+    const normalizedCity = normalizeSelectValue(profileAddress.city ?? "", cityOptions);
+
     setProfileForm({
       firstName: profileQuery.data.firstName ?? "",
       lastName: profileQuery.data.lastName ?? "",
       displayName: profileQuery.data.displayName ?? "",
-      phone: profileQuery.data.phone ?? "",
-      alternatePhone: profileQuery.data.alternatePhone ?? "",
+      phone: formatEgyptianPhoneForDisplay(profileQuery.data.phone ?? ""),
+      secondaryPhone: formatEgyptianPhoneForDisplay(profileQuery.data.secondaryPhone ?? ""),
       dateOfBirth: profileQuery.data.dateOfBirth?.slice(0, 10) ?? "",
-      gender: profileQuery.data.gender ?? "",
-      addressLine1: profileQuery.data.addressLine1 ?? "",
-      addressLine2: profileQuery.data.addressLine2 ?? "",
-      city: profileQuery.data.city ?? "",
-      state: profileQuery.data.state ?? "",
-      country: profileQuery.data.country ?? "",
-      postalCode: profileQuery.data.postalCode ?? "",
+      gender: normalizeSelectValue(profileQuery.data.gender ?? "", GENDER_OPTIONS),
+      addressLine1: profileAddress.line1 ?? "",
+      addressLine2: profileAddress.line2 ?? "",
+      city: normalizedCity,
+      state: normalizedState,
+      country: normalizedCountry,
+      postalCode: profileAddress.postalCode ?? "",
     });
+    setProfileErrors({ phone: "", secondaryPhone: "" });
   }, [profileQuery.data]);
 
   useEffect(() => {
     if (!medicalProfileQuery.data) return;
 
     setMedicalForm({
-      bloodType: medicalProfileQuery.data.bloodType ?? "",
+      bloodType: normalizeSelectValue(medicalProfileQuery.data.bloodType ?? "", BLOOD_TYPE_OPTIONS),
       heightCm:
         medicalProfileQuery.data.heightCm === null || medicalProfileQuery.data.heightCm === undefined
           ? ""
@@ -212,7 +295,7 @@ const PatientSettings = () => {
       chronicConditions: toCommaSeparated(medicalProfileQuery.data.chronicConditions),
       pastSurgeries: toCommaSeparated(medicalProfileQuery.data.pastSurgeries),
       familyHistory: toCommaSeparated(medicalProfileQuery.data.familyHistory),
-      notes: medicalProfileQuery.data.notes ?? "",
+      medicalNotes: medicalProfileQuery.data.medicalNotes ?? "",
     });
   }, [medicalProfileQuery.data]);
 
@@ -220,13 +303,17 @@ const PatientSettings = () => {
     if (!emergencyContactQuery.data) return;
 
     setEmergencyForm({
-      name: emergencyContactQuery.data.name ?? "",
-      relationship: emergencyContactQuery.data.relationship ?? "",
-      phone: emergencyContactQuery.data.phone ?? "",
-      alternatePhone: emergencyContactQuery.data.alternatePhone ?? "",
-      email: emergencyContactQuery.data.email ?? "",
-      address: emergencyContactQuery.data.address ?? "",
+      fullName: emergencyContactQuery.data.fullName ?? "",
+      relationship: normalizeSelectValue(
+        emergencyContactQuery.data.relationship ?? "",
+        RELATIONSHIP_OPTIONS,
+      ),
+      phone: formatEgyptianPhoneForDisplay(emergencyContactQuery.data.phone ?? ""),
+      secondaryPhone: formatEgyptianPhoneForDisplay(
+        emergencyContactQuery.data.secondaryPhone ?? "",
+      ),
     });
+    setEmergencyErrors({ phone: "", secondaryPhone: "" });
   }, [emergencyContactQuery.data]);
 
   useEffect(() => {
@@ -234,12 +321,11 @@ const PatientSettings = () => {
 
     setInsuranceForm({
       providerName: insuranceQuery.data.providerName ?? "",
-      planName: insuranceQuery.data.planName ?? "",
       memberId: insuranceQuery.data.memberId ?? "",
-      policyNumber: insuranceQuery.data.policyNumber ?? "",
       groupNumber: insuranceQuery.data.groupNumber ?? "",
-      expiryDate: insuranceQuery.data.expiryDate?.slice(0, 10) ?? "",
-      coverageDetails: insuranceQuery.data.coverageDetails ?? "",
+      policyHolderName: insuranceQuery.data.policyHolderName ?? "",
+      policyHolderRelation: insuranceQuery.data.policyHolderRelation ?? "",
+      providerPhone: formatEgyptianPhoneForDisplay(insuranceQuery.data.providerPhone ?? ""),
     });
   }, [insuranceQuery.data]);
 
@@ -254,101 +340,206 @@ const PatientSettings = () => {
     [profileQuery.data, user],
   );
 
+  const countryOptions = useMemo(
+    () => ensureObjectOption(COUNTRY_OPTIONS, profileForm.country),
+    [profileForm.country],
+  );
+
+  const governorateOptions = useMemo(() => {
+    const base = getGovernorateOptions(profileForm.country);
+    return ensureOption(base, profileForm.state);
+  }, [profileForm.country, profileForm.state]);
+
+  const cityOptions = useMemo(() => {
+    const base = getCityOptions(profileForm.country, profileForm.state);
+    return ensureOption(base, profileForm.city);
+  }, [profileForm.country, profileForm.state, profileForm.city]);
+
+  const handleCountryChange = (value: string) => {
+    setProfileForm((current) => {
+      if (current.country === value) return current;
+      return {
+        ...current,
+        country: value,
+        state: "",
+        city: "",
+      };
+    });
+  };
+
+  const handleStateChange = (value: string) => {
+    setProfileForm((current) => {
+      const nextCities = getCityOptions(current.country, value);
+      const nextCity = nextCities.includes(current.city) ? current.city : "";
+      return { ...current, state: value, city: nextCity };
+    });
+  };
+
   const handleProfileSave = () => {
-    updateProfileMutation.mutate(
+    const phoneError = getEgyptianPhoneValidationError(profileForm.phone, "Phone number");
+    const secondaryPhoneError = getEgyptianPhoneValidationError(
+      profileForm.secondaryPhone,
+      "Secondary phone number",
+    );
+
+    if (phoneError || secondaryPhoneError) {
+      setProfileErrors({
+        phone: phoneError ?? "",
+        secondaryPhone: secondaryPhoneError ?? "",
+      });
+      toast.error("Please correct the phone number format before saving.");
+      return;
+    }
+
+    setProfileErrors({ phone: "", secondaryPhone: "" });
+
+    const profileAddress = profileQuery.data?.address ?? {};
+    const addressPayload = withoutUndefined({
+      line1: buildPatchString(profileForm.addressLine1, profileAddress.line1),
+      line2: buildPatchString(profileForm.addressLine2, profileAddress.line2),
+      city: buildPatchString(profileForm.city, profileAddress.city),
+      state: buildPatchString(profileForm.state, profileAddress.state),
+      country: buildPatchString(profileForm.country, profileAddress.country),
+      postalCode: buildPatchString(profileForm.postalCode, profileAddress.postalCode),
+    });
+
+    const payload = withoutUndefined({
+      firstName: buildPatchString(profileForm.firstName, profileQuery.data?.firstName),
+      lastName: buildPatchString(profileForm.lastName, profileQuery.data?.lastName),
+      displayName: buildPatchString(profileForm.displayName, profileQuery.data?.displayName),
+      phone: buildPatchPhone(profileForm.phone, profileQuery.data?.phone),
+      secondaryPhone: buildPatchPhone(profileForm.secondaryPhone, profileQuery.data?.secondaryPhone),
+      dateOfBirth: buildPatchDate(profileForm.dateOfBirth, profileQuery.data?.dateOfBirth),
+      gender: buildPatchString(profileForm.gender, profileQuery.data?.gender),
+    });
+
+    if (Object.keys(addressPayload).length) {
+      payload.address = addressPayload;
+    }
+
+    updateProfileMutation.mutate(payload, {
+      onSuccess: (updatedProfile) => {
+        setProfileErrors({ phone: "", secondaryPhone: "" });
+        const fullName = [updatedProfile.firstName, updatedProfile.lastName]
+          .filter(Boolean)
+          .join(" ")
+          .trim();
+
+        setBootstrappedUser({
+          ...(user ?? {}),
+          firstName: updatedProfile.firstName ?? user?.firstName,
+          lastName: updatedProfile.lastName ?? user?.lastName,
+          displayName: updatedProfile.displayName ?? user?.displayName,
+          name: updatedProfile.displayName ?? (fullName || user?.name),
+          email: updatedProfile.email ?? user?.email ?? "",
+          phone: updatedProfile.phone ?? user?.phone,
+          dateOfBirth: updatedProfile.dateOfBirth ?? user?.dateOfBirth,
+          gender: updatedProfile.gender ?? user?.gender,
+          avatarUrl: updatedProfile.avatarUrl ?? user?.avatarUrl ?? null,
+          role: user?.role ?? "Patient",
+          id: user?.id ?? updatedProfile.id ?? "",
+        });
+        toast.success("Profile updated successfully");
+      },
+      onError: (error: Error) => toast.error(error.message),
+    });
+  };
+
+  const handleMedicalProfileSave = () => {
+    const payload = withoutUndefined({
+      bloodType: buildPatchString(medicalForm.bloodType, medicalProfileQuery.data?.bloodType),
+      heightCm: buildPatchNumber(medicalForm.heightCm, medicalProfileQuery.data?.heightCm ?? null),
+      weightKg: buildPatchNumber(medicalForm.weightKg, medicalProfileQuery.data?.weightKg ?? null),
+      allergies: buildPatchArray(medicalForm.allergies, medicalProfileQuery.data?.allergies),
+      currentMedications: buildPatchArray(
+        medicalForm.currentMedications,
+        medicalProfileQuery.data?.currentMedications,
+      ),
+      chronicConditions: buildPatchArray(
+        medicalForm.chronicConditions,
+        medicalProfileQuery.data?.chronicConditions,
+      ),
+      pastSurgeries: buildPatchArray(medicalForm.pastSurgeries, medicalProfileQuery.data?.pastSurgeries),
+      familyHistory: buildPatchArray(medicalForm.familyHistory, medicalProfileQuery.data?.familyHistory),
+      medicalNotes: buildPatchString(medicalForm.medicalNotes, medicalProfileQuery.data?.medicalNotes),
+    });
+
+    updateMedicalProfileMutation.mutate(payload, {
+      onSuccess: () => toast.success("Medical profile updated successfully"),
+      onError: (error: Error) => toast.error(error.message),
+    });
+  };
+
+  const handleEmergencyContactSave = () => {
+    if (!emergencyForm.fullName.trim() || !emergencyForm.relationship.trim() || !emergencyForm.phone.trim()) {
+      toast.error("Full name, relationship, and phone are required for emergency contacts.");
+      return;
+    }
+
+    const phoneError = getEgyptianPhoneValidationError(emergencyForm.phone, "Phone number");
+    const secondaryPhoneError = getEgyptianPhoneValidationError(
+      emergencyForm.secondaryPhone,
+      "Secondary phone number",
+    );
+
+    if (phoneError || secondaryPhoneError) {
+      setEmergencyErrors({
+        phone: phoneError ?? "",
+        secondaryPhone: secondaryPhoneError ?? "",
+      });
+      toast.error("Please correct the emergency contact phone numbers.");
+      return;
+    }
+
+    const normalizedPhone = normalizeEgyptianPhone(emergencyForm.phone).e164;
+    const normalizedSecondaryPhone = normalizeEgyptianPhone(emergencyForm.secondaryPhone).e164;
+
+    setEmergencyErrors({ phone: "", secondaryPhone: "" });
+
+    updateEmergencyContactMutation.mutate(
       {
-        firstName: profileForm.firstName || undefined,
-        lastName: profileForm.lastName || undefined,
-        displayName: profileForm.displayName || undefined,
-        phone: profileForm.phone || undefined,
-        alternatePhone: profileForm.alternatePhone || undefined,
-        dateOfBirth: profileForm.dateOfBirth || undefined,
-        gender: profileForm.gender || undefined,
-        addressLine1: profileForm.addressLine1 || undefined,
-        addressLine2: profileForm.addressLine2 || undefined,
-        city: profileForm.city || undefined,
-        state: profileForm.state || undefined,
-        country: profileForm.country || undefined,
-        postalCode: profileForm.postalCode || undefined,
+        fullName: emergencyForm.fullName.trim(),
+        relationship: emergencyForm.relationship.trim(),
+        phone: normalizedPhone ?? null,
+        secondaryPhone: emergencyForm.secondaryPhone.trim()
+          ? normalizedSecondaryPhone ?? null
+          : null,
       },
       {
-        onSuccess: (updatedProfile) => {
-          const fullName = [
-            updatedProfile.firstName,
-            updatedProfile.lastName,
-          ]
-            .filter(Boolean)
-            .join(" ")
-            .trim();
-
-          setBootstrappedUser({
-            ...(user ?? {}),
-            firstName: updatedProfile.firstName ?? user?.firstName,
-            lastName: updatedProfile.lastName ?? user?.lastName,
-            displayName: updatedProfile.displayName ?? user?.displayName,
-            name: updatedProfile.displayName ?? (fullName || user?.name),
-            email: updatedProfile.email ?? user?.email ?? "",
-            phone: updatedProfile.phone ?? user?.phone,
-            dateOfBirth: updatedProfile.dateOfBirth ?? user?.dateOfBirth,
-            gender: updatedProfile.gender ?? user?.gender,
-            avatarUrl: updatedProfile.avatarUrl ?? user?.avatarUrl ?? null,
-            role: user?.role ?? "Patient",
-            id: user?.id ?? updatedProfile.id ?? "",
-          });
-          toast.success("Profile updated successfully");
+        onSuccess: () => {
+          setEmergencyErrors({ phone: "", secondaryPhone: "" });
+          toast.success("Emergency contact updated successfully");
         },
         onError: (error: Error) => toast.error(error.message),
       },
     );
   };
 
-  const handleMedicalProfileSave = () => {
-    updateMedicalProfileMutation.mutate(
-      {
-        bloodType: medicalForm.bloodType || undefined,
-        heightCm: medicalForm.heightCm ? Number(medicalForm.heightCm) : null,
-        weightKg: medicalForm.weightKg ? Number(medicalForm.weightKg) : null,
-        allergies: fromCommaSeparated(medicalForm.allergies),
-        currentMedications: fromCommaSeparated(medicalForm.currentMedications),
-        chronicConditions: fromCommaSeparated(medicalForm.chronicConditions),
-        pastSurgeries: fromCommaSeparated(medicalForm.pastSurgeries),
-        familyHistory: fromCommaSeparated(medicalForm.familyHistory),
-        notes: medicalForm.notes || undefined,
-      },
-      {
-        onSuccess: () => toast.success("Medical profile updated successfully"),
-        onError: (error: Error) => toast.error(error.message),
-      },
-    );
-  };
-
-  const handleEmergencyContactSave = () => {
-    updateEmergencyContactMutation.mutate(
-      {
-        name: emergencyForm.name || undefined,
-        relationship: emergencyForm.relationship || undefined,
-        phone: emergencyForm.phone || undefined,
-        alternatePhone: emergencyForm.alternatePhone || undefined,
-        email: emergencyForm.email || undefined,
-        address: emergencyForm.address || undefined,
-      },
-      {
-        onSuccess: () => toast.success("Emergency contact updated successfully"),
-        onError: (error: Error) => toast.error(error.message),
-      },
-    );
-  };
-
   const handleInsuranceSave = () => {
+    if (!insuranceForm.providerName.trim() || !insuranceForm.memberId.trim()) {
+      toast.error("Provider name and member ID are required.");
+      return;
+    }
+
+    const providerPhoneError = getEgyptianPhoneValidationError(
+      insuranceForm.providerPhone,
+      "Provider phone",
+    );
+    if (providerPhoneError) {
+      toast.error(providerPhoneError);
+      return;
+    }
+
+    const normalizedProviderPhone = normalizeEgyptianPhone(insuranceForm.providerPhone).e164;
+
     updateInsuranceMutation.mutate(
       {
-        providerName: insuranceForm.providerName || undefined,
-        planName: insuranceForm.planName || undefined,
-        memberId: insuranceForm.memberId || undefined,
-        policyNumber: insuranceForm.policyNumber || undefined,
-        groupNumber: insuranceForm.groupNumber || undefined,
-        expiryDate: insuranceForm.expiryDate || undefined,
-        coverageDetails: insuranceForm.coverageDetails || undefined,
+        providerName: insuranceForm.providerName.trim(),
+        memberId: insuranceForm.memberId.trim(),
+        groupNumber: toNullableString(insuranceForm.groupNumber),
+        policyHolderName: toNullableString(insuranceForm.policyHolderName),
+        policyHolderRelation: toNullableString(insuranceForm.policyHolderRelation),
+        providerPhone: insuranceForm.providerPhone.trim() ? normalizedProviderPhone ?? null : null,
       },
       {
         onSuccess: () => toast.success("Insurance information updated successfully"),
@@ -447,24 +638,58 @@ const PatientSettings = () => {
                     <Label htmlFor="phone">Phone</Label>
                     <Input
                       id="phone"
+                      type="tel"
+                      placeholder="01012345678"
                       value={profileForm.phone}
-                      onChange={(event) =>
-                        setProfileForm((current) => ({ ...current, phone: event.target.value }))
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="alternatePhone">Alternate Phone</Label>
-                    <Input
-                      id="alternatePhone"
-                      value={profileForm.alternatePhone}
-                      onChange={(event) =>
-                        setProfileForm((current) => ({
+                      onChange={(event) => {
+                        const nextValue = event.target.value;
+                        setProfileForm((current) => ({ ...current, phone: nextValue }));
+                        if (profileErrors.phone) {
+                          setProfileErrors((current) => ({ ...current, phone: "" }));
+                        }
+                      }}
+                      onBlur={() =>
+                        setProfileErrors((current) => ({
                           ...current,
-                          alternatePhone: event.target.value,
+                          phone: getEgyptianPhoneValidationError(profileForm.phone, "Phone number") ?? "",
                         }))
                       }
                     />
+                    {profileErrors.phone && (
+                      <p className="text-sm text-destructive">{profileErrors.phone}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="secondaryPhone">Secondary Phone</Label>
+                    <Input
+                      id="secondaryPhone"
+                      type="tel"
+                      placeholder="01012345678"
+                      value={profileForm.secondaryPhone}
+                      onChange={(event) => {
+                        const nextValue = event.target.value;
+                        setProfileForm((current) => ({
+                          ...current,
+                          secondaryPhone: nextValue,
+                        }));
+                        if (profileErrors.secondaryPhone) {
+                          setProfileErrors((current) => ({ ...current, secondaryPhone: "" }));
+                        }
+                      }}
+                      onBlur={() =>
+                        setProfileErrors((current) => ({
+                          ...current,
+                          secondaryPhone:
+                            getEgyptianPhoneValidationError(
+                              profileForm.secondaryPhone,
+                              "Secondary phone number",
+                            ) ?? "",
+                        }))
+                      }
+                    />
+                    {profileErrors.secondaryPhone && (
+                      <p className="text-sm text-destructive">{profileErrors.secondaryPhone}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="dateOfBirth">Date of Birth</Label>
@@ -479,13 +704,23 @@ const PatientSettings = () => {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="gender">Gender</Label>
-                    <Input
-                      id="gender"
+                    <Select
                       value={profileForm.gender}
-                      onChange={(event) =>
-                        setProfileForm((current) => ({ ...current, gender: event.target.value }))
+                      onValueChange={(value) =>
+                        setProfileForm((current) => ({ ...current, gender: value }))
                       }
-                    />
+                    >
+                      <SelectTrigger id="gender">
+                        <SelectValue placeholder="Select gender" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ensureOption(GENDER_OPTIONS, profileForm.gender).map((option) => (
+                          <SelectItem key={option} value={option}>
+                            {option}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="postalCode">Postal Code</Label>
@@ -525,33 +760,64 @@ const PatientSettings = () => {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="city">City</Label>
-                    <Input
-                      id="city"
+                    <Select
                       value={profileForm.city}
-                      onChange={(event) =>
-                        setProfileForm((current) => ({ ...current, city: event.target.value }))
+                      onValueChange={(value) =>
+                        setProfileForm((current) => ({ ...current, city: value }))
                       }
-                    />
+                      disabled={cityOptions.length === 0}
+                    >
+                      <SelectTrigger id="city">
+                        <SelectValue
+                          placeholder={
+                            profileForm.state
+                              ? "Select city"
+                              : "Select governorate first"
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {cityOptions.map((option) => (
+                          <SelectItem key={option} value={option}>
+                            {option}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="state">State</Label>
-                    <Input
-                      id="state"
+                    <Label htmlFor="state">State / Governorate</Label>
+                    <Select
                       value={profileForm.state}
-                      onChange={(event) =>
-                        setProfileForm((current) => ({ ...current, state: event.target.value }))
-                      }
-                    />
+                      onValueChange={handleStateChange}
+                      disabled={governorateOptions.length === 0}
+                    >
+                      <SelectTrigger id="state">
+                        <SelectValue placeholder="Select governorate" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {governorateOptions.map((option) => (
+                          <SelectItem key={option} value={option}>
+                            {option}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="country">Country</Label>
-                    <Input
-                      id="country"
-                      value={profileForm.country}
-                      onChange={(event) =>
-                        setProfileForm((current) => ({ ...current, country: event.target.value }))
-                      }
-                    />
+                    <Select value={profileForm.country} onValueChange={handleCountryChange}>
+                      <SelectTrigger id="country">
+                        <SelectValue placeholder="Select country" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {countryOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
                 <Button onClick={handleProfileSave} disabled={updateProfileMutation.isPending}>
@@ -599,13 +865,23 @@ const PatientSettings = () => {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="bloodType">Blood Type</Label>
-                    <Input
-                      id="bloodType"
+                    <Select
                       value={medicalForm.bloodType}
-                      onChange={(event) =>
-                        setMedicalForm((current) => ({ ...current, bloodType: event.target.value }))
+                      onValueChange={(value) =>
+                        setMedicalForm((current) => ({ ...current, bloodType: value }))
                       }
-                    />
+                    >
+                      <SelectTrigger id="bloodType">
+                        <SelectValue placeholder="Select blood type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ensureOption(BLOOD_TYPE_OPTIONS, medicalForm.bloodType).map((option) => (
+                          <SelectItem key={option} value={option}>
+                            {option}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="heightCm">Height (cm)</Label>
@@ -698,9 +974,9 @@ const PatientSettings = () => {
                     <Textarea
                       id="medicalNotes"
                       rows={4}
-                      value={medicalForm.notes}
+                      value={medicalForm.medicalNotes}
                       onChange={(event) =>
-                        setMedicalForm((current) => ({ ...current, notes: event.target.value }))
+                        setMedicalForm((current) => ({ ...current, medicalNotes: event.target.value }))
                       }
                     />
                   </div>
@@ -742,72 +1018,105 @@ const PatientSettings = () => {
                   )}
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="emergencyName">Full Name</Label>
+                      <Label htmlFor="emergencyFullName">Full Name</Label>
                       <Input
-                        id="emergencyName"
-                        value={emergencyForm.name}
+                        id="emergencyFullName"
+                        value={emergencyForm.fullName}
                         onChange={(event) =>
-                          setEmergencyForm((current) => ({ ...current, name: event.target.value }))
+                          setEmergencyForm((current) => ({ ...current, fullName: event.target.value }))
                         }
                       />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="relationship">Relationship</Label>
-                      <Input
-                        id="relationship"
+                      <Select
                         value={emergencyForm.relationship}
-                        onChange={(event) =>
+                        onValueChange={(value) =>
                           setEmergencyForm((current) => ({
                             ...current,
-                            relationship: event.target.value,
+                            relationship: value,
                           }))
                         }
-                      />
+                      >
+                        <SelectTrigger id="relationship">
+                          <SelectValue placeholder="Select relationship" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ensureOption(RELATIONSHIP_OPTIONS, emergencyForm.relationship).map(
+                            (option) => (
+                              <SelectItem key={option} value={option}>
+                                {option}
+                              </SelectItem>
+                            ),
+                          )}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="emergencyPhone">Phone</Label>
                       <Input
                         id="emergencyPhone"
+                        type="tel"
+                        placeholder="01012345678"
                         value={emergencyForm.phone}
-                        onChange={(event) =>
-                          setEmergencyForm((current) => ({ ...current, phone: event.target.value }))
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="emergencyAlternatePhone">Alternate Phone</Label>
-                      <Input
-                        id="emergencyAlternatePhone"
-                        value={emergencyForm.alternatePhone}
-                        onChange={(event) =>
-                          setEmergencyForm((current) => ({
+                        onChange={(event) => {
+                          const nextValue = event.target.value;
+                          setEmergencyForm((current) => ({ ...current, phone: nextValue }));
+                          if (emergencyErrors.phone) {
+                            setEmergencyErrors((current) => ({ ...current, phone: "" }));
+                          }
+                        }}
+                        onBlur={() =>
+                          setEmergencyErrors((current) => ({
                             ...current,
-                            alternatePhone: event.target.value,
+                            phone:
+                              getEgyptianPhoneValidationError(
+                                emergencyForm.phone,
+                                "Phone number",
+                              ) ?? "",
                           }))
                         }
                       />
+                      {emergencyErrors.phone && (
+                        <p className="text-sm text-destructive">{emergencyErrors.phone}</p>
+                      )}
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="emergencyEmail">Email</Label>
+                      <Label htmlFor="emergencyAlternatePhone">Secondary Phone</Label>
                       <Input
-                        id="emergencyEmail"
-                        type="email"
-                        value={emergencyForm.email}
-                        onChange={(event) =>
-                          setEmergencyForm((current) => ({ ...current, email: event.target.value }))
+                        id="emergencyAlternatePhone"
+                        type="tel"
+                        placeholder="01012345678"
+                        value={emergencyForm.secondaryPhone}
+                        onChange={(event) => {
+                          const nextValue = event.target.value;
+                          setEmergencyForm((current) => ({
+                            ...current,
+                            secondaryPhone: nextValue,
+                          }));
+                          if (emergencyErrors.secondaryPhone) {
+                            setEmergencyErrors((current) => ({
+                              ...current,
+                              secondaryPhone: "",
+                            }));
+                          }
+                        }}
+                        onBlur={() =>
+                          setEmergencyErrors((current) => ({
+                            ...current,
+                            secondaryPhone:
+                              getEgyptianPhoneValidationError(
+                                emergencyForm.secondaryPhone,
+                                "Secondary phone number",
+                              ) ?? "",
+                          }))
                         }
                       />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="emergencyAddress">Address</Label>
-                      <Textarea
-                        id="emergencyAddress"
-                        rows={3}
-                        value={emergencyForm.address}
-                        onChange={(event) =>
-                          setEmergencyForm((current) => ({ ...current, address: event.target.value }))
-                        }
-                      />
+                      {emergencyErrors.secondaryPhone && (
+                        <p className="text-sm text-destructive">
+                          {emergencyErrors.secondaryPhone}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <Button
@@ -859,19 +1168,6 @@ const PatientSettings = () => {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="planName">Plan Name</Label>
-                      <Input
-                        id="planName"
-                        value={insuranceForm.planName}
-                        onChange={(event) =>
-                          setInsuranceForm((current) => ({
-                            ...current,
-                            planName: event.target.value,
-                          }))
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
                       <Label htmlFor="memberId">Member ID</Label>
                       <Input
                         id="memberId"
@@ -880,19 +1176,6 @@ const PatientSettings = () => {
                           setInsuranceForm((current) => ({
                             ...current,
                             memberId: event.target.value,
-                          }))
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="policyNumber">Policy Number</Label>
-                      <Input
-                        id="policyNumber"
-                        value={insuranceForm.policyNumber}
-                        onChange={(event) =>
-                          setInsuranceForm((current) => ({
-                            ...current,
-                            policyNumber: event.target.value,
                           }))
                         }
                       />
@@ -911,29 +1194,41 @@ const PatientSettings = () => {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="expiryDate">Expiry Date</Label>
+                      <Label htmlFor="policyHolderName">Policy Holder Name</Label>
                       <Input
-                        id="expiryDate"
-                        type="date"
-                        value={insuranceForm.expiryDate}
+                        id="policyHolderName"
+                        value={insuranceForm.policyHolderName}
                         onChange={(event) =>
                           setInsuranceForm((current) => ({
                             ...current,
-                            expiryDate: event.target.value,
+                            policyHolderName: event.target.value,
                           }))
                         }
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="coverageDetails">Coverage Details</Label>
-                      <Textarea
-                        id="coverageDetails"
-                        rows={3}
-                        value={insuranceForm.coverageDetails}
+                      <Label htmlFor="policyHolderRelation">Policy Holder Relation</Label>
+                      <Input
+                        id="policyHolderRelation"
+                        value={insuranceForm.policyHolderRelation}
                         onChange={(event) =>
                           setInsuranceForm((current) => ({
                             ...current,
-                            coverageDetails: event.target.value,
+                            policyHolderRelation: event.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="providerPhone">Provider Phone</Label>
+                      <Input
+                        id="providerPhone"
+                        type="tel"
+                        value={insuranceForm.providerPhone}
+                        onChange={(event) =>
+                          setInsuranceForm((current) => ({
+                            ...current,
+                            providerPhone: event.target.value,
                           }))
                         }
                       />
