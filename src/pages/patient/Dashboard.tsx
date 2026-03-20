@@ -374,13 +374,15 @@ const PatientDashboard = () => {
               actionTo={hasPendingLabResults ? "/patient/lab-results" : "/patient/labs"}
             />
             <SummaryStat
-              title="Active Medications"
+              title="Current Medications"
               value={hasActiveMedications ? String(resolvedMedicationsCount) : undefined}
               emptyLabel="No active medications recorded"
-              helper={medicationsHelper}
+              helper={
+                hasActiveMedications ? "Based on your medical profile" : "Update your medical profile to add meds"
+              }
               icon={ClipboardList}
-              actionLabel={hasActiveMedications ? "View Medications" : "Add Medications"}
-              actionTo={hasActiveMedications ? "/patient/prescriptions" : "/patient/settings"}
+              actionLabel={hasActiveMedications ? "Update Medical Profile" : "Add Medications"}
+              actionTo="/patient/settings"
             />
             <SummaryStat
               title="Emergency Contact"
