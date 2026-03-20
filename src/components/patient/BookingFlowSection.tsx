@@ -4,6 +4,7 @@ import { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { DoctorAvailability } from "@/types/doctor-profile.types";
 import { buildStableKey } from "@/lib/reactKeys";
+import { formatDateTime as formatDateTimeParts } from "@/lib/date-time";
 import {
   DoctorRequestSummary,
   LabRequestSummary,
@@ -362,7 +363,6 @@ export const RequestDetailsGrid = ({
   requestNumber,
   status,
   statusLabel,
-  preferredDate,
   preferredTime,
   createdAt,
   note,
@@ -374,30 +374,33 @@ export const RequestDetailsGrid = ({
   requestNumber?: string | null;
   status: RequestStatus;
   statusLabel?: string;
-  preferredDate?: string | null;
   preferredTime?: string | null;
   createdAt?: string | null;
   note?: string | null;
   extra?: ReactNode;
-}) => (
-  <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
-    <SectionCard title={providerName} description={providerSubtitle || undefined}>
-      <div className="space-y-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <Badge className={requestStatusClassName(status)}>{statusLabel || status}</Badge>
-          {providerLocation ? (
-            <span className="text-sm text-muted-foreground">{providerLocation}</span>
-          ) : null}
+}) => {
+  const { date, time } = formatDateTimeParts(preferredTime ?? undefined);
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
+      <SectionCard title={providerName} description={providerSubtitle || undefined}>
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <Badge className={requestStatusClassName(status)}>{statusLabel || status}</Badge>
+            {providerLocation ? (
+              <span className="text-sm text-muted-foreground">{providerLocation}</span>
+            ) : null}
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            <DetailItem label="Preferred date" value={date} />
+            <DetailItem label="Preferred time" value={time} />
+            <DetailItem label="Created" value={formatDateTime(createdAt)} />
+            <DetailItem label="Reference" value={requestNumber} />
+          </div>
+          <DetailItem label="Patient note" value={note} />
+          {extra}
         </div>
-        <div className="grid gap-3 md:grid-cols-2">
-          <DetailItem label="Preferred date" value={formatDateOnly(preferredDate)} />
-          <DetailItem label="Preferred time" value={preferredTime} />
-          <DetailItem label="Created" value={formatDateTime(createdAt)} />
-          <DetailItem label="Reference" value={requestNumber} />
-        </div>
-        <DetailItem label="Patient note" value={note} />
-        {extra}
-      </div>
-    </SectionCard>
-  </div>
-);
+      </SectionCard>
+    </div>
+  );
+};

@@ -126,7 +126,6 @@ const PatientRequestDetailsPage = () => {
             requestNumber={activeRequest.reference ?? null}
             status={activeRequest.status}
             statusLabel={activeRequest.statusLabel}
-            preferredDate={activeRequest.preferredDate}
             preferredTime={activeRequest.preferredTime}
             createdAt={activeRequest.createdAt}
             note={activeRequest.patientNote}
