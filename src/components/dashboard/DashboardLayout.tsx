@@ -1,6 +1,7 @@
-import { ReactNode, useMemo } from "react";
+import { ReactNode, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Sidebar,
   SidebarContent,
@@ -12,11 +13,25 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { NavLink } from "@/components/NavLink";
-import { Bell, ClipboardList, LogOut, User, LucideIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+import {
+  Bell,
+  CalendarDays,
+  BookOpen,
+  ClipboardList,
+  FileText,
+  LogOut,
+  User,
+  LucideIcon,
+  ChevronDown,
+} from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import logo from "@/assets/logo.png";
 import { useAuth } from "@/hooks/useAuth";
@@ -67,6 +82,30 @@ const DashboardLayout = ({
     location.pathname === url ||
     (url !== `/${userRole}/dashboard` && location.pathname.startsWith(`${url}/`));
 
+  const appointmentChildItems = useMemo(() => {
+    if (userRole !== "patient") return [];
+    const bookItem = effectiveNavItems.find((item) => item.url === "/patient/book");
+    const requestsItem = effectiveNavItems.find((item) => item.url === "/patient/requests");
+    return [bookItem, requestsItem].filter(Boolean) as NavItem[];
+  }, [effectiveNavItems, userRole]);
+
+  const appointmentsParent = useMemo(
+    () => effectiveNavItems.find((item) => item.url === "/patient/appointments"),
+    [effectiveNavItems],
+  );
+
+  const isAppointmentsChildActive = appointmentChildItems.some((item) => isNavItemActive(item.url));
+  const isAppointmentsActive =
+    isAppointmentsChildActive || (appointmentsParent ? isNavItemActive(appointmentsParent.url) : false);
+
+  const [appointmentsOpen, setAppointmentsOpen] = useState(isAppointmentsChildActive);
+
+  useEffect(() => {
+    if (isAppointmentsChildActive) {
+      setAppointmentsOpen(true);
+    }
+  }, [isAppointmentsChildActive]);
+
   const getRoleColor = () => {
     switch (userRole) {
       case "doctor":
@@ -94,24 +133,84 @@ const DashboardLayout = ({
               <SidebarGroupLabel>Navigation</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {effectiveNavItems.map((item) => (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={isNavItemActive(item.url)}
-                        tooltip={item.title}
-                      >
-                        <NavLink
-                          to={item.url}
-                          className="flex items-center gap-3"
-                          activeClassName="bg-primary/10 text-primary font-medium"
-                        >
-                          <item.icon className="h-4 w-4" />
-                          <span>{item.title}</span>
-                        </NavLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
+                  {effectiveNavItems.map((item) => {
+                    if (userRole === "patient") {
+                      if (item.url === "/patient/book" || item.url === "/patient/requests") {
+                        return null;
+                      }
+
+                      if (item.url === "/patient/appointments" && appointmentChildItems.length) {
+                        return (
+                          <Collapsible
+                            key="appointments-collapsible"
+                            open={appointmentsOpen}
+                            onOpenChange={setAppointmentsOpen}
+                          >
+                            <SidebarMenuItem>
+                              <CollapsibleTrigger asChild>
+                                <SidebarMenuButton
+                                  isActive={isAppointmentsActive}
+                                  className={cn(
+                                    "flex items-center justify-between",
+                                    isAppointmentsActive && "bg-primary/10 text-primary font-medium",
+                                  )}
+                                  tooltip="Appointments"
+                                >
+                                  <span className="flex items-center gap-3">
+                                    <CalendarDays className="h-4 w-4" />
+                                    <span>Appointments</span>
+                                  </span>
+                                  <ChevronDown
+                                    className={cn(
+                                      "h-4 w-4 transition-transform duration-200",
+                                      appointmentsOpen && "rotate-180",
+                                    )}
+                                  />
+                                </SidebarMenuButton>
+                              </CollapsibleTrigger>
+                              <CollapsibleContent className="mt-1 overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
+                                <SidebarMenuSub>
+                                  {appointmentChildItems.map((child) => (
+                                    <SidebarMenuSubItem key={child.title}>
+                                      <SidebarMenuSubButton asChild>
+                                        <NavLink
+                                          to={child.url}
+                                          className="flex items-center gap-3 pl-9"
+                                          activeClassName="bg-primary/10 text-primary font-medium"
+                                        >
+                                          {child.url === "/patient/book" ? (
+                                            <BookOpen className="h-4 w-4" />
+                                          ) : (
+                                            <FileText className="h-4 w-4" />
+                                          )}
+                                          <span>{child.title}</span>
+                                        </NavLink>
+                                      </SidebarMenuSubButton>
+                                    </SidebarMenuSubItem>
+                                  ))}
+                                </SidebarMenuSub>
+                              </CollapsibleContent>
+                            </SidebarMenuItem>
+                          </Collapsible>
+                        );
+                      }
+                    }
+
+                    return (
+                      <SidebarMenuItem key={item.title}>
+                        <SidebarMenuButton asChild isActive={isNavItemActive(item.url)} tooltip={item.title}>
+                          <NavLink
+                            to={item.url}
+                            className="flex items-center gap-3"
+                            activeClassName="bg-primary/10 text-primary font-medium"
+                          >
+                            <item.icon className="h-4 w-4" />
+                            <span>{item.title}</span>
+                          </NavLink>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
