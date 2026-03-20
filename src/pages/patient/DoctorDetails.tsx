@@ -77,16 +77,40 @@ const PatientDoctorDetailsPage = () => {
     () => doctor?.servicesOffered.filter((item): item is string => Boolean(item?.trim())) ?? [],
     [doctor],
   );
+  const normalizeVisitTypeLabel = (value: string) => {
+    const key = value.trim().toLowerCase().replace(/\s+/g, "_");
+    if (["in_person", "in-person", "in person", "clinic"].includes(key)) return "Clinic";
+    if (["video", "video_call", "virtual", "online"].includes(key)) return "Video";
+    if (["phone", "phone_call", "call"].includes(key)) return "Phone";
+    if (["home_visit", "home-visit", "home visit"].includes(key)) return "Home Visit";
+    return value;
+  };
+  const normalizeVisitTypeValue = (value: string) => {
+    const key = value.trim().toLowerCase().replace(/\s+/g, "_");
+    if (["in_person", "in-person", "in person", "clinic"].includes(key)) return "IN_PERSON";
+    if (["video", "video_call", "virtual", "online"].includes(key)) return "VIDEO";
+    if (["phone", "phone_call", "call"].includes(key)) return "PHONE";
+    if (["home_visit", "home-visit", "home visit"].includes(key)) return "HOME_VISIT";
+    return value;
+  };
+  const visitTypeOptions = useMemo(() => {
+    const options = new Map<string, string>();
+    consultationTypes.forEach((type) => {
+      const value = normalizeVisitTypeValue(type);
+      options.set(value, normalizeVisitTypeLabel(type));
+    });
+    if (visitType && !options.has(visitType)) {
+      options.set(visitType, normalizeVisitTypeLabel(visitType));
+    }
+    return Array.from(options, ([value, label]) => ({ value, label }));
+  }, [consultationTypes, visitType]);
 
   useEffect(() => {
-    if (!consultationTypes.length) {
-      return;
+    const optionValues = visitTypeOptions.map((option) => option.value);
+    if (!visitType || !optionValues.includes(visitType)) {
+      setVisitType(optionValues[0] ?? "");
     }
-
-    if (!visitType || !consultationTypes.includes(visitType)) {
-      setVisitType(consultationTypes[0]);
-    }
-  }, [consultationTypes, visitType]);
+  }, [visitType, visitTypeOptions]);
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
@@ -230,27 +254,26 @@ const PatientDoctorDetailsPage = () => {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="visitType">Visit type</Label>
-                {consultationTypes.length ? (
-                  <Select value={visitType} onValueChange={setVisitType}>
-                    <SelectTrigger id="visitType">
-                      <SelectValue placeholder="Select consultation type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {consultationTypes.map((type) => (
-                        <SelectItem key={type} value={type}>
-                          {type}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <Input
-                    id="visitType"
-                    value={visitType}
-                    onChange={(event) => setVisitType(event.target.value)}
-                    placeholder="Clinic, Video, Phone, or Home Visit"
-                  />
-                )}
+                <Select
+                  value={visitType}
+                  onValueChange={setVisitType}
+                  disabled={!visitTypeOptions.length}
+                >
+                  <SelectTrigger id="visitType">
+                    <SelectValue
+                      placeholder={
+                        visitTypeOptions.length ? "Select consultation type" : "No consultation types available"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {visitTypeOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="reason">Reason for visit</Label>

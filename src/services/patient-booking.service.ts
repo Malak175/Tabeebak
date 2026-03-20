@@ -286,22 +286,43 @@ const normalizeConsultationType = (value?: string | null) => {
   if (!normalized) return undefined;
 
   if (normalized === "in-person" || normalized === "in person" || normalized === "clinic") {
-    return "Clinic";
+    return "IN_PERSON";
   }
 
   if (normalized === "video" || normalized === "virtual" || normalized === "online") {
-    return "Video";
+    return "VIDEO";
   }
 
   if (normalized === "phone" || normalized === "call") {
-    return "Phone";
+    return "PHONE";
   }
 
   if (normalized === "home visit" || normalized === "home-visit" || normalized === "home_visit") {
-    return "Home Visit";
+    return "HOME_VISIT";
   }
 
   return value?.trim() || undefined;
+};
+
+const normalizeVisitTypeLabel = (value?: string | null) => {
+  const normalized = value?.trim();
+  if (!normalized) return null;
+  const key = normalized.toLowerCase().replace(/\s+/g, "_");
+
+  if (["in_person", "in-person", "in person", "clinic"].includes(key)) {
+    return "Clinic";
+  }
+  if (["video", "video_call", "virtual", "online"].includes(key)) {
+    return "Video";
+  }
+  if (["phone", "phone_call", "call"].includes(key)) {
+    return "Phone";
+  }
+  if (["home_visit", "home-visit", "home visit"].includes(key)) {
+    return "Home Visit";
+  }
+
+  return normalized;
 };
 
 const buildPreferredDateTimeValue = (date?: string, time?: string) => {
@@ -771,10 +792,18 @@ const normalizeDoctorRequestSummary = (payload: unknown): DoctorRequestSummary =
     pickNullableString(raw, ["status", "requestStatus", "request_status"]),
     "doctor",
   );
+  const consultationType = pickNullableString(raw, [
+    "consultationType",
+    "consultation_type",
+    "visitType",
+    "visit_type",
+    "type",
+  ]);
 
   return {
     id: String(raw.id ?? raw._id ?? raw.requestId ?? raw.request_id ?? ""),
     requestNumber: pickNullableString(raw, ["requestNumber", "request_number", "referenceNumber"]),
+    reference: pickNullableString(raw, ["reference", "requestReference", "referenceNumber", "requestNumber"]),
     status: statusInfo.status,
     statusRaw: statusInfo.rawStatus,
     statusLabel: statusInfo.label,
@@ -816,7 +845,9 @@ const normalizeDoctorRequestSummary = (payload: unknown): DoctorRequestSummary =
     canReply:
       pickBoolean(raw, ["canReply", "can_reply"]) ??
       (statusInfo.status === "pending" || statusInfo.status === "approved"),
-    visitType: pickNullableString(raw, ["visitType", "visit_type", "type"]),
+    consultationType,
+    consultation_type: consultationType,
+    visitType: normalizeVisitTypeLabel(consultationType),
     reason: pickNullableString(raw, ["reason", "chiefComplaint", "chief_complaint"]),
   };
 };
@@ -876,6 +907,7 @@ const normalizeLabRequestSummary = (payload: unknown): LabRequestSummary => {
   return {
     id: String(raw.id ?? raw._id ?? raw.requestId ?? raw.request_id ?? ""),
     requestNumber: pickNullableString(raw, ["requestNumber", "request_number", "referenceNumber"]),
+    reference: pickNullableString(raw, ["reference", "requestReference", "referenceNumber", "requestNumber"]),
     status: statusInfo.status,
     statusRaw: statusInfo.rawStatus,
     statusLabel: statusInfo.label,

@@ -48,6 +48,18 @@ const PatientRequestDetailsPage = () => {
   const sendingMutation = isDoctorRequest ? doctorReplyMutation : labReplyMutation;
   const cancelMutation = isDoctorRequest ? cancelDoctorMutation : cancelLabMutation;
 
+  if (activeRequest) {
+    console.log("Patient Request Details - activeRequest", activeRequest);
+    console.log("Visit type fields", {
+      reference: (activeRequest as Record<string, unknown>).reference,
+      consultationType: (activeRequest as Record<string, unknown>).consultationType,
+      consultation_type: (activeRequest as Record<string, unknown>).consultation_type,
+      id: (activeRequest as Record<string, unknown>).id,
+      requestId: (activeRequest as Record<string, unknown>).requestId,
+    });
+    console.log("REFERENCE VALUE:", (activeRequest as Record<string, unknown>).reference);
+  }
+
   const handleSendReply = () => {
     if (!requestId || !reply.trim()) return;
 
@@ -76,6 +88,16 @@ const PatientRequestDetailsPage = () => {
     });
   };
 
+  const formatVisitType = (value?: string | null) => {
+    if (!value) return null;
+    const key = value.trim().toLowerCase().replace(/\s+/g, "_");
+    if (["in_person", "in-person", "in person"].includes(key)) return "Clinic";
+    if (["video", "video_call", "virtual", "online"].includes(key)) return "Video";
+    if (["phone", "phone_call", "call"].includes(key)) return "Phone";
+    if (["home_visit", "home-visit", "home visit"].includes(key)) return "Home Visit";
+    return value;
+  };
+
   return (
     <DashboardLayout userRole="patient" userName={userName} navItems={patientBookingNavItems} userIcon={User}>
       <div className="mb-6">
@@ -101,7 +123,7 @@ const PatientRequestDetailsPage = () => {
             providerName={activeRequest.providerName}
             providerSubtitle={activeRequest.providerSubtitle}
             providerLocation={activeRequest.providerLocation}
-            requestNumber={activeRequest.requestNumber}
+            requestNumber={activeRequest.reference ?? null}
             status={activeRequest.status}
             statusLabel={activeRequest.statusLabel}
             preferredDate={activeRequest.preferredDate}
@@ -114,7 +136,13 @@ const PatientRequestDetailsPage = () => {
                   <div className="rounded-lg border p-4">
                     <p className="text-sm font-medium">Visit type</p>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {"visitType" in activeRequest ? activeRequest.visitType || "Not provided" : "Not provided"}
+                      {"consultationType" in activeRequest || "consultation_type" in activeRequest
+                        ? formatVisitType(
+                            ("consultationType" in activeRequest
+                              ? activeRequest.consultationType
+                              : activeRequest.consultation_type) ?? null,
+                          ) || "Not provided"
+                        : "Not provided"}
                     </p>
                   </div>
                   <div className="rounded-lg border p-4">

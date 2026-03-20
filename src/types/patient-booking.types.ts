@@ -9,6 +9,9 @@ export type RequestStatus =
   | "completed"
   | "unknown";
 
+export const VISIT_TYPE_OPTIONS = ["Clinic", "Video", "Phone"] as const;
+export type VisitType = (typeof VISIT_TYPE_OPTIONS)[number] | "Home Visit";
+
 export interface DiscoveryLocationParams {
   latitude: number;
   longitude: number;
@@ -114,6 +117,7 @@ export interface RequestMessage {
 export interface ProviderRequestSummary {
   id: string;
   requestNumber?: string | null;
+  reference?: string | null;
   status: RequestStatus;
   statusRaw?: string | null;
   statusLabel?: string;
@@ -135,7 +139,9 @@ export interface ProviderRequestSummary {
 
 export interface DoctorRequestSummary extends ProviderRequestSummary {
   doctorId?: string | null;
-  visitType?: string | null;
+  visitType?: VisitType | string | null;
+  consultationType?: string | null;
+  consultation_type?: string | null;
   reason?: string | null;
 }
 
@@ -184,7 +190,7 @@ export interface CreateAppointmentRequestPayload {
   doctorId: string;
   preferredDate: string;
   preferredTime: string;
-  visitType?: string;
+  visitType?: VisitType;
   reason: string;
   note?: string;
 }
