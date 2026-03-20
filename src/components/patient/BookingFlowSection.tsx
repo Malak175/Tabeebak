@@ -131,7 +131,9 @@ export const RequestSummaryCard = ({ request, href }: RequestCardProps) => (
       <div className="flex-1 space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="text-lg font-semibold">{request.providerName}</h3>
-          <Badge className={requestStatusClassName(request.status)}>{request.status}</Badge>
+          <Badge className={requestStatusClassName(request.status)}>
+            {request.statusLabel || request.status}
+          </Badge>
         </div>
         {request.providerSubtitle ? (
           <p className="text-sm text-muted-foreground">{request.providerSubtitle}</p>
@@ -359,6 +361,7 @@ export const RequestDetailsGrid = ({
   providerLocation,
   requestNumber,
   status,
+  statusLabel,
   preferredDate,
   preferredTime,
   createdAt,
@@ -370,6 +373,7 @@ export const RequestDetailsGrid = ({
   providerLocation?: string | null;
   requestNumber?: string | null;
   status: RequestStatus;
+  statusLabel?: string;
   preferredDate?: string | null;
   preferredTime?: string | null;
   createdAt?: string | null;
@@ -380,7 +384,7 @@ export const RequestDetailsGrid = ({
     <SectionCard title={providerName} description={providerSubtitle || undefined}>
       <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-3">
-          <Badge className={requestStatusClassName(status)}>{status}</Badge>
+          <Badge className={requestStatusClassName(status)}>{statusLabel || status}</Badge>
           {providerLocation ? (
             <span className="text-sm text-muted-foreground">{providerLocation}</span>
           ) : null}

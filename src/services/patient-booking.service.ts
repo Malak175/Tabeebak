@@ -392,10 +392,20 @@ const buildDiscoveryQueryParams = <T extends Record<string, unknown>>(params?: T
   };
 };
 
-const normalizeRequestStatus = (value?: string | null): RequestStatus => {
-  const normalized = value?.trim().toLowerCase();
-  if (!normalized) return "unknown";
+type NormalizedRequestStatus = {
+  status: RequestStatus;
+  rawStatus: string | null;
+  label: string;
+};
 
+const sentenceCase = (value: string) => {
+  const cleaned = value.replace(/[_-]+/g, " ").trim().toLowerCase();
+  if (!cleaned) return "";
+  return `${cleaned.charAt(0).toUpperCase()}${cleaned.slice(1)}`;
+};
+
+const normalizeGenericRequestStatus = (normalized: string): RequestStatus => {
+  if (!normalized) return "unknown";
   if (normalized === "canceled") return "cancelled";
   if (["accepted", "approve", "approved", "confirmed", "ready", "reported"].includes(normalized)) {
     return "approved";
@@ -406,15 +416,50 @@ const normalizeRequestStatus = (value?: string | null): RequestStatus => {
   if (["requested", "request_submitted", "under_review", "in_review", "review"].includes(normalized)) {
     return "pending";
   }
-  if (
-    normalized === "pending" ||
-    normalized === "cancelled" ||
-    normalized === "completed"
-  ) {
+  if (normalized === "pending" || normalized === "cancelled" || normalized === "completed") {
     return normalized;
   }
-
   return "unknown";
+};
+
+const normalizeRequestStatus = (
+  value?: string | null,
+  context: "doctor" | "lab" = "doctor",
+): NormalizedRequestStatus => {
+  const rawStatus = typeof value === "string" ? value.trim() : "";
+  if (!rawStatus) {
+    return { status: "unknown", rawStatus: null, label: "Unknown" };
+  }
+
+  const normalized = rawStatus.toLowerCase();
+  const normalizedKey = rawStatus.replace(/[\s-]+/g, "_").toUpperCase();
+
+  if (context === "lab") {
+    const labStatusMap: Record<string, { status: RequestStatus; label: string }> = {
+      PENDING: { status: "pending", label: "Pending" },
+      SAMPLE_COLLECTION_REQUESTED: { status: "pending", label: "Sample collection requested" },
+      SAMPLE_COLLECTED: { status: "pending", label: "Sample collected" },
+      IN_PROGRESS: { status: "pending", label: "In progress" },
+      RESULT_UPLOADED: { status: "completed", label: "Result uploaded" },
+      ASSIGNED_TO_DOCTOR: { status: "pending", label: "Assigned to doctor" },
+      COMPLETED: { status: "completed", label: "Completed" },
+      CANCELLED: { status: "cancelled", label: "Cancelled" },
+      CANCELED: { status: "cancelled", label: "Cancelled" },
+    };
+
+    const mapped = labStatusMap[normalizedKey];
+    if (mapped) {
+      return { status: mapped.status, rawStatus, label: mapped.label };
+    }
+  }
+
+  const status = normalizeGenericRequestStatus(normalized);
+  const label =
+    status === "unknown"
+      ? sentenceCase(rawStatus)
+      : sentenceCase(status === "cancelled" ? "cancelled" : status);
+
+  return { status, rawStatus, label };
 };
 
 const normalizeDoctorItem = (payload: unknown): DoctorDirectoryItem => {
@@ -722,14 +767,17 @@ const normalizeDoctorRequestSummary = (payload: unknown): DoctorRequestSummary =
   );
   const messages = resolveMessageList(raw);
   const latestMessage = messages[messages.length - 1];
-  const status = normalizeRequestStatus(
+  const statusInfo = normalizeRequestStatus(
     pickNullableString(raw, ["status", "requestStatus", "request_status"]),
+    "doctor",
   );
 
   return {
     id: String(raw.id ?? raw._id ?? raw.requestId ?? raw.request_id ?? ""),
     requestNumber: pickNullableString(raw, ["requestNumber", "request_number", "referenceNumber"]),
-    status,
+    status: statusInfo.status,
+    statusRaw: statusInfo.rawStatus,
+    statusLabel: statusInfo.label,
     providerId:
       pickNullableIdentifier(raw, ["doctorId", "doctor_id"]) ??
       pickNullableIdentifier(doctor, ["id", "_id", "doctorId", "doctor_id"]),
@@ -764,10 +812,10 @@ const normalizeDoctorRequestSummary = (payload: unknown): DoctorRequestSummary =
     updatedAt: pickNullableString(raw, ["updatedAt", "updated_at"]),
     canCancel:
       pickBoolean(raw, ["canCancel", "can_cancel"]) ??
-      (status === "pending" || status === "approved"),
+      (statusInfo.status === "pending" || statusInfo.status === "approved"),
     canReply:
       pickBoolean(raw, ["canReply", "can_reply"]) ??
-      (status === "pending" || status === "approved"),
+      (statusInfo.status === "pending" || statusInfo.status === "approved"),
     visitType: pickNullableString(raw, ["visitType", "visit_type", "type"]),
     reason: pickNullableString(raw, ["reason", "chiefComplaint", "chief_complaint"]),
   };
@@ -813,7 +861,7 @@ const normalizeLabRequestSummary = (payload: unknown): LabRequestSummary => {
       pickString(asRecord(item), ["name", "serviceName", "service_name", "testName", "test_name"]) ?? "",
     ),
   ].filter(Boolean);
-  const status = normalizeRequestStatus(
+  const statusInfo = normalizeRequestStatus(
     pickNullableString(raw, [
       "status",
       "requestStatus",
@@ -822,12 +870,15 @@ const normalizeLabRequestSummary = (payload: unknown): LabRequestSummary => {
       "review_status",
       "decision",
     ]),
+    "lab",
   );
 
   return {
     id: String(raw.id ?? raw._id ?? raw.requestId ?? raw.request_id ?? ""),
     requestNumber: pickNullableString(raw, ["requestNumber", "request_number", "referenceNumber"]),
-    status,
+    status: statusInfo.status,
+    statusRaw: statusInfo.rawStatus,
+    statusLabel: statusInfo.label,
     providerId:
       pickNullableIdentifier(raw, ["labId", "lab_id"]) ??
       pickNullableIdentifier(raw, ["providerId", "provider_id"]) ??
@@ -871,10 +922,10 @@ const normalizeLabRequestSummary = (payload: unknown): LabRequestSummary => {
     updatedAt: pickNullableString(raw, ["updatedAt", "updated_at"]),
     canCancel:
       pickBoolean(raw, ["canCancel", "can_cancel"]) ??
-      (status === "pending" || status === "approved"),
+      (statusInfo.status === "pending" || statusInfo.status === "approved"),
     canReply:
       pickBoolean(raw, ["canReply", "can_reply"]) ??
-      (status === "pending" || status === "approved"),
+      (statusInfo.status === "pending" || statusInfo.status === "approved"),
     branchId:
       pickNullableIdentifier(raw, ["branchId", "branch_id"]) ??
       pickNullableIdentifier(branch, ["id", "_id", "branchId", "branch_id"]),

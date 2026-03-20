@@ -103,6 +103,7 @@ const PatientRequestDetailsPage = () => {
             providerLocation={activeRequest.providerLocation}
             requestNumber={activeRequest.requestNumber}
             status={activeRequest.status}
+            statusLabel={activeRequest.statusLabel}
             preferredDate={activeRequest.preferredDate}
             preferredTime={activeRequest.preferredTime}
             createdAt={activeRequest.createdAt}

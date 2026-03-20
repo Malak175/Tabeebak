@@ -115,6 +115,8 @@ export interface ProviderRequestSummary {
   id: string;
   requestNumber?: string | null;
   status: RequestStatus;
+  statusRaw?: string | null;
+  statusLabel?: string;
   providerId?: string | null;
   providerName: string;
   providerSubtitle?: string | null;
