@@ -1,4 +1,5 @@
 import { ChangeEvent, ReactNode, useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Bell,
   Building2,
@@ -26,6 +27,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { FieldError } from "@/components/ui/field-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
@@ -37,6 +39,7 @@ import { validatePasswordPolicy } from "@/lib/password-policy";
 import {
   useChangeMyPasswordMutation,
   useDeleteAvatarMutation,
+  myAccountQueryKeys,
   useMyProfileQuery,
   useNotificationPreferencesQuery,
   useSecuritySettingsQuery,
@@ -216,6 +219,7 @@ export const AccountSettingsContent = ({
   layoutIcon,
   children,
 }: AccountSettingsContentProps) => {
+  const queryClient = useQueryClient();
   const { user, setBootstrappedUser } = useAuth();
   const profileQuery = useMyProfileQuery(Boolean(user));
   const notificationQuery = useNotificationPreferencesQuery(Boolean(user));
@@ -243,8 +247,17 @@ export const AccountSettingsContent = ({
     currentPassword: "",
     newPassword: "",
   });
+  const [passwordErrors, setPasswordErrors] = useState({
+    currentPassword: "",
+    newPassword: "",
+    form: "",
+  });
   const [notificationDraft, setNotificationDraft] = useState<NotificationPreferences>({});
   const [securityDraft, setSecurityDraft] = useState<SecuritySettings>({});
+  const [avatarVersion, setAvatarVersion] = useState(0);
+
+  const inputErrorClass = (message?: string) =>
+    message ? "border-destructive/60 focus-visible:ring-destructive/40" : "";
 
   useEffect(() => {
     if (!profileQuery.data) return;
@@ -305,17 +318,33 @@ export const AccountSettingsContent = ({
     });
   };
 
+  const updateAvatarCaches = (nextAvatarUrl: string | null) => {
+    queryClient.setQueryData(myAccountQueryKeys.profile(), (previous) =>
+      previous ? { ...previous, avatarUrl: nextAvatarUrl } : previous,
+    );
+    queryClient.setQueryData(myAccountQueryKeys.me(), (previous) =>
+      previous ? { ...previous, avatarUrl: nextAvatarUrl } : previous,
+    );
+  };
+
   const handleAvatarChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
+    console.log("[Avatar Upload] Selected file", file);
     if (!file) return;
 
     uploadAvatarMutation.mutate(file, {
       onSuccess: (response) => {
+        if (!response.avatarUrl) {
+          toast.error("Avatar upload completed but no image URL was returned.");
+          return;
+        }
+        updateAvatarCaches(response.avatarUrl);
         setBootstrappedUser({
-          ...(profileQuery.data ?? user!),
+          ...(profileQuery.data ?? user ?? {}),
           avatarUrl: response.avatarUrl,
         });
+        setAvatarVersion((current) => current + 1);
         toast.success(response.message ?? "Avatar updated successfully");
       },
       onError: (error: Error) => toast.error(error.message),
@@ -325,9 +354,12 @@ export const AccountSettingsContent = ({
   const handleDeleteAvatar = () => {
     deleteAvatarMutation.mutate(undefined, {
       onSuccess: (response) => {
-        if (user) {
-          setBootstrappedUser({ ...user, avatarUrl: null });
+        updateAvatarCaches(null);
+        const base = profileQuery.data ?? user;
+        if (base) {
+          setBootstrappedUser({ ...base, avatarUrl: null });
         }
+        setAvatarVersion((current) => current + 1);
         toast.success(response.message);
       },
       onError: (error: Error) => toast.error(error.message),
@@ -335,9 +367,20 @@ export const AccountSettingsContent = ({
   };
 
   const handlePasswordSave = () => {
+    const nextErrors = {
+      currentPassword: passwordForm.currentPassword.trim() ? "" : "Please enter your current password.",
+      newPassword: "",
+      form: "",
+    };
+
     const passwordError = validatePasswordPolicy(passwordForm.newPassword);
     if (passwordError) {
-      toast.error(passwordError);
+      nextErrors.newPassword = passwordError;
+    }
+
+    setPasswordErrors(nextErrors);
+
+    if (nextErrors.currentPassword || nextErrors.newPassword) {
       return;
     }
 
@@ -345,8 +388,15 @@ export const AccountSettingsContent = ({
       onSuccess: (response) => {
         toast.success(response.message);
         setPasswordForm({ currentPassword: "", newPassword: "" });
+        setPasswordErrors({ currentPassword: "", newPassword: "", form: "" });
       },
-      onError: (error: Error) => toast.error(error.message),
+      onError: (error: Error) => {
+        setPasswordErrors({
+          currentPassword: error.message,
+          newPassword: "",
+          form: "",
+        });
+      },
     });
   };
 
@@ -400,7 +450,14 @@ export const AccountSettingsContent = ({
             ) : (
               <div className="flex items-center gap-4">
                 <Avatar className="h-20 w-20">
-                  <AvatarImage src={activeProfile?.avatarUrl ?? undefined} alt={userName} />
+                  <AvatarImage
+                    src={
+                      activeProfile?.avatarUrl
+                        ? `${activeProfile.avatarUrl}${activeProfile.avatarUrl.includes("?") ? "&" : "?"}v=${avatarVersion}`
+                        : undefined
+                    }
+                    alt={userName}
+                  />
                   <AvatarFallback>{getInitials(userName)}</AvatarFallback>
                 </Avatar>
                 <div>
@@ -565,22 +622,34 @@ export const AccountSettingsContent = ({
               <Input
                 id="currentPassword"
                 type="password"
+                className={inputErrorClass(passwordErrors.currentPassword)}
                 value={passwordForm.currentPassword}
-                onChange={(event) =>
-                  setPasswordForm((current) => ({ ...current, currentPassword: event.target.value }))
-                }
+                onChange={(event) => {
+                  const nextValue = event.target.value;
+                  setPasswordForm((current) => ({ ...current, currentPassword: nextValue }));
+                  if (passwordErrors.currentPassword) {
+                    setPasswordErrors((current) => ({ ...current, currentPassword: "" }));
+                  }
+                }}
               />
+              <FieldError message={passwordErrors.currentPassword} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="newPassword">New Password</Label>
               <Input
                 id="newPassword"
                 type="password"
+                className={inputErrorClass(passwordErrors.newPassword)}
                 value={passwordForm.newPassword}
-                onChange={(event) =>
-                  setPasswordForm((current) => ({ ...current, newPassword: event.target.value }))
-                }
+                onChange={(event) => {
+                  const nextValue = event.target.value;
+                  setPasswordForm((current) => ({ ...current, newPassword: nextValue }));
+                  if (passwordErrors.newPassword) {
+                    setPasswordErrors((current) => ({ ...current, newPassword: "" }));
+                  }
+                }}
               />
+              <FieldError message={passwordErrors.newPassword} />
             </div>
             <Button variant="outline" onClick={handlePasswordSave} disabled={changePasswordMutation.isPending}>
               {changePasswordMutation.isPending ? "Updating..." : "Update Password"}

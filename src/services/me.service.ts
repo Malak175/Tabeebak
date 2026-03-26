@@ -1,4 +1,4 @@
-import { apiRequest } from "@/services/api";
+import { apiRequest, API_BASE_URL } from "@/services/api";
 import { getDisplayName, normalizeRole } from "@/lib/auth";
 import {
   AvatarUploadResponse,
@@ -99,6 +99,21 @@ const pickRecord = (record: Record<string, unknown>, keys: string[]) => {
   }
 
   return {};
+};
+
+const normalizeAvatarUrl = (value?: string | null) => {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return trimmed;
+  }
+  if (trimmed.startsWith("//")) {
+    return `http:${trimmed}`;
+  }
+  const base = API_BASE_URL.replace(/\/$/, "");
+  const path = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+  return `${base}${path}`;
 };
 
 const getListEnvelope = (payload: unknown) => {
@@ -202,7 +217,9 @@ const normalizeMeResponse = (payload: unknown): MeResponse => {
     phone: pickString(raw, ["phone", "phoneNumber", "mobile"]),
     dateOfBirth: pickString(raw, ["dateOfBirth", "date_of_birth", "dob"]),
     gender: pickString(raw, ["gender"]),
-    avatarUrl: pickString(raw, ["avatarUrl", "avatar", "profileImageUrl", "imageUrl"]) ?? null,
+    avatarUrl: normalizeAvatarUrl(
+      pickString(raw, ["avatarUrl", "avatar", "profileImageUrl", "imageUrl"]) ?? null,
+    ),
     isEmailVerified: pickBoolean(raw, ["isEmailVerified", "emailVerified"]),
     isPhoneVerified: pickBoolean(raw, ["isPhoneVerified", "phoneVerified"]),
   };
@@ -232,13 +249,24 @@ const normalizeMessage = (payload: unknown, fallback: string) => {
 
 const normalizeAvatarUploadResponse = (payload: unknown): AvatarUploadResponse => {
   const raw = unwrapPayload(payload);
-  const avatarUrl =
-    pickString(raw, ["avatarUrl", "avatar", "url", "imageUrl"]) ??
-    pickString(asRecord(raw.data), ["avatarUrl", "avatar", "url", "imageUrl"]) ??
-    "";
+  const fileRecord = pickRecord(raw, ["file", "uploadedFile", "upload"]);
+  const avatarUrl = normalizeAvatarUrl(
+    pickString(raw, ["avatarUrl", "avatar", "url", "imageUrl", "fileUrl", "file", "path"]) ??
+      pickString(asRecord(raw.data), [
+        "avatarUrl",
+        "avatar",
+        "url",
+        "imageUrl",
+        "fileUrl",
+        "file",
+        "path",
+      ]) ??
+      pickString(fileRecord, ["avatarUrl", "url", "imageUrl", "fileUrl", "path"]) ??
+      "",
+  );
 
   return {
-    avatarUrl,
+    avatarUrl: avatarUrl ?? "",
     message: pickString(raw, ["message"]),
   };
 };
@@ -318,7 +346,8 @@ const normalizeSettingsRecord = <T extends Record<string, string | number | bool
 
 const toFormData = (file: File) => {
   const formData = new FormData();
-  formData.append("avatar", file);
+  formData.append("file", file);
+  console.log("[Avatar Upload] FormData file", formData.get("file"));
   return formData;
 };
 

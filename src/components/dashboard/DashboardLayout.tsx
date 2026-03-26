@@ -1,5 +1,6 @@
 import { ReactNode, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -20,6 +21,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { NavLink } from "@/components/NavLink";
+import { getInitials } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import {
   Bell,
@@ -61,7 +63,7 @@ const DashboardLayout = ({
 }: DashboardLayoutProps) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
 
   const effectiveNavItems = useMemo(() => {
     const requestItem =
@@ -218,9 +220,12 @@ const DashboardLayout = ({
 
           <SidebarFooter className="p-4 border-t border-border">
             <div className="flex items-center gap-3">
-              <div className={`w-9 h-9 rounded-full flex items-center justify-center ${getRoleColor()}`}>
-                <UserIcon className="h-5 w-5" />
-              </div>
+              <Avatar className="h-9 w-9">
+                <AvatarImage src={user?.avatarUrl ?? undefined} alt={userName} />
+                <AvatarFallback className={getRoleColor()}>
+                  {getInitials(userName) || <UserIcon className="h-5 w-5" />}
+                </AvatarFallback>
+              </Avatar>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{userName}</p>
                 <p className="text-xs text-muted-foreground capitalize">{userSubtitle || userRole}</p>

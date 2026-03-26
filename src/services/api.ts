@@ -7,7 +7,7 @@ import axios, {
 } from "axios";
 import { ApiError } from "@/types/api.types";
 
-const API_BASE_URL = "http://localhost:5000";
+export const API_BASE_URL = "http://localhost:5000";
 const AUTH_STORAGE_KEY = "tabeebak_auth";
 const IS_DEV = import.meta.env.DEV;
 
@@ -78,6 +78,11 @@ apiClient.interceptors.request.use((config: ApiAxiosRequestConfig) => {
       message: "Authenticated request without token",
       url: `${config.baseURL ?? ""}${config.url ?? ""}`,
     });
+  }
+
+  if (config.data instanceof FormData) {
+    config.headers = AxiosHeaders.from(config.headers);
+    config.headers.delete("Content-Type");
   }
 
   debugLog("[API REQUEST]", {
