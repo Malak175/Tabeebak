@@ -74,6 +74,9 @@ export interface DoctorAppointment {
   patientAvatarUrl?: string | null;
   patientAge?: number | null;
   patientGender?: string | null;
+  patientDateOfBirth?: string | null;
+  patientPhone?: string | null;
+  patientEmail?: string | null;
   scheduledAt?: string | null;
   endAt?: string | null;
   status: string;
@@ -84,6 +87,10 @@ export interface DoctorAppointment {
   complaint?: string | null;
   diagnosis?: string | null;
   notes?: string | null;
+  appointmentRequest?: DoctorAppointmentRequest | null;
+  prescriptionId?: string | null;
+  prescriptionNumber?: string | null;
+  hasPrescription?: boolean | null;
   joinUrl?: string | null;
   canJoinOnline: boolean;
   createdAt?: string | null;

@@ -52,9 +52,12 @@ const AppointmentCard = ({
 }: {
   appointment: DoctorAppointment;
   queueNumber?: number;
-}) => (
-  <Card>
-    <CardContent className="flex flex-col gap-4 p-6 lg:flex-row lg:items-center">
+}) => {
+  const hasAppointmentId = Boolean(appointment.id?.trim());
+
+  return (
+    <Card>
+      <CardContent className="flex flex-col gap-4 p-6 lg:flex-row lg:items-center">
       <div className="flex items-center gap-4 lg:w-60">
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
           {queueNumber ? <span className="font-semibold">{queueNumber}</span> : <Calendar className="h-5 w-5" />}
@@ -98,18 +101,33 @@ const AppointmentCard = ({
             </a>
           </Button>
         ) : null}
-        <Button asChild variant="outline">
-          <Link to={`/doctor/appointments/${appointment.id}`}>View details</Link>
-        </Button>
+        {hasAppointmentId ? (
+          <Button asChild variant="outline">
+            <Link to={`/doctor/appointments/${appointment.id}`}>View details</Link>
+          </Button>
+        ) : (
+          <Button
+            variant="outline"
+            disabled
+            onClick={() => {
+              console.warn("Doctor appointment is missing an id; details view is disabled.", {
+                appointment,
+              });
+            }}
+          >
+            View details
+          </Button>
+        )}
         {appointment.patientId ? (
           <Button asChild>
             <Link to={`/doctor/patients/${appointment.patientId}`}>Patient summary</Link>
           </Button>
         ) : null}
       </div>
-    </CardContent>
-  </Card>
-);
+      </CardContent>
+    </Card>
+  );
+};
 
 const AppointmentCardSkeleton = () => (
   <Card>

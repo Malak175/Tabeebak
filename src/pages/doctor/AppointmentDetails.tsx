@@ -1,5 +1,5 @@
 import { format, isValid, parseISO } from "date-fns";
-import { Calendar, Clock, FileText, MapPin, Stethoscope, User, Video } from "lucide-react";
+import { Calendar, Clock, MapPin, Stethoscope, Video } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { doctorNavItems } from "@/components/settings/AccountSettingsContent";
@@ -21,6 +21,15 @@ const formatDateTime = (value?: string | null) => {
   return format(parsed, "PPP p");
 };
 
+const formatDateOnly = (value?: string | null) => {
+  if (!value) return "Not available";
+
+  const parsed = parseISO(value);
+  if (!isValid(parsed)) return value;
+
+  return format(parsed, "PPP");
+};
+
 const getStatusClassName = (status?: string | null) => {
   switch ((status ?? "").toLowerCase()) {
     case "confirmed":
@@ -38,10 +47,10 @@ const getStatusClassName = (status?: string | null) => {
   }
 };
 
-const DetailRow = ({ label, value }: { label: string; value?: string | null }) => (
+const DetailRow = ({ label, value }: { label: string; value: string }) => (
   <div className="rounded-lg border bg-muted/20 p-4">
     <p className="text-sm text-muted-foreground">{label}</p>
-    <p className="mt-1 font-medium">{value || "Not available"}</p>
+    <p className="mt-1 font-medium">{value}</p>
   </div>
 );
 
@@ -50,6 +59,54 @@ const DoctorAppointmentDetails = () => {
   const { user } = useAuth();
   const query = useDoctorAppointmentDetailsQuery(appointmentId, Boolean(user));
   const userName = getDisplayName(user ?? {});
+
+  const appointmentRequest = query.data?.appointmentRequest ?? null;
+  const reason = appointmentRequest?.reason ?? query.data?.reason ?? null;
+  const requestNote = appointmentRequest?.notes ?? appointmentRequest?.providerMessage ?? null;
+  const visitNote = query.data?.notes ?? null;
+  const showRequestNote = Boolean(requestNote && (!visitNote || requestNote !== visitNote));
+
+  const detailRows = query.data
+    ? ([
+        query.data.status ? { label: "Status", value: query.data.status } : null,
+        query.data.scheduledAt
+          ? { label: "Scheduled for", value: formatDateTime(query.data.scheduledAt) }
+          : { label: "Scheduled for", value: "Not recorded yet" },
+        query.data.endAt ? { label: "Ends at", value: formatDateTime(query.data.endAt) } : null,
+        query.data.type ? { label: "Visit type", value: query.data.type } : null,
+        query.data.mode ? { label: "Consultation mode", value: query.data.mode } : null,
+        query.data.location
+          ? { label: "Location", value: query.data.location }
+          : query.data.mode
+            ? { label: "Location", value: query.data.mode }
+            : null,
+        query.data.patientName ? { label: "Patient", value: query.data.patientName } : null,
+        query.data.patientGender ? { label: "Gender", value: query.data.patientGender } : null,
+        query.data.patientAge !== null && query.data.patientAge !== undefined
+          ? { label: "Age", value: `${query.data.patientAge} yrs` }
+          : query.data.patientDateOfBirth
+            ? { label: "Date of birth", value: formatDateOnly(query.data.patientDateOfBirth) }
+            : null,
+        query.data.patientPhone ? { label: "Phone", value: query.data.patientPhone } : null,
+        query.data.patientEmail ? { label: "Email", value: query.data.patientEmail } : null,
+        reason ? { label: "Reason for visit", value: reason } : null,
+        query.data.complaint ? { label: "Complaint", value: query.data.complaint } : null,
+        showRequestNote ? { label: "Request note", value: requestNote } : null,
+        visitNote ? { label: "Visit note", value: visitNote } : null,
+        query.data.diagnosis ? { label: "Diagnosis", value: query.data.diagnosis } : null,
+        query.data.updatedAt
+          ? { label: "Last updated", value: formatDateTime(query.data.updatedAt) }
+          : null,
+        query.data.hasPrescription !== null && query.data.hasPrescription !== undefined
+          ? {
+              label: "Prescription",
+              value: query.data.hasPrescription ? "Available" : "Not recorded yet",
+            }
+          : null,
+      ] as { label: string; value: string }[]).filter(Boolean)
+    : [];
+
+  const hasSnapshot = detailRows.length > 0;
 
   return (
     <DashboardLayout
@@ -88,68 +145,75 @@ const DoctorAppointmentDetails = () => {
         </Alert>
       ) : query.data ? (
         <div className="space-y-6">
-          <Card>
-            <CardContent className="flex flex-col gap-4 p-6 lg:flex-row lg:items-center lg:justify-between">
-              <div className="space-y-3">
-                <div className="flex flex-wrap items-center gap-3">
-                  <h2 className="text-2xl font-semibold">{query.data.patientName}</h2>
-                  <Badge className={getStatusClassName(query.data.status)}>{query.data.status}</Badge>
-                </div>
-                <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-3">
+                <h2 className="text-2xl font-semibold">{query.data.patientName}</h2>
+                <Badge className={getStatusClassName(query.data.status)}>{query.data.status}</Badge>
+              </div>
+              <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                {query.data.scheduledAt ? (
                   <span className="flex items-center gap-1.5">
                     <Calendar className="h-4 w-4" />
                     {formatDateTime(query.data.scheduledAt)}
                   </span>
+                ) : (
+                  <span className="flex items-center gap-1.5">
+                    <Calendar className="h-4 w-4" />
+                    Not recorded yet
+                  </span>
+                )}
+                {query.data.endAt ? (
                   <span className="flex items-center gap-1.5">
                     <Clock className="h-4 w-4" />
                     Ends {formatDateTime(query.data.endAt)}
                   </span>
+                ) : null}
+                {query.data.location || query.data.mode ? (
                   <span className="flex items-center gap-1.5">
                     {query.data.canJoinOnline ? (
                       <Video className="h-4 w-4" />
                     ) : (
                       <MapPin className="h-4 w-4" />
                     )}
-                    {query.data.location || query.data.mode || "Location pending"}
+                    {query.data.location || query.data.mode}
                   </span>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {query.data.joinUrl ? (
-                  <Button asChild>
-                    <a href={query.data.joinUrl} target="_blank" rel="noreferrer">
-                      Join consultation
-                    </a>
-                  </Button>
-                ) : null}
-                {query.data.patientId ? (
-                  <Button asChild variant="outline">
-                    <Link to={`/doctor/patients/${query.data.patientId}`}>Open patient summary</Link>
-                  </Button>
                 ) : null}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {query.data.joinUrl ? (
+                <Button asChild>
+                  <a href={query.data.joinUrl} target="_blank" rel="noreferrer">
+                    Join consultation
+                  </a>
+                </Button>
+              ) : null}
+              {query.data.patientId ? (
+                <Button asChild variant="outline">
+                  <Link to={`/doctor/patients/${query.data.patientId}`}>Open patient summary</Link>
+                </Button>
+              ) : null}
+            </div>
+          </div>
 
-          <div className="grid gap-6 lg:grid-cols-3">
-            <Card className="lg:col-span-2">
+          <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
+            <Card className="lg:col-span-1">
               <CardHeader>
                 <CardTitle>Visit Snapshot</CardTitle>
               </CardHeader>
-              <CardContent className="grid gap-4 md:grid-cols-2">
-                <DetailRow label="Appointment number" value={query.data.appointmentNumber} />
-                <DetailRow label="Visit type" value={query.data.type} />
-                <DetailRow label="Consultation mode" value={query.data.mode} />
-                <DetailRow
-                  label="Patient demographics"
-                  value={[query.data.patientAge ? `${query.data.patientAge} yrs` : null, query.data.patientGender]
-                    .filter(Boolean)
-                    .join(" - ")}
-                />
-                <DetailRow label="Reason" value={query.data.reason} />
-                <DetailRow label="Complaint" value={query.data.complaint} />
-                <DetailRow label="Diagnosis" value={query.data.diagnosis} />
-                <DetailRow label="Updated at" value={formatDateTime(query.data.updatedAt)} />
+              <CardContent>
+                {hasSnapshot ? (
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {detailRows.map((row) => (
+                      <DetailRow key={row.label} label={row.label} value={row.value} />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Visit details have not been recorded yet.
+                  </p>
+                )}
               </CardContent>
             </Card>
 
@@ -161,29 +225,21 @@ const DoctorAppointmentDetails = () => {
                 <Button asChild className="w-full" variant="outline">
                   <Link to="/doctor/appointments">Return to queue</Link>
                 </Button>
-                <Button asChild className="w-full" variant="outline">
-                  <Link to="/doctor/prescriptions">View prescriptions</Link>
-                </Button>
+                {query.data.hasPrescription ? (
+                  <Button asChild className="w-full" variant="outline">
+                    <Link to="/doctor/prescriptions">View prescription</Link>
+                  </Button>
+                ) : (
+                  <Button className="w-full" variant="outline" disabled>
+                    Write prescription
+                  </Button>
+                )}
                 <Button asChild className="w-full" variant="outline">
                   <Link to="/doctor/reviews">View reviews</Link>
                 </Button>
               </CardContent>
             </Card>
           </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Clinical Notes
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
-                {query.data.notes || "No notes were returned for this appointment yet."}
-              </p>
-            </CardContent>
-          </Card>
         </div>
       ) : (
         <Card>

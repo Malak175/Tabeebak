@@ -339,9 +339,36 @@ const normalizeDoctorAppointment = (payload: unknown): DoctorAppointment => {
     pickRecord(raw, ["patient", "patientProfile"]),
     pickRecord(raw, ["patientDetails"]),
   );
+  const appointmentRequestRecord = mergeRecords(
+    pickRecord(raw, ["appointmentRequest", "appointment_request"]),
+    pickRecord(raw, ["request"]),
+  );
+  const prescriptionRecord = mergeRecords(
+    pickRecord(raw, ["prescription", "appointmentPrescription", "rx"]),
+    pickRecord(raw, ["latestPrescription"]),
+  );
+  const prescriptionsList = unwrapListPayload(raw.prescriptions, ["prescriptions", "items"]);
+
+  const nestedAppointment = mergeRecords(
+    pickRecord(raw, ["appointment", "appointmentDetails"]),
+    pickRecord(raw, ["appointmentInfo", "appointment_record"]),
+  );
+  const appointmentId =
+    pickIdentifier(raw, ["id", "_id", "appointmentId", "appointment_id"]) ??
+    pickIdentifier(nestedAppointment, ["id", "_id", "appointmentId", "appointment_id"]) ??
+    pickIdentifier(pickRecord(raw, ["appointment"]), ["id", "_id", "appointmentId", "appointment_id"]);
+  const prescriptionId =
+    pickIdentifier(raw, ["prescriptionId", "prescription_id"]) ??
+    pickIdentifier(prescriptionRecord, ["id", "_id", "prescriptionId", "prescription_id"]);
+  const prescriptionNumber =
+    pickNullableString(raw, ["prescriptionNumber", "prescription_number"]) ??
+    pickNullableString(prescriptionRecord, ["prescriptionNumber", "prescription_number", "referenceNumber"]);
+  const hasPrescription =
+    pickBoolean(raw, ["hasPrescription", "prescriptionExists", "has_prescription"]) ??
+    Boolean(prescriptionId || prescriptionNumber || prescriptionsList.length);
 
   return {
-    id: pickString(raw, ["id", "_id", "appointmentId", "appointment_id"]) ?? "",
+    id: appointmentId ?? "",
     appointmentNumber: pickNullableString(raw, [
       "appointmentNumber",
       "appointment_number",
@@ -363,6 +390,13 @@ const normalizeDoctorAppointment = (payload: unknown): DoctorAppointment => {
     patientGender:
       pickNullableString(raw, ["patientGender", "patient_gender", "gender"]) ??
       pickNullableString(patient, ["gender"]),
+    patientDateOfBirth: pickNullableString(patient, ["dateOfBirth", "date_of_birth", "dob"]),
+    patientPhone:
+      pickNullableString(raw, ["patientPhone", "patient_phone"]) ??
+      pickNullableString(patient, ["phone", "phoneNumber", "mobile"]),
+    patientEmail:
+      pickNullableString(raw, ["patientEmail", "patient_email"]) ??
+      pickNullableString(patient, ["email"]),
     scheduledAt: buildDateTime(
       raw,
       ["scheduledAt", "appointmentDate", "appointment_date", "date", "startDate", "start_date"],
@@ -379,6 +413,13 @@ const normalizeDoctorAppointment = (payload: unknown): DoctorAppointment => {
     complaint: pickNullableString(raw, ["complaint", "symptoms", "symptomSummary"]),
     diagnosis: pickNullableString(raw, ["diagnosis", "assessment"]),
     notes: pickNullableString(raw, ["notes", "summary", "doctorNotes", "doctor_notes"]),
+    appointmentRequest:
+      Object.keys(appointmentRequestRecord).length > 0
+        ? normalizeDoctorAppointmentRequest(appointmentRequestRecord)
+        : null,
+    prescriptionId,
+    prescriptionNumber,
+    hasPrescription,
     joinUrl: pickNullableString(raw, ["joinUrl", "meetingUrl", "videoCallUrl"]),
     canJoinOnline:
       pickBoolean(raw, ["canJoinOnline", "isJoinable", "joinable"]) ??
