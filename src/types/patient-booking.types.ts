@@ -186,13 +186,40 @@ export interface PaginatedList<T> {
   hasPreviousPage: boolean;
 }
 
+export interface DoctorAvailableSlot {
+  startAt: string;
+  endAt?: string | null;
+  date?: string | null;
+  time?: string | null;
+}
+
+export interface DoctorAvailableSlotsRange {
+  startDate: string;
+  endDate: string;
+}
+
+export interface DoctorAvailableSlots {
+  doctorId: string;
+  timezone?: string | null;
+  slotDurationMinutes?: number | null;
+  range: DoctorAvailableSlotsRange;
+  slots: DoctorAvailableSlot[];
+}
+
+export interface DoctorAvailableSlotsParams {
+  startDate: string;
+  endDate: string;
+}
+
 export interface CreateAppointmentRequestPayload {
   doctorId: string;
-  preferredDate: string;
-  preferredTime: string;
+  slotStart?: string;
+  preferredDate?: string;
+  preferredTime?: string;
   visitType?: VisitType;
   reason: string;
   note?: string;
+  phone?: string;
 }
 
 export interface CreateTestRequestPayload {

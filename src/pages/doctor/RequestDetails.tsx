@@ -84,7 +84,7 @@ const DoctorRequestDetailsPage = () => {
     if (!query.data) return;
 
     setMessage(query.data.providerMessage ?? "");
-    setScheduledAt(toDateTimeInputValue(query.data.scheduledAt));
+    setScheduledAt(toDateTimeInputValue(query.data.scheduledAt || query.data.preferredTime));
   }, [query.data]);
 
   const submitAction = (status: "approved" | "rejected") => {

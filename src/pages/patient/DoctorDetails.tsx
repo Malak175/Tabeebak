@@ -1,25 +1,19 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, CalendarDays, User } from "lucide-react";
+import { addDays, format, isValid, parseISO } from "date-fns";
+import { ArrowLeft, User } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import {
-  AvailabilityPanel,
-  EmptyCard,
-  ErrorCard,
-  LoadingCard,
-  SectionCard,
-} from "@/components/patient/BookingFlowSection";
+import { EmptyCard, ErrorCard, LoadingCard, SectionCard } from "@/components/patient/BookingFlowSection";
 import { patientBookingNavItems } from "@/components/patient/patientNavigation";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
 import {
   useCreateAppointmentRequestMutation,
-  useDoctorBookingAvailabilityQuery,
+  useDoctorAvailableSlotsQuery,
   useDoctorBookingDetailQuery,
 } from "@/hooks/usePatientBooking";
 import { getDisplayName } from "@/lib/auth";
@@ -31,11 +25,17 @@ const PatientDoctorDetailsPage = () => {
   const { user } = useAuth();
   const userName = getDisplayName(user ?? {});
   const doctorQuery = useDoctorBookingDetailQuery(doctorId);
-  const availabilityQuery = useDoctorBookingAvailabilityQuery(doctorId);
+  const slotRange = useMemo(() => {
+    const today = new Date();
+    return {
+      startDate: format(today, "yyyy-MM-dd"),
+      endDate: format(addDays(today, 14), "yyyy-MM-dd"),
+    };
+  }, []);
+  const slotsQuery = useDoctorAvailableSlotsQuery(doctorId, doctorId ? slotRange : undefined);
   const createRequestMutation = useCreateAppointmentRequestMutation();
 
-  const [preferredDate, setPreferredDate] = useState("");
-  const [preferredTime, setPreferredTime] = useState("");
+  const [selectedSlotStart, setSelectedSlotStart] = useState("");
   const [visitType, setVisitType] = useState("");
   const [reason, setReason] = useState("");
   const [note, setNote] = useState("");
@@ -105,6 +105,41 @@ const PatientDoctorDetailsPage = () => {
     return Array.from(options, ([value, label]) => ({ value, label }));
   }, [consultationTypes, visitType]);
 
+  const groupedSlots = useMemo(() => {
+    const slots = slotsQuery.data?.slots ?? [];
+    const now = new Date();
+    const bucket = new Map<
+      string,
+      {
+        dateKey: string;
+        label: string;
+        slots: { slot: (typeof slots)[number]; start: Date }[];
+      }
+    >();
+
+    slots.forEach((slot) => {
+      const parsed = parseISO(slot.startAt);
+      if (!isValid(parsed)) return;
+      if (parsed.getTime() <= now.getTime()) return;
+
+      const dateKey = slot.date?.trim() || format(parsed, "yyyy-MM-dd");
+      const label = format(parsed, "PPP");
+      const entry = bucket.get(dateKey) ?? { dateKey, label, slots: [] };
+      entry.slots.push({ slot, start: parsed });
+      bucket.set(dateKey, entry);
+    });
+
+    return Array.from(bucket.values())
+      .sort((a, b) => a.dateKey.localeCompare(b.dateKey))
+      .map((entry) => ({
+        dateKey: entry.dateKey,
+        label: entry.label,
+        slots: entry.slots
+          .sort((a, b) => a.start.getTime() - b.start.getTime())
+          .map(({ slot }) => slot),
+      }));
+  }, [slotsQuery.data?.slots]);
+
   useEffect(() => {
     const optionValues = visitTypeOptions.map((option) => option.value);
     if (!visitType || !optionValues.includes(visitType)) {
@@ -112,18 +147,30 @@ const PatientDoctorDetailsPage = () => {
     }
   }, [visitType, visitTypeOptions]);
 
+  useEffect(() => {
+    if (!selectedSlotStart) return;
+    const slots = slotsQuery.data?.slots ?? [];
+    const stillAvailable = slots.some((slot) => slot.startAt === selectedSlotStart);
+    if (!stillAvailable) {
+      setSelectedSlotStart("");
+    }
+  }, [selectedSlotStart, slotsQuery.data?.slots]);
+
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
     if (!doctor?.doctorId) {
       toast.error("Doctor request cannot be submitted because the backend doctor_id is missing.");
       return;
     }
+    if (!selectedSlotStart) {
+      toast.error("Select an available slot before submitting the request.");
+      return;
+    }
 
     createRequestMutation.mutate(
       {
         doctorId: doctor.doctorId,
-        preferredDate,
-        preferredTime,
+        slotStart: selectedSlotStart,
         visitType,
         reason,
         note: note || undefined,
@@ -190,23 +237,6 @@ const PatientDoctorDetailsPage = () => {
               </div>
             </SectionCard>
 
-            <SectionCard
-              title="Availability"
-              description="Rendered from the doctor availability endpoint"
-              actions={<CalendarDays className="h-5 w-5 text-primary" />}
-            >
-              {availabilityQuery.isLoading ? (
-                <LoadingCard lines={4} />
-              ) : availabilityQuery.isError ? (
-                <ErrorCard
-                  title="Unable to load availability"
-                  message={(availabilityQuery.error as Error).message}
-                />
-              ) : (
-                <AvailabilityPanel availability={availabilityQuery.data} />
-              )}
-            </SectionCard>
-
             {extras.length ? (
               <SectionCard title="Profile extras" description="Optional data published by the provider">
                 <div className="grid gap-4 md:grid-cols-2">
@@ -233,24 +263,72 @@ const PatientDoctorDetailsPage = () => {
           <SectionCard title="Send appointment request" description="Patient-only mutation against /api/v1/appointment-requests">
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="preferredDate">Preferred date</Label>
-                <Input
-                  id="preferredDate"
-                  type="date"
-                  value={preferredDate}
-                  onChange={(event) => setPreferredDate(event.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="preferredTime">Preferred time</Label>
-                <Input
-                  id="preferredTime"
-                  type="time"
-                  value={preferredTime}
-                  onChange={(event) => setPreferredTime(event.target.value)}
-                  required
-                />
+                <Label>Available slots</Label>
+                <div className="rounded-lg border p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                    <span>
+                      Showing slots from {slotRange.startDate} to {slotRange.endDate}
+                    </span>
+                    {slotsQuery.data?.timezone ? (
+                      <span>Timezone: {slotsQuery.data.timezone}</span>
+                    ) : null}
+                  </div>
+                  {slotsQuery.isLoading ? (
+                    <div className="mt-3 space-y-2">
+                      <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
+                      <div className="h-4 w-1/2 animate-pulse rounded bg-muted" />
+                      <div className="h-4 w-3/4 animate-pulse rounded bg-muted" />
+                    </div>
+                  ) : slotsQuery.isError ? (
+                    <div className="mt-3">
+                      <ErrorCard
+                        title="Unable to load available slots"
+                        message={(slotsQuery.error as Error).message}
+                      />
+                    </div>
+                  ) : groupedSlots.length ? (
+                    <div className="mt-4 space-y-4">
+                      {groupedSlots.map((group) => (
+                        <div key={group.dateKey} className="space-y-2">
+                          <p className="text-sm font-medium">{group.label}</p>
+                          <div className="flex flex-wrap gap-2">
+                            {group.slots.map((slot) => {
+                              const parsed = parseISO(slot.startAt);
+                              const timeLabel =
+                                slot.time?.trim() ||
+                                (isValid(parsed) ? format(parsed, "p") : "Time");
+                              const isSelected = selectedSlotStart === slot.startAt;
+
+                              return (
+                                <Button
+                                  key={slot.startAt}
+                                  type="button"
+                                  variant={isSelected ? "default" : "outline"}
+                                  className={isSelected ? "shadow-sm" : undefined}
+                                  onClick={() => setSelectedSlotStart(slot.startAt)}
+                                >
+                                  {timeLabel}
+                                </Button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-3 text-sm text-muted-foreground">
+                      No available slots were returned for this timeframe.
+                    </p>
+                  )}
+                  {selectedSlotStart ? (
+                    <p className="mt-4 text-sm text-foreground">
+                      Selected:{" "}
+                      {isValid(parseISO(selectedSlotStart))
+                        ? format(parseISO(selectedSlotStart), "PPP p")
+                        : selectedSlotStart}
+                    </p>
+                  ) : null}
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="visitType">Visit type</Label>
@@ -297,7 +375,7 @@ const PatientDoctorDetailsPage = () => {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={createRequestMutation.isPending || !doctor.doctorId}
+                disabled={createRequestMutation.isPending || !doctor.doctorId || !selectedSlotStart}
               >
                 {createRequestMutation.isPending ? "Submitting..." : "Submit appointment request"}
               </Button>

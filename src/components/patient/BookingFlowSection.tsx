@@ -126,46 +126,53 @@ type RequestCardProps = {
   href: string;
 };
 
-export const RequestSummaryCard = ({ request, href }: RequestCardProps) => (
-  <Card>
-    <CardContent className="flex flex-col gap-4 p-6 lg:flex-row lg:items-start">
-      <div className="flex-1 space-y-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <h3 className="text-lg font-semibold">{request.providerName}</h3>
-          <Badge className={requestStatusClassName(request.status)}>
-            {request.statusLabel || request.status}
-          </Badge>
+export const RequestSummaryCard = ({ request, href }: RequestCardProps) => {
+  const preferredDateTime = request.preferredDateTime ?? undefined;
+  const derivedTime = preferredDateTime ? formatDateTimeParts(preferredDateTime).time : "-";
+  const timeLabel =
+    request.preferredTime || (derivedTime !== "-" ? derivedTime : null) || "Time pending";
+
+  return (
+    <Card>
+      <CardContent className="flex flex-col gap-4 p-6 lg:flex-row lg:items-start">
+        <div className="flex-1 space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-lg font-semibold">{request.providerName}</h3>
+            <Badge className={requestStatusClassName(request.status)}>
+              {request.statusLabel || request.status}
+            </Badge>
+          </div>
+          {request.providerSubtitle ? (
+            <p className="text-sm text-muted-foreground">{request.providerSubtitle}</p>
+          ) : null}
+          <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <Calendar className="h-4 w-4" />
+              {formatDateOnly(request.preferredDateTime ?? request.preferredDate)}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Clock className="h-4 w-4" />
+              {timeLabel}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <MapPin className="h-4 w-4" />
+              {request.providerLocation || "Location pending"}
+            </span>
+          </div>
+          <p className="text-sm">
+            <span className="font-medium">Latest message:</span>{" "}
+            <span className="text-muted-foreground">{request.latestMessage || "No messages yet"}</span>
+          </p>
         </div>
-        {request.providerSubtitle ? (
-          <p className="text-sm text-muted-foreground">{request.providerSubtitle}</p>
-        ) : null}
-        <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-          <span className="flex items-center gap-1.5">
-            <Calendar className="h-4 w-4" />
-            {formatDateTime(request.preferredDateTime ?? request.preferredDate)}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <Clock className="h-4 w-4" />
-            {request.preferredTime || "Time pending"}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <MapPin className="h-4 w-4" />
-            {request.providerLocation || "Location pending"}
-          </span>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <Button asChild variant="outline">
+            <Link to={href}>View request</Link>
+          </Button>
         </div>
-        <p className="text-sm">
-          <span className="font-medium">Latest message:</span>{" "}
-          <span className="text-muted-foreground">{request.latestMessage || "No messages yet"}</span>
-        </p>
-      </div>
-      <div className="flex shrink-0 flex-wrap gap-2">
-        <Button asChild variant="outline">
-          <Link to={href}>View request</Link>
-        </Button>
-      </div>
-    </CardContent>
-  </Card>
-);
+      </CardContent>
+    </Card>
+  );
+};
 
 export const MessageThread = ({
   messages,
@@ -364,6 +371,7 @@ export const RequestDetailsGrid = ({
   status,
   statusLabel,
   preferredTime,
+  preferredDateTime,
   createdAt,
   note,
   extra,
@@ -375,11 +383,14 @@ export const RequestDetailsGrid = ({
   status: RequestStatus;
   statusLabel?: string;
   preferredTime?: string | null;
+  preferredDateTime?: string | null;
   createdAt?: string | null;
   note?: string | null;
   extra?: ReactNode;
 }) => {
-  const { date, time } = formatDateTimeParts(preferredTime ?? undefined);
+  const primaryDateTime = preferredDateTime ?? preferredTime ?? undefined;
+  const { date, time } = formatDateTimeParts(primaryDateTime);
+  const timeLabel = preferredTime || (time !== "-" ? time : "-");
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
@@ -393,7 +404,7 @@ export const RequestDetailsGrid = ({
           </div>
           <div className="grid gap-3 md:grid-cols-2">
             <DetailItem label="Preferred date" value={date} />
-            <DetailItem label="Preferred time" value={time} />
+            <DetailItem label="Preferred time" value={timeLabel} />
             <DetailItem label="Created" value={formatDateTime(createdAt)} />
             <DetailItem label="Reference" value={requestNumber} />
           </div>

@@ -127,6 +127,7 @@ const PatientRequestDetailsPage = () => {
             status={activeRequest.status}
             statusLabel={activeRequest.statusLabel}
             preferredTime={activeRequest.preferredTime}
+            preferredDateTime={activeRequest.preferredDateTime ?? null}
             createdAt={activeRequest.createdAt}
             note={activeRequest.patientNote}
             extra={

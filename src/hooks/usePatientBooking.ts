@@ -6,6 +6,7 @@ import {
   CreateRequestMessagePayload,
   CreateTestRequestPayload,
   DiscoveryLocationParams,
+  DoctorAvailableSlotsParams,
   DoctorRequestListParams,
   DoctorSearchParams,
   LabRequestListParams,
@@ -31,6 +32,8 @@ export const patientBookingQueryKeys = {
   doctorDetail: (doctorId: string) => ["patient-booking", "doctors", "detail", doctorId] as const,
   doctorAvailability: (doctorId: string) =>
     ["patient-booking", "doctors", "availability", doctorId] as const,
+  doctorAvailableSlots: (doctorId: string, params?: DoctorAvailableSlotsParams) =>
+    ["patient-booking", "doctors", "available-slots", doctorId, normalizeListParams(params)] as const,
   labs: (params?: LabSearchParams) =>
     ["patient-booking", "labs", normalizeListParams(params)] as const,
   nearbyLabs: (params?: DiscoveryLocationParams | null) =>
@@ -73,6 +76,16 @@ export const useDoctorBookingAvailabilityQuery = (doctorId: string | undefined) 
     queryKey: patientBookingQueryKeys.doctorAvailability(doctorId ?? ""),
     queryFn: () => patientBookingService.getDoctorAvailability(doctorId ?? ""),
     enabled: Boolean(doctorId),
+  });
+
+export const useDoctorAvailableSlotsQuery = (
+  doctorId: string | undefined,
+  params: DoctorAvailableSlotsParams | undefined,
+) =>
+  useQuery({
+    queryKey: patientBookingQueryKeys.doctorAvailableSlots(doctorId ?? "", params),
+    queryFn: () => patientBookingService.getDoctorAvailableSlots(doctorId ?? "", params as DoctorAvailableSlotsParams),
+    enabled: Boolean(doctorId) && Boolean(params?.startDate) && Boolean(params?.endDate),
   });
 
 export const useLabDirectoryQuery = (params?: LabSearchParams) =>
@@ -121,6 +134,13 @@ export const useCreateAppointmentRequestMutation = () => {
         queryKey: patientBookingQueryKeys.appointmentRequestDetail(data.id),
       });
       queryClient.invalidateQueries({ queryKey: patientQueryKeys.appointments() });
+    },
+    onSettled: (_data, _error, variables) => {
+      if (variables?.doctorId) {
+        queryClient.invalidateQueries({
+          queryKey: ["patient-booking", "doctors", "available-slots", variables.doctorId],
+        });
+      }
     },
   });
 };

@@ -5,6 +5,9 @@ import {
   CreateRequestMessagePayload,
   CreateTestRequestPayload,
   DiscoveryLocationParams,
+  DoctorAvailableSlot,
+  DoctorAvailableSlots,
+  DoctorAvailableSlotsParams,
   DoctorDetail,
   DoctorDirectoryItem,
   DoctorRequestDetail,
@@ -253,6 +256,10 @@ const buildDateTime = (record: Record<string, unknown>, dateKeys: string[], time
     "preferred_datetime",
     "preferredAt",
     "preferred_at",
+    "slotStart",
+    "slot_start",
+    "slotStartAt",
+    "slot_start_at",
     "scheduledAt",
     ...dateKeys,
   ]);
@@ -341,6 +348,8 @@ const buildAppointmentRequestBody = (payload: CreateAppointmentRequestPayload) =
   buildQueryParams({
     doctorId: payload.doctorId,
     doctor_id: payload.doctorId,
+    slotStart: payload.slotStart,
+    slot_start: payload.slotStart,
     preferredDate: payload.preferredDate,
     preferred_date: payload.preferredDate,
     preferredTime: payload.preferredTime,
@@ -353,6 +362,7 @@ const buildAppointmentRequestBody = (payload: CreateAppointmentRequestPayload) =
     consultation_type: normalizeConsultationType(payload.visitType),
     reason: payload.reason,
     note: payload.note,
+    phone: payload.phone,
   });
 
 const buildTestRequestBody = (payload: CreateTestRequestPayload) =>
@@ -410,6 +420,58 @@ const buildDiscoveryQueryParams = <T extends Record<string, unknown>>(params?: T
           category: service,
         }
       : {}),
+  };
+};
+
+const normalizeDoctorAvailableSlot = (payload: unknown): DoctorAvailableSlot | null => {
+  const raw = asRecord(payload);
+  const startAt =
+    pickString(raw, ["startAt", "start_at", "slotStart", "slot_start", "from"]) ?? "";
+
+  if (!startAt) {
+    return null;
+  }
+
+  return {
+    startAt,
+    endAt: pickNullableString(raw, ["endAt", "end_at", "to"]) ?? null,
+    date: pickNullableString(raw, ["date", "day"]) ?? null,
+    time: pickNullableString(raw, ["time", "startTime", "start_time"]) ?? null,
+  };
+};
+
+const normalizeDoctorAvailableSlots = (payload: unknown): DoctorAvailableSlots => {
+  const raw = unwrapPayload(payload);
+  const range = mergeRecords(pickRecord(raw, ["range"]), raw);
+
+  const slots = unwrapListPayload(raw.slots, ["slots"])
+    .map(normalizeDoctorAvailableSlot)
+    .filter((slot): slot is DoctorAvailableSlot => Boolean(slot));
+
+  return {
+    doctorId:
+      pickIdentifier(raw, ["doctorId", "doctor_id"]) ??
+      pickIdentifier(range, ["doctorId", "doctor_id"]) ??
+      "",
+    timezone:
+      pickNullableString(raw, ["timezone", "timeZone"]) ??
+      pickNullableString(range, ["timezone", "timeZone"]) ??
+      null,
+    slotDurationMinutes:
+      pickNullableNumber(raw, ["slotDurationMinutes", "slot_duration_minutes", "appointmentDurationMinutes"]) ??
+      pickNullableNumber(range, ["slotDurationMinutes", "slot_duration_minutes", "appointmentDurationMinutes"]) ??
+      null,
+    range: {
+      startDate:
+        pickString(range, ["startDate", "start_date"]) ??
+        pickString(raw, ["startDate", "start_date"]) ??
+        "",
+      endDate:
+        pickString(range, ["endDate", "end_date"]) ??
+        pickString(raw, ["endDate", "end_date"]) ??
+        "",
+    },
+    slots,
   };
 };
 
@@ -1052,6 +1114,18 @@ export const patientBookingService = {
     });
 
     return normalizeDoctorDetail(response);
+  },
+
+  async getDoctorAvailableSlots(
+    doctorId: string,
+    params: DoctorAvailableSlotsParams,
+  ): Promise<DoctorAvailableSlots> {
+    const response = await apiRequest<unknown>(`/api/v1/doctors/${doctorId}/available-slots`, {
+      method: "GET",
+      params: buildQueryParams(params),
+    });
+
+    return normalizeDoctorAvailableSlots(response);
   },
 
   async getDoctorAvailability(doctorId: string): Promise<DoctorAvailability> {
