@@ -3,6 +3,7 @@ import { format, isValid, parseISO } from "date-fns";
 import { ArrowLeft, CalendarClock, MessageSquareText, Stethoscope, User } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   MessageThread,
   ReplyComposer,
@@ -19,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  doctorWorkflowQueryKeys,
   useDoctorAppointmentRequestDetailsQuery,
   useDoctorAppointmentRequestMessageMutation,
   useUpdateDoctorAppointmentRequestStatusMutation,
@@ -69,6 +71,7 @@ const DetailRow = ({ label, value }: { label: string; value?: string | null }) =
 const DoctorRequestDetailsPage = () => {
   const { requestId } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user } = useAuth();
   const query = useDoctorAppointmentRequestDetailsQuery(requestId, Boolean(user));
   const mutation = useUpdateDoctorAppointmentRequestStatusMutation();
@@ -101,8 +104,10 @@ const DoctorRequestDetailsPage = () => {
       },
       {
         onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: doctorWorkflowQueryKeys.appointments() });
+          queryClient.invalidateQueries({ queryKey: doctorWorkflowQueryKeys.todayAppointments() });
           toast.success(`Request ${status} successfully.`);
-          navigate("/doctor/requests");
+          navigate(status === "approved" ? "/doctor/appointments" : "/doctor/requests");
         },
         onError: (error: Error) => toast.error(error.message),
       },
