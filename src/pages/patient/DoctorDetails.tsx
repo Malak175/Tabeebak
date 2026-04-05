@@ -59,20 +59,6 @@ const PatientDoctorDetailsPage = () => {
       ].filter((item): item is { label: string; value: string } => Boolean(item)),
     [doctor],
   );
-  const extras = useMemo(
-    () =>
-      [
-        doctor?.languages.length ? { label: "Languages", value: doctor.languages.join(", ") } : null,
-        doctor?.servicesOffered.length
-          ? { label: "Services", value: doctor.servicesOffered.join(", ") }
-          : null,
-        doctor?.education.length ? { label: "Education", value: doctor.education.join(", ") } : null,
-        doctor?.certifications.length
-          ? { label: "Certifications", value: doctor.certifications.join(", ") }
-          : null,
-      ].filter((item): item is { label: string; value: string } => Boolean(item)),
-    [doctor],
-  );
   const consultationTypes = useMemo(
     () => doctor?.servicesOffered.filter((item): item is string => Boolean(item?.trim())) ?? [],
     [doctor],
@@ -196,7 +182,7 @@ const PatientDoctorDetailsPage = () => {
         </Button>
         <h1 className="text-3xl font-bold">Doctor details</h1>
         <p className="mt-2 text-muted-foreground">
-          Review profile and availability, then send a request that the doctor can approve or reject.
+          Review the doctor profile and choose a time that works for you.
         </p>
       </div>
 
@@ -237,42 +223,13 @@ const PatientDoctorDetailsPage = () => {
               </div>
             </SectionCard>
 
-            {extras.length ? (
-              <SectionCard title="Profile extras" description="Optional data published by the provider">
-                <div className="grid gap-4 md:grid-cols-2">
-                  {extras.map((item, index) => (
-                    <div
-                      key={buildStableKey([item.label, item.value, index], `doctor-extra-${index}`)}
-                      className="rounded-lg border p-4"
-                    >
-                      <p className="text-sm font-medium">{item.label}</p>
-                      <p className="mt-1 text-sm text-muted-foreground">{item.value}</p>
-                    </div>
-                  ))}
-                </div>
-              </SectionCard>
-            ) : (
-              <SectionCard title="Profile extras" description="Optional data published by the provider">
-                <p className="text-sm text-muted-foreground">
-                  No additional profile details have been published yet.
-                </p>
-              </SectionCard>
-            )}
           </div>
 
-          <SectionCard title="Send appointment request" description="Patient-only mutation against /api/v1/appointment-requests">
+          <SectionCard title="Book an appointment" description="Choose a time and share a quick note.">
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label>Available slots</Label>
+                <Label>Available times</Label>
                 <div className="rounded-lg border p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-                    <span>
-                      Showing slots from {slotRange.startDate} to {slotRange.endDate}
-                    </span>
-                    {slotsQuery.data?.timezone ? (
-                      <span>Timezone: {slotsQuery.data.timezone}</span>
-                    ) : null}
-                  </div>
                   {slotsQuery.isLoading ? (
                     <div className="mt-3 space-y-2">
                       <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
@@ -290,10 +247,10 @@ const PatientDoctorDetailsPage = () => {
                     <div className="mt-4 space-y-4">
                       {groupedSlots.map((group) => (
                         <div key={group.dateKey} className="space-y-2">
-                          <p className="text-sm font-medium">{group.label}</p>
-                          <div className="flex flex-wrap gap-2">
-                            {group.slots.map((slot) => {
-                              const parsed = parseISO(slot.startAt);
+                            <p className="text-sm font-medium">{group.label}</p>
+                            <div className="flex flex-wrap gap-2">
+                              {group.slots.map((slot) => {
+                                const parsed = parseISO(slot.startAt);
                               const timeLabel =
                                 slot.time?.trim() ||
                                 (isValid(parsed) ? format(parsed, "p") : "Time");
@@ -307,22 +264,22 @@ const PatientDoctorDetailsPage = () => {
                                   className={isSelected ? "shadow-sm" : undefined}
                                   onClick={() => setSelectedSlotStart(slot.startAt)}
                                 >
-                                  {timeLabel}
-                                </Button>
-                              );
-                            })}
+                                    {timeLabel}
+                                  </Button>
+                                );
+                              })}
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        ))}
                     </div>
                   ) : (
                     <p className="mt-3 text-sm text-muted-foreground">
-                      No available slots were returned for this timeframe.
+                      No times are available right now. Check back soon.
                     </p>
                   )}
                   {selectedSlotStart ? (
                     <p className="mt-4 text-sm text-foreground">
-                      Selected:{" "}
+                      Selected time:{" "}
                       {isValid(parseISO(selectedSlotStart))
                         ? format(parseISO(selectedSlotStart), "PPP p")
                         : selectedSlotStart}
@@ -340,7 +297,7 @@ const PatientDoctorDetailsPage = () => {
                   <SelectTrigger id="visitType">
                     <SelectValue
                       placeholder={
-                        visitTypeOptions.length ? "Select consultation type" : "No consultation types available"
+                        visitTypeOptions.length ? "Choose a visit type" : "Visit types not available"
                       }
                     />
                   </SelectTrigger>
@@ -364,7 +321,7 @@ const PatientDoctorDetailsPage = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="note">Extra note</Label>
+                <Label htmlFor="note">Additional note (optional)</Label>
                 <Textarea
                   id="note"
                   value={note}
@@ -377,7 +334,7 @@ const PatientDoctorDetailsPage = () => {
                 className="w-full"
                 disabled={createRequestMutation.isPending || !doctor.doctorId || !selectedSlotStart}
               >
-                {createRequestMutation.isPending ? "Submitting..." : "Submit appointment request"}
+                {createRequestMutation.isPending ? "Submitting..." : "Send request"}
               </Button>
               {!doctor.doctorId ? (
                 <p className="text-sm text-destructive">
