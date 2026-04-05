@@ -2,6 +2,8 @@ import { apiRequest } from "@/services/api";
 import {
   DoctorAvailability,
   DoctorAvailabilityDay,
+  DoctorAvailabilityDaySchedule,
+  DoctorAvailabilitySlot,
   DoctorDashboardSummary,
   DoctorProfessionalProfile,
   DoctorProfile,
@@ -150,6 +152,111 @@ const pickRecord = (record: Record<string, unknown>, keys: string[]) => {
   }
 
   return {};
+};
+
+const parseJsonValue = (value: unknown) => {
+  if (typeof value !== "string") return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+};
+
+const normalizeSlot = (payload: unknown): DoctorAvailabilitySlot | null => {
+  const raw = asRecord(payload);
+  const startTime =
+    pickString(raw, ["startTime", "start_time", "from", "start"]) ?? "";
+  const endTime =
+    pickString(raw, ["endTime", "end_time", "to", "end"]) ?? "";
+
+  if (!startTime || !endTime) return null;
+
+  return { startTime, endTime };
+};
+
+const normalizeAvailabilityDaySchedule = (
+  payload: unknown,
+  fallbackDay?: string,
+): DoctorAvailabilityDaySchedule => {
+  const raw = asRecord(payload);
+  const dayOfWeek = normalizeDayName(
+    pickString(raw, ["dayOfWeek", "day_of_week", "day", "weekday"]) ?? fallbackDay,
+  );
+  const slotsSource =
+    (Array.isArray(raw.slots) && raw.slots) ||
+    (Array.isArray(raw.timeSlots) && raw.timeSlots) ||
+    (Array.isArray(raw.intervals) && raw.intervals) ||
+    [];
+  const slots = (slotsSource as unknown[])
+    .map(normalizeSlot)
+    .filter((slot): slot is DoctorAvailabilitySlot => Boolean(slot));
+
+  return {
+    dayOfWeek,
+    isAvailable: pickBoolean(raw, ["isAvailable", "is_available", "available", "enabled"]) ?? slots.length > 0,
+    slots,
+    breakStartTime: pickNullableString(raw, ["breakStartTime", "break_start_time", "breakFrom"]),
+    breakEndTime: pickNullableString(raw, ["breakEndTime", "break_end_time", "breakTo"]),
+    maxAppointments: pickNullableNumber(raw, ["maxAppointments", "max_appointments", "capacity"]),
+  };
+};
+
+const normalizeWeeklyScheduleJson = (payload: unknown): DoctorAvailabilityDaySchedule[] | null => {
+  const parsed = parseJsonValue(payload);
+  if (!parsed) return null;
+
+  if (Array.isArray(parsed)) {
+    return parsed
+      .map((item) => normalizeAvailabilityDaySchedule(item))
+      .filter((day) => Boolean(day.dayOfWeek));
+  }
+
+  const record = asRecord(parsed);
+  const daysSource =
+    (Array.isArray(record.days) && record.days) ||
+    (Array.isArray(record.weeklySchedule) && record.weeklySchedule) ||
+    (Array.isArray(record.weekly_schedule) && record.weekly_schedule) ||
+    null;
+
+  if (daysSource) {
+    return (daysSource as unknown[])
+      .map((item) => normalizeAvailabilityDaySchedule(item))
+      .filter((day) => Boolean(day.dayOfWeek));
+  }
+
+  const keyedDays = WEEK_DAY_ORDER.map((day) =>
+    normalizeAvailabilityDaySchedule(record[day] ?? {}, WEEK_DAY_LABELS[day]),
+  ).filter((day) => Boolean(day.dayOfWeek));
+
+  return keyedDays.length ? keyedDays : null;
+};
+
+const normalizeWeeklyScheduleObject = (
+  payload: unknown,
+): DoctorAvailabilityDaySchedule[] | null => {
+  if (!payload || Array.isArray(payload) || typeof payload !== "object") return null;
+  const record = asRecord(payload);
+  const entries = Object.entries(record);
+  if (!entries.length) return null;
+
+  const days = entries
+    .map(([key, value]) => {
+      const dayLabel = normalizeDayName(key);
+      const slotsSource = Array.isArray(value) ? value : [];
+      const slots = slotsSource
+        .map(normalizeSlot)
+        .filter((slot): slot is DoctorAvailabilitySlot => Boolean(slot));
+
+      return {
+        dayOfWeek: dayLabel,
+        isAvailable: slots.length > 0,
+        slots,
+      } satisfies DoctorAvailabilityDaySchedule;
+    })
+    .filter((day) => Boolean(day.dayOfWeek));
+
+  return days.length ? days : null;
 };
 
 const normalizeDayName = (value: string | null | undefined) => {
@@ -316,6 +423,20 @@ const normalizeDoctorAvailability = (payload: unknown): DoctorAvailability => {
     pickRecord(raw, ["weeklySchedule", "weekly_schedule"]),
     pickRecord(raw, ["schedule"]),
   );
+  const weeklyScheduleObject =
+    normalizeWeeklyScheduleObject(raw.weeklySchedule) ??
+    normalizeWeeklyScheduleObject(raw.weekly_schedule) ??
+    normalizeWeeklyScheduleObject(scheduleContainer.weeklySchedule) ??
+    normalizeWeeklyScheduleObject(scheduleContainer.weekly_schedule);
+  const weeklyScheduleJson =
+    weeklyScheduleObject ??
+    normalizeWeeklyScheduleJson(
+      raw.weekly_schedule_json ??
+        raw.weeklyScheduleJson ??
+        scheduleContainer.weekly_schedule_json ??
+        scheduleContainer.weeklyScheduleJson,
+    ) ??
+    null;
 
   const daysSource =
     (Array.isArray(raw.weeklySchedule) && raw.weeklySchedule) ||
@@ -369,6 +490,7 @@ const normalizeDoctorAvailability = (payload: unknown): DoctorAvailability => {
           WEEK_DAY_ORDER.indexOf(left.dayOfWeek.toLowerCase() as (typeof WEEK_DAY_ORDER)[number]) -
           WEEK_DAY_ORDER.indexOf(right.dayOfWeek.toLowerCase() as (typeof WEEK_DAY_ORDER)[number]),
       ),
+    weeklyScheduleJson,
   };
 };
 

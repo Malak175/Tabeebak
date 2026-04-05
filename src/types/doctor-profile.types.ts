@@ -97,18 +97,39 @@ export interface DoctorAvailabilityDay {
   maxAppointments?: number | null;
 }
 
+export interface DoctorAvailabilitySlot {
+  startTime: string;
+  endTime: string;
+}
+
+export interface DoctorAvailabilityDaySchedule {
+  dayOfWeek: string;
+  isAvailable: boolean;
+  slots: DoctorAvailabilitySlot[];
+  breakStartTime?: string | null;
+  breakEndTime?: string | null;
+  maxAppointments?: number | null;
+}
+
 export interface DoctorAvailability {
   timezone?: string;
   appointmentDurationMinutes?: number | null;
   bufferBetweenAppointmentsMinutes?: number | null;
   notes?: string | null;
   weeklySchedule: DoctorAvailabilityDay[];
+  weeklyScheduleJson?: DoctorAvailabilityDaySchedule[] | null;
 }
 
 export interface UpdateDoctorAvailabilityRequest {
   timezone?: string;
   appointmentDurationMinutes?: number | null;
+  slotDurationMinutes?: number | null;
+  slot_duration_minutes?: number | null;
   bufferBetweenAppointmentsMinutes?: number | null;
   notes?: string | null;
-  weeklySchedule: DoctorAvailabilityDay[];
+  weeklySchedule:
+    | Record<string, DoctorAvailabilitySlot[]>
+    | DoctorAvailabilityDay[];
+  weeklyScheduleJson?: DoctorAvailabilityDaySchedule[] | null;
+  weekly_schedule_json?: DoctorAvailabilityDaySchedule[] | null;
 }
