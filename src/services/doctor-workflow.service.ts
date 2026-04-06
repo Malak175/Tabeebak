@@ -5,6 +5,8 @@ import {
 } from "@/types/patient-booking.types";
 import {
   CreateDoctorAppointmentRequestMessagePayload,
+  CreatePrescriptionPayload,
+  CreatePrescriptionResponse,
   DoctorAppointment,
   DoctorAppointmentRequest,
   DoctorAppointmentRequestDetails,
@@ -867,6 +869,37 @@ export const doctorWorkflowService = {
     });
 
     return normalizePaginatedResponse(response, normalizeDoctorPrescription);
+  },
+
+  createDoctorPrescription: async (
+    payload: CreatePrescriptionPayload,
+  ): Promise<CreatePrescriptionResponse> => {
+    const response = await apiRequest<unknown>("/api/v1/doctors/me/prescriptions", {
+      method: "POST",
+      body: payload,
+      auth: true,
+    });
+
+    const raw = unwrapPayload(response);
+    const appointmentRecord =
+      pickRecord(raw, ["appointment", "appointmentDetails", "appointmentRecord"]) ||
+      pickRecord(asRecord(raw.data), ["appointment", "appointmentDetails", "appointmentRecord"]);
+    const appointment =
+      Object.keys(appointmentRecord).length > 0 ? normalizeDoctorAppointment(appointmentRecord) : null;
+
+    const prescriptionsSource =
+      raw.prescriptions ??
+      asRecord(raw.data).prescriptions ??
+      raw.items ??
+      raw.results ??
+      asRecord(raw.data).items ??
+      raw;
+    const prescriptions = getListEnvelope(prescriptionsSource).items.map(normalizeDoctorPrescription);
+
+    return {
+      appointment,
+      prescriptions,
+    };
   },
 
   getDoctorReviewsSummary: async (): Promise<DoctorReviewsSummary> => {

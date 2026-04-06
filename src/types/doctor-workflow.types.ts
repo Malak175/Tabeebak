@@ -199,6 +199,24 @@ export interface DoctorPrescription {
   notes?: string | null;
 }
 
+export interface CreatePrescriptionMedication {
+  medicationName: string;
+  dosage?: string | null;
+  frequency?: string | null;
+  duration?: string | null;
+  instructions?: string | null;
+}
+
+export interface CreatePrescriptionPayload {
+  appointmentId: string;
+  medications: CreatePrescriptionMedication[];
+}
+
+export interface CreatePrescriptionResponse {
+  appointment?: DoctorAppointment | null;
+  prescriptions: DoctorPrescription[];
+}
+
 export interface DoctorReview {
   id: string;
   patientId?: string | null;

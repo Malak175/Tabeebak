@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { doctorWorkflowService } from "@/services/doctor-workflow.service";
 import {
   CreateDoctorAppointmentRequestMessagePayload,
+  CreatePrescriptionPayload,
   DoctorAppointmentRequestFilterParams,
   DoctorAppointmentFilterParams,
   DoctorPatientFilterParams,
@@ -162,6 +163,23 @@ export const useDoctorPrescriptionsQuery = (
     enabled,
     placeholderData: (previousData) => previousData,
   });
+
+export const useCreateDoctorPrescriptionMutation = (appointmentId: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: CreatePrescriptionPayload) =>
+      doctorWorkflowService.createDoctorPrescription(payload),
+    onSuccess: () => {
+      if (appointmentId) {
+        queryClient.invalidateQueries({
+          queryKey: doctorWorkflowQueryKeys.appointmentDetails(appointmentId),
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: doctorWorkflowQueryKeys.prescriptions() });
+    },
+  });
+};
 
 export const useDoctorReviewsSummaryQuery = (enabled = true) =>
   useQuery({
