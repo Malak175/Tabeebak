@@ -1,21 +1,24 @@
 import { useEffect, useState } from "react";
 import { format, isValid, parseISO } from "date-fns";
-import { ArrowLeft, CalendarClock, MessageSquareText, Stethoscope, User } from "lucide-react";
+import {
+  ArrowLeft,
+  CalendarClock,
+  CheckCircle2,
+  MessageSquareText,
+  Stethoscope,
+  User,
+  XCircle,
+} from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  MessageThread,
-  ReplyComposer,
-  SectionCard,
-} from "@/components/patient/BookingFlowSection";
+import { MessageThread, ReplyComposer } from "@/components/patient/BookingFlowSection";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { doctorNavItems } from "@/components/settings/AccountSettingsContent";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
@@ -29,21 +32,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName } from "@/lib/auth";
 
 const formatDateTime = (value?: string | null) => {
-  if (!value) return "Not available";
+  if (!value) return null;
 
   const parsed = parseISO(value);
   if (!isValid(parsed)) return value;
 
   return format(parsed, "PPP p");
-};
-
-const toDateTimeInputValue = (value?: string | null) => {
-  if (!value) return "";
-
-  const parsed = parseISO(value);
-  if (!isValid(parsed)) return "";
-
-  return format(parsed, "yyyy-MM-dd'T'HH:mm");
 };
 
 const getStatusClassName = (status?: string | null) => {
@@ -61,12 +55,55 @@ const getStatusClassName = (status?: string | null) => {
   }
 };
 
-const DetailRow = ({ label, value }: { label: string; value?: string | null }) => (
-  <div className="rounded-lg border bg-muted/20 p-4">
-    <p className="text-sm text-muted-foreground">{label}</p>
-    <p className="mt-1 font-medium">{value || "Not available"}</p>
+const InfoRow = ({
+  label,
+  value,
+  fallback = "Not provided",
+  hideWhenEmpty = true,
+}: {
+  label: string;
+  value?: string | null;
+  fallback?: string;
+  hideWhenEmpty?: boolean;
+}) => {
+  if (!value && hideWhenEmpty) return null;
+
+  return (
+    <div className="flex flex-col gap-1 py-3 first:pt-0 last:pb-0 md:flex-row md:items-center md:justify-between">
+      <p className="text-sm text-muted-foreground">{label}</p>
+      <p className="text-sm font-medium text-foreground">{value || fallback}</p>
+    </div>
+  );
+};
+
+const SummaryStat = ({
+  label,
+  value,
+  fallback,
+}: {
+  label: string;
+  value?: string | null;
+  fallback: string;
+}) => (
+  <div className="min-w-[170px] rounded-lg border border-border/60 bg-muted/20 px-3 py-2">
+    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
+    <p className="text-sm font-semibold text-foreground">{value || fallback}</p>
   </div>
 );
+
+const resolveRequestReference = (requestNumber?: string | null, requestId?: string | null) => {
+  if (requestNumber?.trim()) return requestNumber.trim();
+  if (!requestId?.trim()) return null;
+
+  const normalized = requestId.trim();
+  if (/^\d+$/.test(normalized)) return `#${normalized}`;
+
+  const compact = normalized.replace(/[^a-zA-Z0-9]/g, "");
+  if (!compact) return null;
+
+  const suffix = compact.length > 4 ? compact.slice(-4) : compact;
+  return `REQ-${suffix.toUpperCase()}`;
+};
 
 const DoctorRequestDetailsPage = () => {
   const { requestId } = useParams();
@@ -79,19 +116,22 @@ const DoctorRequestDetailsPage = () => {
   const userName = getDisplayName(user ?? {});
 
   const [message, setMessage] = useState("");
-  const [scheduledAt, setScheduledAt] = useState("");
   const [reply, setReply] = useState("");
   const [sendError, setSendError] = useState<string | null>(null);
+  const requestReference = query.data
+    ? resolveRequestReference(query.data.requestNumber, requestId)
+    : null;
 
   useEffect(() => {
     if (!query.data) return;
 
     setMessage(query.data.providerMessage ?? "");
-    setScheduledAt(toDateTimeInputValue(query.data.scheduledAt || query.data.preferredTime));
   }, [query.data]);
 
   const submitAction = (status: "approved" | "rejected") => {
     if (!requestId) return;
+
+    const scheduledValue = query.data?.scheduledAt || query.data?.preferredTime || null;
 
     mutation.mutate(
       {
@@ -99,7 +139,7 @@ const DoctorRequestDetailsPage = () => {
         payload: {
           status,
           message: message || null,
-          scheduledAt: scheduledAt ? new Date(scheduledAt).toISOString() : null,
+          scheduledAt: scheduledValue ? new Date(scheduledValue).toISOString() : null,
         },
       },
       {
@@ -173,34 +213,57 @@ const DoctorRequestDetailsPage = () => {
         </Alert>
       ) : query.data ? (
         <div className="space-y-6">
-          <Card>
-            <CardContent className="flex flex-col gap-4 p-6 lg:flex-row lg:items-center lg:justify-between">
-              <div className="space-y-3">
+          <Card className="border-border/60 bg-gradient-to-br from-background via-background to-muted/40">
+            <CardContent className="flex flex-col gap-5 p-6 lg:flex-row lg:items-center lg:justify-between">
+              <div className="space-y-4">
                 <div className="flex flex-wrap items-center gap-3">
                   <h2 className="text-2xl font-semibold">{query.data.patientName}</h2>
                   <Badge className={getStatusClassName(query.data.status)}>{query.data.status}</Badge>
                   {query.data.consultationType ? <Badge variant="outline">{query.data.consultationType}</Badge> : null}
                 </div>
-                <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                  <span>Preferred: {formatDateTime(query.data.preferredTime)}</span>
-                  <span>Scheduled: {formatDateTime(query.data.scheduledAt)}</span>
-                  <span>Requested: {formatDateTime(query.data.createdAt)}</span>
-                </div>
+                <p className="text-sm text-muted-foreground">
+                  Request reference {requestReference || "Unavailable"} - Requested{" "}
+                  {formatDateTime(query.data.createdAt) || "Not recorded"}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <SummaryStat
+                  label="Preferred time"
+                  value={formatDateTime(query.data.preferredTime)}
+                  fallback="Time not specified"
+                />
               </div>
             </CardContent>
           </Card>
 
-          <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+          <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
             <div className="space-y-6">
               <Card>
                 <CardHeader>
                   <CardTitle>Request Snapshot</CardTitle>
                 </CardHeader>
-                <CardContent className="grid gap-4 md:grid-cols-2">
-                  <DetailRow label="Request number" value={query.data.requestNumber} />
-                  <DetailRow label="Patient name" value={query.data.patient.fullName} />
-                  <DetailRow
-                    label="Patient details"
+                <CardContent className="divide-y divide-border/70">
+                  <InfoRow label="Request number" value={requestReference} />
+                  <InfoRow label="Consultation type" value={query.data.consultationType} />
+                  <InfoRow
+                    label="Preferred time"
+                    value={formatDateTime(query.data.preferredTime)}
+                    fallback="Time not specified"
+                    hideWhenEmpty={false}
+                  />
+                  <InfoRow label="Scheduled time" value={formatDateTime(query.data.scheduledAt)} />
+                  <InfoRow label="Request created" value={formatDateTime(query.data.createdAt)} />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Patient Info</CardTitle>
+                </CardHeader>
+                <CardContent className="divide-y divide-border/70">
+                  <InfoRow label="Patient name" value={query.data.patient.fullName} hideWhenEmpty={false} />
+                  <InfoRow
+                    label="Age and gender"
                     value={[
                       query.data.patient.age ? `${query.data.patient.age} years` : null,
                       query.data.patient.gender,
@@ -208,21 +271,53 @@ const DoctorRequestDetailsPage = () => {
                       .filter(Boolean)
                       .join(" - ")}
                   />
-                  <DetailRow label="Phone" value={query.data.patient.phone} />
-                  <DetailRow label="Email" value={query.data.patient.email} />
-                  <DetailRow label="Preferred time" value={formatDateTime(query.data.preferredTime)} />
-                  <DetailRow label="Consultation type" value={query.data.consultationType} />
-                  <DetailRow label="Latest summary" value={query.data.latestSummary} />
+                  <InfoRow
+                    label="Phone"
+                    value={query.data.patient.phone}
+                    fallback="Not provided"
+                    hideWhenEmpty={false}
+                  />
+                  <InfoRow label="Email" value={query.data.patient.email} />
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Patient Notes</CardTitle>
+                  <CardTitle>Visit Context</CardTitle>
+                </CardHeader>
+                <CardContent className="divide-y divide-border/70">
+                  <InfoRow label="Latest summary" value={query.data.latestSummary} />
+                  <InfoRow label="Consultation type" value={query.data.consultationType} />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <MessageSquareText className="h-5 w-5" />
+                    Patient Notes
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4 text-sm text-muted-foreground">
-                  <p className="whitespace-pre-wrap">{query.data.reason || "No reason was returned."}</p>
-                  <p className="whitespace-pre-wrap">{query.data.notes || "No additional patient note was returned."}</p>
+                  {query.data.reason ? (
+                    <div className="space-y-1">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Reason for visit
+                      </p>
+                      <p className="whitespace-pre-wrap text-sm text-foreground">{query.data.reason}</p>
+                    </div>
+                  ) : null}
+                  {query.data.notes ? (
+                    <div className="space-y-1">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Additional notes
+                      </p>
+                      <p className="whitespace-pre-wrap text-sm text-foreground">{query.data.notes}</p>
+                    </div>
+                  ) : null}
+                  {!query.data.reason && !query.data.notes ? (
+                    <p className="text-sm text-muted-foreground">No patient notes were included.</p>
+                  ) : null}
                 </CardContent>
               </Card>
             </div>
@@ -235,42 +330,64 @@ const DoctorRequestDetailsPage = () => {
                     Review Request
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="scheduledAt">Scheduled time</Label>
-                    <Input
-                      id="scheduledAt"
-                      type="datetime-local"
-                      value={scheduledAt}
-                      onChange={(event) => setScheduledAt(event.target.value)}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Optional. Use this when approval should include a confirmed time.
-                    </p>
-                  </div>
+                <CardContent className="space-y-5">
+                  {query.data.status?.toLowerCase() === "pending" ? (
+                    <>
+                      <div className="rounded-lg border border-border/60 bg-muted/20 p-3 text-xs text-muted-foreground">
+                        Review the request details and decide whether to approve or reject.
+                      </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="message">Message to patient</Label>
-                    <Textarea
-                      id="message"
-                      value={message}
-                      onChange={(event) => setMessage(event.target.value)}
-                      placeholder="Optional approval or rejection note"
-                    />
-                  </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="message">Message to patient</Label>
+                        <Textarea
+                          id="message"
+                          value={message}
+                          onChange={(event) => setMessage(event.target.value)}
+                          placeholder="Optional note to include with your decision"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          This note will be sent with your decision.
+                        </p>
+                      </div>
 
-                  <div className="flex flex-col gap-2">
-                    <Button onClick={() => submitAction("approved")} disabled={mutation.isPending}>
-                      {mutation.isPending ? "Saving..." : "Approve request"}
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      onClick={() => submitAction("rejected")}
-                      disabled={mutation.isPending}
+                      <div className="flex flex-col gap-2">
+                        <Button onClick={() => submitAction("approved")} disabled={mutation.isPending}>
+                          {mutation.isPending ? "Saving..." : "Approve request"}
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          onClick={() => submitAction("rejected")}
+                          disabled={mutation.isPending}
+                        >
+                          {mutation.isPending ? "Saving..." : "Reject request"}
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <div
+                      className={`flex flex-col gap-3 rounded-lg border p-4 ${
+                        query.data.status?.toLowerCase() === "approved"
+                          ? "border-green-200 bg-green-50 text-green-800"
+                          : "border-red-200 bg-red-50 text-red-800"
+                      }`}
                     >
-                      {mutation.isPending ? "Saving..." : "Reject request"}
-                    </Button>
-                  </div>
+                      <div className="flex items-center gap-2 text-sm font-semibold">
+                        {query.data.status?.toLowerCase() === "approved" ? (
+                          <CheckCircle2 className="h-5 w-5" />
+                        ) : (
+                          <XCircle className="h-5 w-5" />
+                        )}
+                        {query.data.status?.toLowerCase() === "approved"
+                          ? "Request approved"
+                          : "Request rejected"}
+                      </div>
+                      {message ? (
+                        <p className="text-sm text-foreground/80">Message sent: {message}</p>
+                      ) : (
+                        <p className="text-sm text-foreground/70">No message was sent with this decision.</p>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -293,11 +410,14 @@ const DoctorRequestDetailsPage = () => {
                 </CardContent>
               </Card>
 
-              <SectionCard
-                title="Request Thread"
-                description="Shared conversation with the patient for this appointment request."
-              >
-                <div className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Request Thread</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Shared conversation with the patient for this appointment request.
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-4">
                   {query.isFetching ? (
                     <p className="text-xs text-muted-foreground">Refreshing thread...</p>
                   ) : null}
@@ -307,26 +427,32 @@ const DoctorRequestDetailsPage = () => {
                       <AlertDescription>{sendError}</AlertDescription>
                     </Alert>
                   ) : null}
-                  <MessageThread messages={query.data.messages} currentUserRole={user?.role || "DOCTOR"} />
-                  <ReplyComposer
-                    value={reply}
-                    onChange={(value) => {
-                      setReply(value);
-                      if (sendError) {
-                        setSendError(null);
-                      }
-                    }}
-                    onSubmit={handleSendReply}
-                    isSending={replyMutation.isPending}
-                    disabled={!requestId || !query.data.canReply}
-                  />
+                  {query.data.messages?.length ? (
+                    <MessageThread messages={query.data.messages} currentUserRole={user?.role || "DOCTOR"} />
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No messages yet for this request.</p>
+                  )}
+                  <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
+                    <ReplyComposer
+                      value={reply}
+                      onChange={(value) => {
+                        setReply(value);
+                        if (sendError) {
+                          setSendError(null);
+                        }
+                      }}
+                      onSubmit={handleSendReply}
+                      isSending={replyMutation.isPending}
+                      disabled={!requestId || !query.data.canReply}
+                    />
+                  </div>
                   {!query.data.canReply ? (
                     <p className="text-sm text-muted-foreground">
                       Replies are unavailable for this request in its current state.
                     </p>
                   ) : null}
-                </div>
-              </SectionCard>
+                </CardContent>
+              </Card>
             </div>
           </div>
         </div>
