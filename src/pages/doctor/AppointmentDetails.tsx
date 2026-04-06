@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { format, isValid, parseISO } from "date-fns";
 import { Calendar, Clock, MapPin, Stethoscope, Video } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
@@ -7,10 +8,17 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useDoctorAppointmentDetailsQuery } from "@/hooks/useDoctorWorkflow";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  useDoctorAppointmentDetailsQuery,
+  useUpdateDoctorAppointmentMutation,
+} from "@/hooks/useDoctorWorkflow";
 import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName } from "@/lib/auth";
+import { toast } from "sonner";
 
 const formatDateTime = (value?: string | null) => {
   if (!value) return "Not available";
@@ -58,13 +66,32 @@ const DoctorAppointmentDetails = () => {
   const { appointmentId } = useParams();
   const { user } = useAuth();
   const query = useDoctorAppointmentDetailsQuery(appointmentId, Boolean(user));
+  const updateMutation = useUpdateDoctorAppointmentMutation(appointmentId ?? "");
   const userName = getDisplayName(user ?? {});
+  const [isEditing, setIsEditing] = useState(false);
+  const [diagnosis, setDiagnosis] = useState("");
+  const [notes, setNotes] = useState("");
+  const [submitAction, setSubmitAction] = useState<"save" | "complete" | null>(null);
 
   const appointmentRequest = query.data?.appointmentRequest ?? null;
   const reason = appointmentRequest?.reason ?? query.data?.reason ?? null;
   const requestNote = appointmentRequest?.notes ?? appointmentRequest?.providerMessage ?? null;
   const visitNote = query.data?.notes ?? null;
   const showRequestNote = Boolean(requestNote && (!visitNote || requestNote !== visitNote));
+  const isCompleted = (query.data?.status ?? "").toLowerCase() === "completed";
+
+  useEffect(() => {
+    if (!query.data || isEditing) return;
+
+    setDiagnosis(query.data.diagnosis ?? "");
+    setNotes(query.data.notes ?? "");
+  }, [query.data, isEditing]);
+
+  useEffect(() => {
+    if (isCompleted) {
+      setIsEditing(false);
+    }
+  }, [isCompleted]);
 
   const detailRows = query.data
     ? ([
@@ -107,6 +134,62 @@ const DoctorAppointmentDetails = () => {
     : [];
 
   const hasSnapshot = detailRows.length > 0;
+  const isMutating = updateMutation.isPending;
+
+  const handleSave = () => {
+    if (!appointmentId) {
+      toast.error("Missing appointment id.");
+      return;
+    }
+
+    setSubmitAction("save");
+    updateMutation.mutate(
+      {
+        appointmentId,
+        diagnosis,
+        notes,
+      },
+      {
+        onSuccess: () => {
+          toast.success("Visit details saved.");
+          setIsEditing(false);
+          setSubmitAction(null);
+        },
+        onError: (error: Error) => {
+          toast.error(error.message);
+          setSubmitAction(null);
+        },
+      },
+    );
+  };
+
+  const handleComplete = () => {
+    if (!appointmentId) {
+      toast.error("Missing appointment id.");
+      return;
+    }
+
+    setSubmitAction("complete");
+    updateMutation.mutate(
+      {
+        appointmentId,
+        diagnosis,
+        notes,
+        status: "COMPLETED",
+      },
+      {
+        onSuccess: () => {
+          toast.success("Visit marked as completed.");
+          setIsEditing(false);
+          setSubmitAction(null);
+        },
+        onError: (error: Error) => {
+          toast.error(error.message);
+          setSubmitAction(null);
+        },
+      },
+    );
+  };
 
   return (
     <DashboardLayout
@@ -198,24 +281,98 @@ const DoctorAppointmentDetails = () => {
           </div>
 
           <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-            <Card className="lg:col-span-1">
-              <CardHeader>
-                <CardTitle>Visit Snapshot</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {hasSnapshot ? (
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {detailRows.map((row) => (
-                      <DetailRow key={row.label} label={row.label} value={row.value} />
-                    ))}
+            <div className="space-y-6">
+              <Card className="lg:col-span-1">
+                <CardHeader>
+                  <CardTitle>Visit Snapshot</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {hasSnapshot ? (
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {detailRows.map((row) => (
+                        <DetailRow key={row.label} label={row.label} value={row.value} />
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Visit details have not been recorded yet.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <CardTitle>Record Visit</CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      Capture diagnosis and clinical notes for this visit.
+                    </p>
                   </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    Visit details have not been recorded yet.
-                  </p>
-                )}
-              </CardContent>
-            </Card>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={isCompleted || isMutating}
+                    onClick={() => setIsEditing((current) => !current)}
+                  >
+                    {isEditing ? "Close" : "Record Visit"}
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  {isCompleted ? (
+                    <p className="text-sm text-muted-foreground">
+                      This visit is already completed. Visit details are read-only.
+                    </p>
+                  ) : isEditing ? (
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="diagnosis">Diagnosis</Label>
+                        <Input
+                          id="diagnosis"
+                          placeholder="Enter diagnosis"
+                          value={diagnosis}
+                          onChange={(event) => setDiagnosis(event.target.value)}
+                          disabled={isMutating}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="notes">Clinical notes</Label>
+                        <Textarea
+                          id="notes"
+                          placeholder="Write clinical notes"
+                          value={notes}
+                          onChange={(event) => setNotes(event.target.value)}
+                          disabled={isMutating}
+                        />
+                      </div>
+                      <div className="flex flex-wrap gap-3">
+                        <Button
+                          type="button"
+                          onClick={handleSave}
+                          disabled={isMutating}
+                        >
+                          {isMutating && submitAction === "save" ? "Saving..." : "Save"}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onClick={handleComplete}
+                          disabled={isMutating}
+                        >
+                          {isMutating && submitAction === "complete"
+                            ? "Completing..."
+                            : "Complete Visit"}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Click "Record Visit" to update diagnosis and clinical notes.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
 
             <Card>
               <CardHeader>

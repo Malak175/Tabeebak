@@ -21,6 +21,7 @@ import {
   DoctorReviewFilterParams,
   DoctorReviewsSummary,
   PaginatedResponse,
+  UpdateDoctorAppointmentPayload,
   UpdateDoctorAppointmentRequestStatusPayload,
 } from "@/types/doctor-workflow.types";
 
@@ -828,6 +829,26 @@ export const doctorWorkflowService = {
       `/api/v1/doctors/me/appointments/${appointmentId}`,
       {
         method: "GET",
+        auth: true,
+      },
+    );
+
+    return normalizeDoctorAppointment(response);
+  },
+
+  updateDoctorAppointment: async (
+    payload: UpdateDoctorAppointmentPayload,
+  ): Promise<DoctorAppointment> => {
+    const { appointmentId, diagnosis, notes, status } = payload;
+    const response = await apiRequest<unknown>(
+      `/api/v1/doctors/me/appointments/${appointmentId}`,
+      {
+        method: "PATCH",
+        body: {
+          ...(typeof diagnosis === "string" ? { diagnosis: diagnosis.trim() || null } : {}),
+          ...(typeof notes === "string" ? { notes: notes.trim() || null } : {}),
+          ...(status ? { status } : {}),
+        },
         auth: true,
       },
     );

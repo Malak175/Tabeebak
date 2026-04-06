@@ -137,6 +137,13 @@ export interface UpdateDoctorAppointmentRequestStatusPayload {
   scheduledAt?: string | null;
 }
 
+export interface UpdateDoctorAppointmentPayload {
+  appointmentId: string;
+  diagnosis?: string | null;
+  notes?: string | null;
+  status?: string | null;
+}
+
 export type CreateDoctorAppointmentRequestMessagePayload = CreateRequestMessagePayload;
 
 export interface DoctorPatientListItem {

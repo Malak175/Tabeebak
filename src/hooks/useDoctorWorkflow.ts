@@ -9,6 +9,7 @@ import {
   DoctorPrescriptionFilterParams,
   DoctorReviewFilterParams,
   UpdateDoctorAppointmentRequestStatusPayload,
+  UpdateDoctorAppointmentPayload,
 } from "@/types/doctor-workflow.types";
 
 const normalizeListParams = <T extends Record<string, unknown>>(params?: T) =>
@@ -133,6 +134,23 @@ export const useDoctorAppointmentDetailsQuery = (
     queryFn: () => doctorWorkflowService.getDoctorAppointmentById(appointmentId ?? ""),
     enabled: enabled && Boolean(appointmentId),
   });
+
+export const useUpdateDoctorAppointmentMutation = (appointmentId: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: UpdateDoctorAppointmentPayload) =>
+      doctorWorkflowService.updateDoctorAppointment(payload),
+    onSuccess: () => {
+      if (appointmentId) {
+        queryClient.invalidateQueries({
+          queryKey: doctorWorkflowQueryKeys.appointmentDetails(appointmentId),
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: doctorWorkflowQueryKeys.appointments() });
+    },
+  });
+};
 
 export const useDoctorPatientsQuery = (
   params?: DoctorPatientFilterParams,
