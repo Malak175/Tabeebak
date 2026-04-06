@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { format, isValid, parseISO } from "date-fns";
 import { ClipboardList, Pill, Stethoscope } from "lucide-react";
+import { Link } from "react-router-dom";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { doctorNavItems } from "@/components/settings/AccountSettingsContent";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -154,6 +155,11 @@ const DoctorPrescriptions = () => {
                     <p className="text-sm text-muted-foreground">
                       {prescription.instructions || prescription.notes || "No instructions returned"}
                     </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button asChild variant="outline">
+                      <Link to={`/doctor/prescriptions/${prescription.id}`}>View details</Link>
+                    </Button>
                   </div>
                 </CardContent>
               </Card>

@@ -227,7 +227,15 @@ const DoctorAppointmentDetails = () => {
                 </Button>
               {query.data.hasPrescription ? (
                 <Button asChild className="w-full" variant="outline">
-                  <Link to="/doctor/prescriptions">View prescriptions</Link>
+                  <Link
+                    to={
+                      query.data.prescriptionId
+                        ? `/doctor/prescriptions/${query.data.prescriptionId}`
+                        : "/doctor/prescriptions"
+                    }
+                  >
+                    View prescriptions
+                  </Link>
                 </Button>
               ) : (
                 <Button

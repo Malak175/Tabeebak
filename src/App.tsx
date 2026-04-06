@@ -41,6 +41,7 @@ import DoctorRequestsPage from "./pages/doctor/Requests";
 import DoctorPatients from "./pages/doctor/Patients";
 import DoctorPatientSummary from "./pages/doctor/PatientSummary";
 import DoctorPrescriptions from "./pages/doctor/Prescriptions";
+import DoctorPrescriptionDetails from "./pages/doctor/PrescriptionDetails";
 import DoctorReviews from "./pages/doctor/Reviews";
 import DoctorSchedule from "./pages/doctor/Schedule";
 import DoctorSettings from "./pages/doctor/DoctorSettings";
@@ -104,6 +105,7 @@ const App = () => (
               <Route path="/doctor/patients" element={<ProtectedRoute allowedRoles={["Doctor"]}><DoctorPatients /></ProtectedRoute>} />
               <Route path="/doctor/patients/:patientId" element={<ProtectedRoute allowedRoles={["Doctor"]}><DoctorPatientSummary /></ProtectedRoute>} />
               <Route path="/doctor/prescriptions" element={<ProtectedRoute allowedRoles={["Doctor"]}><DoctorPrescriptions /></ProtectedRoute>} />
+              <Route path="/doctor/prescriptions/:prescriptionId" element={<ProtectedRoute allowedRoles={["Doctor"]}><DoctorPrescriptionDetails /></ProtectedRoute>} />
               <Route path="/doctor/reviews" element={<ProtectedRoute allowedRoles={["Doctor"]}><DoctorReviews /></ProtectedRoute>} />
               <Route path="/doctor/schedule" element={<ProtectedRoute allowedRoles={["Doctor"]}><DoctorSchedule /></ProtectedRoute>} />
               <Route path="/doctor/settings" element={<ProtectedRoute allowedRoles={["Doctor"]}><DoctorSettings /></ProtectedRoute>} />
