@@ -225,15 +225,22 @@ const DoctorAppointmentDetails = () => {
                 <Button asChild className="w-full" variant="outline">
                   <Link to="/doctor/appointments">Return to queue</Link>
                 </Button>
-                {query.data.hasPrescription ? (
-                  <Button asChild className="w-full" variant="outline">
-                    <Link to="/doctor/prescriptions">View prescription</Link>
-                  </Button>
-                ) : (
-                  <Button className="w-full" variant="outline" disabled>
+              {query.data.hasPrescription ? (
+                <Button asChild className="w-full" variant="outline">
+                  <Link to="/doctor/prescriptions">View prescriptions</Link>
+                </Button>
+              ) : (
+                <Button
+                  asChild
+                  className="w-full"
+                  variant="outline"
+                  disabled={!appointmentId || query.data.hasPrescription !== false}
+                >
+                  <Link to={`/doctor/appointments/${appointmentId}/prescription/new`}>
                     Write prescription
-                  </Button>
-                )}
+                  </Link>
+                </Button>
+              )}
                 <Button asChild className="w-full" variant="outline">
                   <Link to="/doctor/reviews">View reviews</Link>
                 </Button>

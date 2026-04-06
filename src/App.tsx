@@ -35,6 +35,7 @@ import PatientHelp from "./pages/patient/Help";
 import DoctorDashboard from "./pages/doctor/Dashboard";
 import DoctorAppointments from "./pages/doctor/Appointments";
 import DoctorAppointmentDetails from "./pages/doctor/AppointmentDetails";
+import DoctorCreatePrescription from "./pages/doctor/CreatePrescription";
 import DoctorRequestDetailsPage from "./pages/doctor/RequestDetails";
 import DoctorRequestsPage from "./pages/doctor/Requests";
 import DoctorPatients from "./pages/doctor/Patients";
@@ -99,6 +100,7 @@ const App = () => (
               <Route path="/doctor/requests/:requestId" element={<ProtectedRoute allowedRoles={["Doctor"]}><DoctorRequestDetailsPage /></ProtectedRoute>} />
               <Route path="/doctor/appointments" element={<ProtectedRoute allowedRoles={["Doctor"]}><DoctorAppointments /></ProtectedRoute>} />
               <Route path="/doctor/appointments/:appointmentId" element={<ProtectedRoute allowedRoles={["Doctor"]}><DoctorAppointmentDetails /></ProtectedRoute>} />
+              <Route path="/doctor/appointments/:appointmentId/prescription/new" element={<ProtectedRoute allowedRoles={["Doctor"]}><DoctorCreatePrescription /></ProtectedRoute>} />
               <Route path="/doctor/patients" element={<ProtectedRoute allowedRoles={["Doctor"]}><DoctorPatients /></ProtectedRoute>} />
               <Route path="/doctor/patients/:patientId" element={<ProtectedRoute allowedRoles={["Doctor"]}><DoctorPatientSummary /></ProtectedRoute>} />
               <Route path="/doctor/prescriptions" element={<ProtectedRoute allowedRoles={["Doctor"]}><DoctorPrescriptions /></ProtectedRoute>} />
