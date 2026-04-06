@@ -871,6 +871,18 @@ export const doctorWorkflowService = {
     return normalizePaginatedResponse(response, normalizeDoctorPrescription);
   },
 
+  getDoctorPrescriptionById: async (prescriptionId: string): Promise<DoctorPrescription> => {
+    const response = await apiRequest<unknown>(
+      `/api/v1/doctors/me/prescriptions/${prescriptionId}`,
+      {
+        method: "GET",
+        auth: true,
+      },
+    );
+
+    return normalizeDoctorPrescription(response);
+  },
+
   createDoctorPrescription: async (
     payload: CreatePrescriptionPayload,
   ): Promise<CreatePrescriptionResponse> => {

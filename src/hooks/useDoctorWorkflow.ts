@@ -38,6 +38,8 @@ export const doctorWorkflowQueryKeys = {
     ["doctor-workflow", "patients", "summary", patientId] as const,
   prescriptions: (params?: DoctorPrescriptionFilterParams) =>
     ["doctor-workflow", "prescriptions", normalizeListParams(params)] as const,
+  prescriptionDetails: (prescriptionId: string) =>
+    ["doctor-workflow", "prescriptions", "detail", prescriptionId] as const,
   reviewsSummary: () => ["doctor-workflow", "reviews", "summary"] as const,
   reviews: (params?: DoctorReviewFilterParams) =>
     ["doctor-workflow", "reviews", normalizeListParams(params)] as const,
@@ -162,6 +164,16 @@ export const useDoctorPrescriptionsQuery = (
     queryFn: () => doctorWorkflowService.getDoctorPrescriptions(params),
     enabled,
     placeholderData: (previousData) => previousData,
+  });
+
+export const useDoctorPrescriptionDetailsQuery = (
+  prescriptionId: string | undefined,
+  enabled = true,
+) =>
+  useQuery({
+    queryKey: doctorWorkflowQueryKeys.prescriptionDetails(prescriptionId ?? ""),
+    queryFn: () => doctorWorkflowService.getDoctorPrescriptionById(prescriptionId ?? ""),
+    enabled: enabled && Boolean(prescriptionId),
   });
 
 export const useCreateDoctorPrescriptionMutation = (appointmentId: string) => {
