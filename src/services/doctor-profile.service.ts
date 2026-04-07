@@ -485,58 +485,134 @@ const normalizeDoctorDashboardSummary = (payload: unknown): DoctorDashboardSumma
 
 const normalizeDoctorProfile = (payload: unknown): DoctorProfile => {
   const raw = unwrapPayload(payload);
+  const doctorRecord = mergeRecords(
+    pickRecord(raw, ["doctor", "user", "account"]),
+    pickRecord(raw, ["doctorProfile", "doctor_profile", "profile"]),
+  );
+  const nestedProfile = mergeRecords(
+    pickRecord(doctorRecord, ["profile", "doctorProfile", "doctor_profile"]),
+    pickRecord(doctorRecord, ["user", "account"]),
+  );
+  const profileRecord = mergeRecords(raw, doctorRecord, nestedProfile);
 
   return {
-    id: pickString(raw, ["id", "_id", "doctorId", "userId"]),
-    email: pickString(raw, ["email"]),
-    firstName: pickString(raw, ["firstName", "first_name"]),
-    lastName: pickString(raw, ["lastName", "last_name"]),
-    displayName: pickString(raw, ["displayName", "display_name", "fullName", "full_name", "name"]),
-    phone: pickString(raw, ["phone", "phoneNumber", "mobile"]),
-    alternatePhone: pickString(raw, ["alternatePhone", "alternate_phone", "secondaryPhone"]),
-    dateOfBirth: pickString(raw, ["dateOfBirth", "date_of_birth", "dob"]),
-    gender: pickString(raw, ["gender"]),
-    addressLine1: pickString(raw, ["addressLine1", "address_line_1", "address1"]),
-    addressLine2: pickString(raw, ["addressLine2", "address_line_2", "address2"]),
-    city: pickString(raw, ["city"]),
-    state: pickString(raw, ["state", "province"]),
-    country: pickString(raw, ["country"]),
-    postalCode: pickString(raw, ["postalCode", "postal_code", "zipCode", "zip_code"]),
-    bio: pickString(raw, ["bio", "about"]),
-    avatarUrl: pickNullableString(raw, ["avatarUrl", "avatar", "profileImageUrl", "imageUrl"]),
+    id: pickString(profileRecord, ["id", "_id", "doctorId", "userId"]),
+    email: pickString(profileRecord, ["email"]),
+    firstName: pickString(profileRecord, ["firstName", "first_name"]),
+    lastName: pickString(profileRecord, ["lastName", "last_name"]),
+    displayName: pickString(profileRecord, [
+      "displayName",
+      "display_name",
+      "fullName",
+      "full_name",
+      "name",
+    ]),
+    phone: pickString(profileRecord, ["phone", "phoneNumber", "mobile"]),
+    alternatePhone: pickString(profileRecord, ["alternatePhone", "alternate_phone", "secondaryPhone"]),
+    dateOfBirth: pickString(profileRecord, ["dateOfBirth", "date_of_birth", "dob"]),
+    gender: pickString(profileRecord, ["gender"]),
+    addressLine1: pickString(profileRecord, ["addressLine1", "address_line_1", "address1"]),
+    addressLine2: pickString(profileRecord, ["addressLine2", "address_line_2", "address2"]),
+    city: pickString(profileRecord, ["city"]),
+    state: pickString(profileRecord, ["state", "province"]),
+    country: pickString(profileRecord, ["country"]),
+    postalCode: pickString(profileRecord, ["postalCode", "postal_code", "zipCode", "zip_code"]),
+    bio: pickString(profileRecord, ["bio", "about"]),
+    avatarUrl: pickNullableString(profileRecord, [
+      "avatarUrl",
+      "avatar",
+      "profileImageUrl",
+      "imageUrl",
+    ]),
   };
 };
 
 const normalizeDoctorProfessionalProfile = (payload: unknown): DoctorProfessionalProfile => {
   const raw = unwrapPayload(payload);
-
-  return {
-    specialty: pickString(raw, ["specialty", "specialization"]),
-    subspecialty: pickNullableString(raw, ["subspecialty", "sub_specialty"]),
-    licenseNumber: pickString(raw, ["licenseNumber", "license_number", "registrationNumber"]),
-    yearsOfExperience: pickNullableNumber(raw, [
-      "yearsOfExperience",
-      "years_of_experience",
-      "experienceYears",
-    ]),
-    consultationFee: pickNullableNumber(raw, [
+  const doctorRecord = mergeRecords(
+    pickRecord(raw, ["doctor", "user", "account"]),
+    pickRecord(raw, ["doctorProfile", "doctor_profile", "profile"]),
+  );
+  const nestedProfessional = mergeRecords(
+    pickRecord(raw, ["professionalProfile", "professional_profile"]),
+    pickRecord(doctorRecord, ["professionalProfile", "professional_profile", "profile"]),
+  );
+  const professional = mergeRecords(raw, doctorRecord, nestedProfessional);
+  const clinicLocationsSource =
+    (Array.isArray(professional.clinicLocations) && professional.clinicLocations) ||
+    (Array.isArray(professional.clinic_locations) && professional.clinic_locations) ||
+    (Array.isArray(professional.locations) && professional.locations) ||
+    [];
+  const clinicLocation = asRecord(clinicLocationsSource[0]);
+  const clinicAddressPrimary = pickString(clinicLocation, [
+    "address",
+    "addressLine1",
+    "address_line_1",
+    "line1",
+  ]);
+  const clinicAddressParts = [
+    pickString(clinicLocation, ["line1", "addressLine1", "address_line_1"]),
+    pickString(clinicLocation, ["line2", "addressLine2", "address_line_2"]),
+    pickString(clinicLocation, ["city"]),
+    pickString(clinicLocation, ["state", "province"]),
+    pickString(clinicLocation, ["country"]),
+  ].filter(Boolean);
+  const clinicAddressFallback = clinicAddressParts.length
+    ? clinicAddressParts.join(", ")
+    : undefined;
+  const clinicAddress = clinicAddressPrimary ?? clinicAddressFallback;
+  const consultationFeesRecord = asRecord(
+    professional.consultationFees ?? professional.consultation_fees ?? professional.fees,
+  );
+  const consultationFeeValue =
+    pickNumber(consultationFeesRecord, ["amount", "fee", "value", "price"]) ??
+    pickNumber(professional, [
       "consultationFee",
       "consultation_fee",
       "fee",
       "consultationPrice",
+      "consultationFees",
+      "consultation_fees",
+    ]) ??
+    undefined;
+
+  return {
+    specialty: pickString(professional, ["specialty", "specialization"]),
+    subspecialty: pickNullableString(professional, [
+      "subspecialty",
+      "sub_specialty",
+      "subSpecialty",
     ]),
-    about: pickString(raw, ["about", "bio", "summary"]),
-    education: pickStringArray(raw, ["education", "degrees"]),
-    certifications: pickStringArray(raw, ["certifications", "licenses"]),
-    languages: pickStringArray(raw, ["languages", "spokenLanguages", "spoken_languages"]),
-    clinicName: pickString(raw, ["clinicName", "clinic_name"]),
-    clinicAddress: pickString(raw, ["clinicAddress", "clinic_address", "address"]),
-    hospitalAffiliations: pickStringArray(raw, [
+    licenseNumber: pickString(professional, [
+      "licenseNumber",
+      "license_number",
+      "registrationNumber",
+      "license",
+    ]),
+    yearsOfExperience: pickNullableNumber(professional, [
+      "yearsOfExperience",
+      "years_of_experience",
+      "experienceYears",
+      "yearsExperience",
+      "years_experience",
+    ]),
+    consultationFee: consultationFeeValue ?? null,
+    about: pickString(professional, ["about", "bio", "summary"]),
+    education: pickStringArray(professional, ["education", "degrees", "qualifications"]),
+    certifications: pickStringArray(professional, ["certifications", "licenses", "license"]),
+    languages: pickStringArray(professional, ["languages", "spokenLanguages", "spoken_languages"]),
+    clinicName:
+      pickString(professional, ["clinicName", "clinic_name"]) ??
+      pickString(clinicLocation, ["name", "clinicName", "clinic_name"]),
+    clinicAddress:
+      pickString(professional, ["clinicAddress", "clinic_address", "address"]) ??
+      clinicAddress,
+    hospitalAffiliations: pickStringArray(professional, [
       "hospitalAffiliations",
       "hospital_affiliations",
       "affiliations",
     ]),
-    servicesOffered: pickStringArray(raw, [
+    servicesOffered: pickStringArray(professional, [
       "servicesOffered",
       "services_offered",
       "services",
@@ -659,7 +735,10 @@ export const doctorProfileService = {
       auth: true,
     });
 
-    return normalizeDoctorProfile(response);
+    console.log("RAW PROFILE RESPONSE", response);
+    const normalizedProfile = normalizeDoctorProfile(response);
+    console.log("NORMALIZED PROFILE", normalizedProfile);
+    return normalizedProfile;
   },
 
   updateProfile: async (payload: UpdateDoctorProfileRequest): Promise<DoctorProfile> => {
@@ -678,7 +757,10 @@ export const doctorProfileService = {
       auth: true,
     });
 
-    return normalizeDoctorProfessionalProfile(response);
+    console.log("RAW PROFESSIONAL RESPONSE", response);
+    const normalizedProfessional = normalizeDoctorProfessionalProfile(response);
+    console.log("NORMALIZED PROFESSIONAL", normalizedProfessional);
+    return normalizedProfessional;
   },
 
   updateProfessionalProfile: async (
