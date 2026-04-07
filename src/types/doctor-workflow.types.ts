@@ -91,6 +91,10 @@ export interface DoctorAppointment {
   prescriptionId?: string | null;
   prescriptionNumber?: string | null;
   hasPrescription?: boolean | null;
+  prescription?: {
+    exists: boolean;
+    latestId?: string | null;
+  } | null;
   joinUrl?: string | null;
   canJoinOnline: boolean;
   createdAt?: string | null;

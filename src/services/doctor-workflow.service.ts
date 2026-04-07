@@ -346,6 +346,9 @@ const normalizeDoctorAppointment = (payload: unknown): DoctorAppointment => {
     pickRecord(raw, ["appointmentRequest", "appointment_request"]),
     pickRecord(raw, ["request"]),
   );
+  const prescriptionInfo = mergeRecords(
+    pickRecord(raw, ["prescription", "rx", "latestPrescription"]),
+  );
   const prescriptionRecord = mergeRecords(
     pickRecord(raw, ["prescription", "appointmentPrescription", "rx"]),
     pickRecord(raw, ["latestPrescription"]),
@@ -363,12 +366,20 @@ const normalizeDoctorAppointment = (payload: unknown): DoctorAppointment => {
   const prescriptionId =
     pickIdentifier(raw, ["prescriptionId", "prescription_id"]) ??
     pickIdentifier(prescriptionRecord, ["id", "_id", "prescriptionId", "prescription_id"]);
+  const prescriptionLatestId =
+    pickIdentifier(prescriptionInfo, ["latestId", "latest_id", "prescriptionId", "prescription_id"]) ??
+    pickIdentifier(prescriptionRecord, ["id", "_id", "prescriptionId", "prescription_id"]);
   const prescriptionNumber =
     pickNullableString(raw, ["prescriptionNumber", "prescription_number"]) ??
     pickNullableString(prescriptionRecord, ["prescriptionNumber", "prescription_number", "referenceNumber"]);
-  const hasPrescription =
+  const prescriptionExists =
+    pickBoolean(prescriptionInfo, ["exists", "hasPrescription", "has_prescription"]) ??
     pickBoolean(raw, ["hasPrescription", "prescriptionExists", "has_prescription"]) ??
-    Boolean(prescriptionId || prescriptionNumber || prescriptionsList.length);
+    null;
+  const hasPrescription =
+    prescriptionExists !== null
+      ? prescriptionExists
+      : Boolean(prescriptionId || prescriptionNumber || prescriptionsList.length);
 
   return {
     id: appointmentId ?? "",
@@ -420,9 +431,16 @@ const normalizeDoctorAppointment = (payload: unknown): DoctorAppointment => {
       Object.keys(appointmentRequestRecord).length > 0
         ? normalizeDoctorAppointmentRequest(appointmentRequestRecord)
         : null,
-    prescriptionId,
+    prescriptionId: prescriptionLatestId ?? prescriptionId,
     prescriptionNumber,
     hasPrescription,
+    prescription:
+      prescriptionExists !== null || prescriptionLatestId
+        ? {
+            exists: prescriptionExists ?? Boolean(prescriptionLatestId),
+            latestId: prescriptionLatestId ?? null,
+          }
+        : null,
     joinUrl: pickNullableString(raw, ["joinUrl", "meetingUrl", "videoCallUrl"]),
     canJoinOnline:
       pickBoolean(raw, ["canJoinOnline", "isJoinable", "joinable"]) ??
@@ -566,6 +584,18 @@ const normalizeDoctorAppointmentRequestDetails = (
 
 const normalizeDoctorPatientListItem = (payload: unknown): DoctorPatientListItem => {
   const raw = unwrapPayload(payload);
+  const profile = mergeRecords(
+    pickRecord(raw, ["patient", "patientProfile", "profile", "patientDetails"]),
+    pickRecord(raw, ["patientInfo", "patient_data"]),
+  );
+  const latestVisit = mergeRecords(
+    pickRecord(raw, ["latestVisit", "lastVisit", "recentVisit", "visit"]),
+    pickRecord(raw, ["lastAppointment", "latestAppointment", "recentAppointment"]),
+  );
+  const upcomingVisit = mergeRecords(
+    pickRecord(raw, ["upcomingAppointment", "nextAppointment", "nextVisit"]),
+    pickRecord(raw, ["upcomingVisit", "nextAppointmentDetails"]),
+  );
   const fallbackName = [
     pickString(raw, ["firstName", "first_name"]),
     pickString(raw, ["lastName", "last_name"]),
@@ -574,24 +604,50 @@ const normalizeDoctorPatientListItem = (payload: unknown): DoctorPatientListItem
     .join(" ");
 
   return {
-    id: pickString(raw, ["id", "_id", "patientId", "patient_id"]) ?? "",
+    id:
+      pickIdentifier(raw, ["id", "_id", "patientId", "patient_id"]) ??
+      pickIdentifier(profile, ["id", "_id", "patientId", "patient_id"]) ??
+      "",
     fullName:
       (pickString(raw, ["fullName", "full_name", "displayName", "display_name", "name"]) ??
+        pickString(profile, ["fullName", "full_name", "displayName", "display_name", "name"]) ??
         fallbackName) ||
       "Patient",
-    avatarUrl: pickNullableString(raw, ["avatarUrl", "avatar", "profileImageUrl", "imageUrl"]),
-    age: pickNullableNumber(raw, ["age"]),
-    gender: pickNullableString(raw, ["gender"]),
-    phone: pickNullableString(raw, ["phone", "phoneNumber", "mobile"]),
-    email: pickNullableString(raw, ["email"]),
-    diagnosis: pickNullableString(raw, ["diagnosis", "latestDiagnosis", "latest_diagnosis"]),
-    condition: pickNullableString(raw, ["condition", "status", "healthStatus", "health_status"]),
-    lastVisitAt: pickNullableString(raw, ["lastVisitAt", "lastVisit", "last_visit", "updatedAt"]),
-    upcomingAppointmentAt: pickNullableString(raw, [
-      "upcomingAppointmentAt",
-      "nextAppointmentAt",
-      "nextAppointment",
-    ]),
+    avatarUrl:
+      pickNullableString(raw, ["avatarUrl", "avatar", "profileImageUrl", "imageUrl"]) ??
+      pickNullableString(profile, ["avatarUrl", "avatar", "profileImageUrl", "imageUrl"]),
+    age: pickNullableNumber(raw, ["age"]) ?? pickNullableNumber(profile, ["age"]),
+    gender: pickNullableString(raw, ["gender"]) ?? pickNullableString(profile, ["gender"]),
+    phone:
+      pickNullableString(raw, ["phone", "phoneNumber", "mobile"]) ??
+      pickNullableString(profile, ["phone", "phoneNumber", "mobile"]),
+    email: pickNullableString(raw, ["email"]) ?? pickNullableString(profile, ["email"]),
+    diagnosis:
+      pickNullableString(raw, ["diagnosis", "latestDiagnosis", "latest_diagnosis"]) ??
+      pickNullableString(latestVisit, ["diagnosis", "assessment", "summary"]),
+    condition:
+      pickNullableString(raw, ["condition", "status", "healthStatus", "health_status"]) ??
+      pickNullableString(latestVisit, ["condition", "status", "healthStatus"]),
+    lastVisitAt:
+      pickNullableString(raw, [
+        "lastVisitAt",
+        "lastVisit",
+        "last_visit",
+        "latestVisitAt",
+        "latest_visit_at",
+        "lastAppointmentAt",
+        "last_appointment_at",
+        "updatedAt",
+      ]) ?? pickNullableString(latestVisit, ["lastVisitAt", "date", "visitDate", "appointmentAt"]),
+    upcomingAppointmentAt:
+      pickNullableString(raw, [
+        "upcomingAppointmentAt",
+        "nextAppointmentAt",
+        "nextAppointment",
+        "next_appointment",
+        "upcomingAppointment",
+        "upcoming_appointment",
+      ]) ?? pickNullableString(upcomingVisit, ["scheduledAt", "appointmentAt", "date", "startAt"]),
   };
 };
 
@@ -609,7 +665,7 @@ const normalizeDoctorPatientSummary = (payload: unknown): DoctorPatientSummary =
     .join(" ");
 
   return {
-    id: pickString(raw, ["id", "_id", "patientId", "patient_id"]) ?? "",
+    id: pickIdentifier(raw, ["id", "_id", "patientId", "patient_id"]) ?? "",
     fullName:
       (pickString(raw, ["fullName", "full_name", "displayName", "display_name", "name"]) ??
         fallbackName) ||
