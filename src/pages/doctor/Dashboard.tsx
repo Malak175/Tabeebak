@@ -2,7 +2,6 @@ import { Link } from "react-router-dom";
 import {
   Activity,
   Calendar,
-  ChevronRight,
   Clock,
   MessageSquareQuote,
   Star,
@@ -15,8 +14,14 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useDoctorProfileQuery, useDoctorDashboardSummaryQuery } from "@/hooks/useDoctorProfile";
+import {
+  useDoctorAvailabilityQuery,
+  useDoctorDashboardSummaryQuery,
+  useDoctorProfessionalProfileQuery,
+  useDoctorProfileQuery,
+} from "@/hooks/useDoctorProfile";
 import {
   useDoctorReviewsSummaryQuery,
   useDoctorTodayAppointmentsQuery,
@@ -28,31 +33,46 @@ const statCards = (summary: ReturnType<typeof useDoctorDashboardSummaryQuery>["d
     label: "Today's Appointments",
     value: summary?.totalAppointmentsToday ?? 0,
     icon: Calendar,
-    description: "Appointments scheduled for today",
-  },
-  {
-    label: "Completed Today",
-    value: summary?.completedAppointmentsToday ?? 0,
-    icon: Activity,
-    description: "Visits already completed",
+    description:
+      summary?.totalAppointmentsToday && summary.totalAppointmentsToday > 0
+        ? "Scheduled visits for today"
+        : "No appointments scheduled yet",
   },
   {
     label: "Upcoming Today",
     value: summary?.upcomingAppointmentsToday ?? 0,
     icon: Clock,
-    description: "Still coming up today",
+    description:
+      summary?.upcomingAppointmentsToday && summary.upcomingAppointmentsToday > 0
+        ? "Still ahead on today's schedule"
+        : "No upcoming visits queued",
+  },
+  {
+    label: "Pending Requests",
+    value: summary?.pendingAppointmentRequestsCount ?? 0,
+    icon: Activity,
+    description:
+      summary?.pendingAppointmentRequestsCount &&
+      summary.pendingAppointmentRequestsCount > 0
+        ? "Appointment requests waiting on you"
+        : "No pending requests right now",
   },
   {
     label: "Total Patients",
     value: summary?.totalPatientsCount ?? 0,
     icon: Users,
-    description: "Patients attached to your account",
+    description:
+      summary?.totalPatientsCount && summary.totalPatientsCount > 0
+        ? "Patients under your care"
+        : "No patient records yet",
   },
 ];
 
 const DoctorDashboard = () => {
   const summaryQuery = useDoctorDashboardSummaryQuery();
   const profileQuery = useDoctorProfileQuery();
+  const professionalProfileQuery = useDoctorProfessionalProfileQuery();
+  const availabilityQuery = useDoctorAvailabilityQuery();
   const todayQuery = useDoctorTodayAppointmentsQuery(
     {
       page: 1,
@@ -64,13 +84,65 @@ const DoctorDashboard = () => {
   );
   const reviewsSummaryQuery = useDoctorReviewsSummaryQuery(true);
   const summary = summaryQuery.data;
+  const profile = profileQuery.data;
+  const professionalProfile = professionalProfileQuery.data;
+  const availability = availabilityQuery.data;
   const doctorName = getDisplayName(profileQuery.data ?? summary ?? {});
   const userSubtitle = summary?.specialty ?? "Doctor account";
   const firstName =
-    profileQuery.data?.firstName ??
+    profile?.firstName ??
     summary?.firstName ??
     doctorName.replace(/^Dr\.?\s*/i, "").split(" ")[0] ??
     "Doctor";
+
+  const availabilityDays =
+    availability?.weeklyScheduleJson ?? availability?.weeklySchedule ?? [];
+  const hasAvailability =
+    availabilityDays?.some((day) =>
+      "slots" in day
+        ? day.isAvailable && (day.slots?.length ?? 0) > 0
+        : day.isAvailable && Boolean(day.startTime && day.endTime),
+    ) ?? false;
+  const hasClinicInfo = Boolean(
+    professionalProfile?.clinicName ||
+      professionalProfile?.clinicAddress ||
+      summary?.clinicName ||
+      profile?.addressLine1 ||
+      profile?.city ||
+      profile?.state ||
+      profile?.country,
+  );
+  const hasSpecialty = Boolean(professionalProfile?.specialty || summary?.specialty);
+  const hasConsultationFee =
+    professionalProfile?.consultationFee !== null &&
+    professionalProfile?.consultationFee !== undefined;
+  const hasBio = Boolean(professionalProfile?.about || profile?.bio);
+  const completionItems = [
+    {
+      label: "Basic profile info",
+      complete: Boolean(
+        profile?.firstName ||
+          profile?.lastName ||
+          profile?.displayName ||
+          summary?.displayName ||
+          summary?.firstName,
+      ),
+    },
+    { label: "Specialization", complete: hasSpecialty },
+    { label: "Consultation fee", complete: hasConsultationFee },
+    { label: "Availability schedule", complete: hasAvailability },
+    { label: "Clinic or location info", complete: hasClinicInfo },
+    { label: "Professional bio", complete: hasBio },
+  ];
+  const completedItems = completionItems.filter((item) => item.complete).length;
+  const completionPercent = Math.round((completedItems / completionItems.length) * 100);
+  const missingItems = completionItems.filter((item) => !item.complete).map((item) => item.label);
+  const isProfileCompletionLoading =
+    profileQuery.isLoading ||
+    professionalProfileQuery.isLoading ||
+    availabilityQuery.isLoading;
+  const reviewsTotal = reviewsSummaryQuery.data?.totalReviews ?? 0;
+  const hasReviews = reviewsTotal > 0;
 
   return (
     <DashboardLayout
@@ -84,7 +156,7 @@ const DoctorDashboard = () => {
         <div>
           <h1 className="mb-2 text-2xl font-bold md:text-3xl">Welcome back, Dr. {firstName}</h1>
           <p className="text-muted-foreground">
-            Your appointments, patients, prescriptions, and reviews are now backed by doctor workflow APIs.
+            Here is a focused snapshot of your clinic activity and what needs attention today.
           </p>
         </div>
 
@@ -161,7 +233,7 @@ const DoctorDashboard = () => {
                 <div>
                   <CardTitle>Today&apos;s Queue</CardTitle>
                   <CardDescription>
-                    Previewing the first live appointments from `/api/v1/doctors/me/appointments/today`.
+                    A quick look at your next appointments for today.
                   </CardDescription>
                 </div>
                 <Link to="/doctor/appointments" className="text-sm text-primary hover:underline">
@@ -188,7 +260,7 @@ const DoctorDashboard = () => {
                       <div>
                         <p className="font-semibold">{appointment.patientName}</p>
                         <p className="text-sm text-muted-foreground">
-                          {appointment.reason || appointment.complaint || "No visit reason returned"}
+                          {appointment.reason || appointment.complaint || "No visit reason provided"}
                         </p>
                       </div>
                       <div className="flex items-center gap-3">
@@ -200,14 +272,78 @@ const DoctorDashboard = () => {
                     </div>
                   ))
                 ) : (
-                  <div className="rounded-xl border border-dashed p-6 text-sm text-muted-foreground">
-                    No appointments were returned for today&apos;s queue.
+                  <div className="rounded-xl border border-dashed p-6">
+                    <p className="text-sm font-medium">No appointments scheduled for today.</p>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Update your availability or check pending requests to keep your schedule moving.
+                    </p>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <Button asChild size="sm" variant="outline">
+                        <Link to="/doctor/schedule">Review Schedule</Link>
+                      </Button>
+                      <Button asChild size="sm" variant="ghost">
+                        <Link to="/doctor/requests">View Requests</Link>
+                      </Button>
+                    </div>
                   </div>
                 )}
               </CardContent>
             </Card>
 
             <div className="space-y-6">
+              <Card className="border-primary/20 bg-gradient-to-br from-primary/5 via-transparent to-background">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center justify-between text-lg">
+                    Profile Completion
+                    <Badge variant={completionPercent === 100 ? "secondary" : "outline"}>
+                      {completionPercent}%
+                    </Badge>
+                  </CardTitle>
+                  <CardDescription>
+                    Finish key details so patients see a complete, trustworthy profile.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {isProfileCompletionLoading ? (
+                    <>
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-3 w-40" />
+                      <div className="flex gap-2">
+                        <Skeleton className="h-6 w-24" />
+                        <Skeleton className="h-6 w-24" />
+                        <Skeleton className="h-6 w-24" />
+                      </div>
+                      <Skeleton className="h-9 w-full" />
+                    </>
+                  ) : (
+                    <>
+                      <Progress value={completionPercent} />
+                      <div className="text-sm text-muted-foreground">
+                        {completedItems} of {completionItems.length} profile items complete
+                      </div>
+                      {missingItems.length === 0 ? (
+                        <div className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">
+                          You are all set. Keep your information updated as your practice evolves.
+                        </div>
+                      ) : (
+                        <div className="flex flex-wrap gap-2">
+                          {missingItems.map((item) => (
+                            <Badge key={item} variant="outline">
+                              {item}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                      {missingItems.length > 0 ? (
+                        <Button asChild className="w-full" variant="outline">
+                          <Link to="/doctor/settings">Complete Profile</Link>
+                        </Button>
+                      ) : null}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+
               <Card className="bg-gradient-to-br from-secondary/10 to-primary/5">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -215,7 +351,7 @@ const DoctorDashboard = () => {
                     Reviews Snapshot
                   </CardTitle>
                   <CardDescription>
-                    Live ratings summary from the doctor reviews endpoints.
+                    How patients are rating recent visits.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm">
@@ -228,13 +364,13 @@ const DoctorDashboard = () => {
                     <p className="text-destructive">
                       {(reviewsSummaryQuery.error as Error).message}
                     </p>
-                  ) : (
+                  ) : hasReviews ? (
                     <>
                       <div className="rounded-lg bg-background/70 p-3">
                         Average rating: {reviewsSummaryQuery.data?.averageRating.toFixed(1) ?? "0.0"}
                       </div>
                       <div className="rounded-lg bg-background/70 p-3">
-                        Total reviews: {reviewsSummaryQuery.data?.totalReviews ?? 0}
+                        Total reviews: {reviewsTotal}
                       </div>
                       <div className="rounded-lg bg-background/70 p-3">
                         Recommendation rate:{" "}
@@ -243,46 +379,11 @@ const DoctorDashboard = () => {
                           : "N/A"}
                       </div>
                     </>
+                  ) : (
+                    <div className="rounded-lg bg-background/70 p-3 text-muted-foreground">
+                      No reviews yet. After your first visits, patient feedback will appear here.
+                    </div>
                   )}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Quick Links</CardTitle>
-                  <CardDescription>
-                    Jump directly into the new live doctor workflow pages.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <Link
-                    to="/doctor/patients"
-                    className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/40"
-                  >
-                    <span className="font-medium">Patients</span>
-                    <ChevronRight className="h-4 w-4" />
-                  </Link>
-                  <Link
-                    to="/doctor/prescriptions"
-                    className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/40"
-                  >
-                    <span className="font-medium">Prescriptions</span>
-                    <ChevronRight className="h-4 w-4" />
-                  </Link>
-                  <Link
-                    to="/doctor/reviews"
-                    className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/40"
-                  >
-                    <span className="font-medium">Reviews</span>
-                    <ChevronRight className="h-4 w-4" />
-                  </Link>
-                  <Link
-                    to="/doctor/settings"
-                    className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/40"
-                  >
-                    <span className="font-medium">Settings</span>
-                    <ChevronRight className="h-4 w-4" />
-                  </Link>
                 </CardContent>
               </Card>
             </div>
