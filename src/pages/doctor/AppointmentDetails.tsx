@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import {
   useDoctorAppointmentDetailsQuery,
+  useDoctorPrescriptionDetailsQuery,
   useUpdateDoctorAppointmentMutation,
 } from "@/hooks/useDoctorWorkflow";
 import { useAuth } from "@/hooks/useAuth";
@@ -79,6 +80,15 @@ const DoctorAppointmentDetails = () => {
   const visitNote = query.data?.notes ?? null;
   const showRequestNote = Boolean(requestNote && (!visitNote || requestNote !== visitNote));
   const isCompleted = (query.data?.status ?? "").toLowerCase() === "completed";
+  const prescriptionInfo = query.data?.prescription ?? null;
+  const prescriptionExists = prescriptionInfo?.exists === true;
+  const prescriptionLatestId = prescriptionInfo?.latestId
+    ? String(prescriptionInfo.latestId)
+    : undefined;
+  const prescriptionDetailsQuery = useDoctorPrescriptionDetailsQuery(
+    prescriptionLatestId,
+    Boolean(user) && prescriptionExists && Boolean(prescriptionLatestId),
+  );
 
   useEffect(() => {
     if (!query.data || isEditing) return;
@@ -124,10 +134,10 @@ const DoctorAppointmentDetails = () => {
         query.data.updatedAt
           ? { label: "Last updated", value: formatDateTime(query.data.updatedAt) }
           : null,
-        query.data.hasPrescription !== null && query.data.hasPrescription !== undefined
+        prescriptionInfo?.exists !== undefined
           ? {
               label: "Prescription",
-              value: query.data.hasPrescription ? "Available" : "Not recorded yet",
+              value: prescriptionExists ? "Available" : "Not recorded yet",
             }
           : null,
       ] as { label: string; value: string }[]).filter(Boolean)
@@ -288,10 +298,55 @@ const DoctorAppointmentDetails = () => {
                 </CardHeader>
                 <CardContent>
                   {hasSnapshot ? (
-                    <div className="grid gap-4 md:grid-cols-2">
-                      {detailRows.map((row) => (
-                        <DetailRow key={row.label} label={row.label} value={row.value} />
-                      ))}
+                    <div className="space-y-6">
+                      <div className="grid gap-4 md:grid-cols-2">
+                        {detailRows.map((row) => (
+                          <DetailRow key={row.label} label={row.label} value={row.value} />
+                        ))}
+                      </div>
+
+                      <div className="rounded-lg border bg-muted/20 p-4">
+                        <p className="text-sm text-muted-foreground">Prescription</p>
+                        {prescriptionExists ? (
+                          prescriptionDetailsQuery.isLoading ? (
+                            <div className="mt-3 space-y-2">
+                              <Skeleton className="h-4 w-40" />
+                              <Skeleton className="h-4 w-48" />
+                              <Skeleton className="h-4 w-32" />
+                            </div>
+                          ) : prescriptionDetailsQuery.isError ? (
+                            <p className="mt-2 text-sm text-destructive">
+                              {(prescriptionDetailsQuery.error as Error).message}
+                            </p>
+                          ) : prescriptionDetailsQuery.data ? (
+                            <div className="mt-2 space-y-1 text-sm">
+                              <p className="font-medium">
+                                {prescriptionDetailsQuery.data.medicationName}
+                              </p>
+                              {prescriptionDetailsQuery.data.dosage ? (
+                                <p>Dosage: {prescriptionDetailsQuery.data.dosage}</p>
+                              ) : null}
+                              {prescriptionDetailsQuery.data.frequency ? (
+                                <p>Frequency: {prescriptionDetailsQuery.data.frequency}</p>
+                              ) : null}
+                              {prescriptionDetailsQuery.data.duration ? (
+                                <p>Duration: {prescriptionDetailsQuery.data.duration}</p>
+                              ) : null}
+                              {prescriptionDetailsQuery.data.instructions ? (
+                                <p>Instructions: {prescriptionDetailsQuery.data.instructions}</p>
+                              ) : null}
+                            </div>
+                          ) : (
+                            <p className="mt-2 text-sm text-muted-foreground">
+                              Prescription details are not available yet.
+                            </p>
+                          )
+                        ) : (
+                          <p className="mt-2 text-sm text-muted-foreground">
+                            No prescription recorded yet.
+                          </p>
+                        )}
+                      </div>
                     </div>
                   ) : (
                     <p className="text-sm text-muted-foreground">
@@ -382,12 +437,12 @@ const DoctorAppointmentDetails = () => {
                 <Button asChild className="w-full" variant="outline">
                   <Link to="/doctor/appointments">Return to queue</Link>
                 </Button>
-              {query.data.hasPrescription ? (
+              {prescriptionExists ? (
                 <Button asChild className="w-full" variant="outline">
                   <Link
                     to={
-                      query.data.prescriptionId
-                        ? `/doctor/prescriptions/${query.data.prescriptionId}`
+                      prescriptionLatestId
+                        ? `/doctor/prescriptions/${prescriptionLatestId}`
                         : "/doctor/prescriptions"
                     }
                   >
@@ -399,7 +454,7 @@ const DoctorAppointmentDetails = () => {
                   asChild
                   className="w-full"
                   variant="outline"
-                  disabled={!appointmentId || query.data.hasPrescription !== false}
+                  disabled={!appointmentId || prescriptionInfo?.exists !== false}
                 >
                   <Link to={`/doctor/appointments/${appointmentId}/prescription/new`}>
                     Write prescription
