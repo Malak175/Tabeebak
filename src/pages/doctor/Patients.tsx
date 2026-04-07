@@ -20,7 +20,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName, getInitials } from "@/lib/auth";
 
 const formatDateTime = (value?: string | null) => {
-  if (!value) return "Not available";
+  if (!value) return null;
 
   const parsed = parseISO(value);
   if (!isValid(parsed)) return value;
@@ -57,6 +57,7 @@ const DoctorPatients = () => {
       limit: 8,
       search,
       condition: condition === "all" ? undefined : condition,
+      status: condition === "all" ? undefined : condition,
       sortBy: "lastVisitAt",
       sortOrder: "desc" as const,
     }),
@@ -67,18 +68,45 @@ const DoctorPatients = () => {
   const patientsQuery = useDoctorPatientsQuery(filters, enabled);
   const summaryQuery = useDoctorPatientSummaryQuery(selectedPatientId, enabled);
 
+  const filteredPatients = useMemo(() => {
+    const patients = patientsQuery.data?.data ?? [];
+    const normalizedSearch = search.trim().toLowerCase();
+    const conditionFilter = condition === "all" ? "" : condition.toLowerCase();
+
+    return patients.filter((patient) => {
+      if (conditionFilter) {
+        const patientCondition = patient.condition?.toLowerCase() ?? "";
+        if (patientCondition !== conditionFilter) return false;
+      }
+
+      if (!normalizedSearch) return true;
+
+      const haystack = [
+        patient.fullName,
+        patient.email,
+        patient.phone,
+        patient.diagnosis,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(normalizedSearch);
+    });
+  }, [patientsQuery.data?.data, search, condition]);
+
   useEffect(() => {
-    if (!patientsQuery.data?.data.length) {
+    if (!filteredPatients.length) {
       setSelectedPatientId(undefined);
       return;
     }
 
     setSelectedPatientId((current) =>
-      current && patientsQuery.data.data.some((patient) => patient.id === current)
+      current && filteredPatients.some((patient) => patient.id === current)
         ? current
-        : patientsQuery.data.data[0].id,
+        : filteredPatients[0].id,
     );
-  }, [patientsQuery.data]);
+  }, [filteredPatients]);
 
   return (
     <DashboardLayout
@@ -145,10 +173,17 @@ const DoctorPatients = () => {
               <AlertTitle>Unable to load patients</AlertTitle>
               <AlertDescription>{(patientsQuery.error as Error).message}</AlertDescription>
             </Alert>
-          ) : patientsQuery.data?.data.length ? (
+          ) : filteredPatients.length ? (
             <>
               <div className="space-y-4">
-                {patientsQuery.data.data.map((patient) => (
+                {filteredPatients.map((patient) => {
+                  const lastVisitLabel = formatDateTime(patient.lastVisitAt);
+                  const nextVisitLabel = formatDateTime(patient.upcomingAppointmentAt);
+                  const hasDiagnosis = Boolean(patient.diagnosis?.trim());
+                  const hasCondition = Boolean(patient.condition?.trim());
+                  const hasVisitInfo = Boolean(lastVisitLabel || nextVisitLabel);
+
+                  return (
                   <Card
                     key={patient.id}
                     className={`cursor-pointer transition-colors hover:border-primary/50 ${
@@ -173,26 +208,38 @@ const DoctorPatients = () => {
                       </div>
 
                       <div className="flex-1 space-y-1">
-                        <p className="text-sm font-medium">{patient.diagnosis || "Diagnosis not returned"}</p>
-                        <p className="text-sm text-muted-foreground">
-                          Last visit: {formatDateTime(patient.lastVisitAt)}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Next appointment: {formatDateTime(patient.upcomingAppointmentAt)}
-                        </p>
+                        {hasDiagnosis ? (
+                          <p className="text-sm font-medium">{patient.diagnosis}</p>
+                        ) : null}
+                        {lastVisitLabel ? (
+                          <p className="text-sm text-muted-foreground">Last visit: {lastVisitLabel}</p>
+                        ) : null}
+                        {nextVisitLabel ? (
+                          <p className="text-sm text-muted-foreground">
+                            Next appointment: {nextVisitLabel}
+                          </p>
+                        ) : null}
+                        {!hasDiagnosis && !hasVisitInfo ? (
+                          <p className="text-sm text-muted-foreground">
+                            No recent visit details yet.
+                          </p>
+                        ) : null}
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2">
-                        <Badge className={getConditionClassName(patient.condition)}>
-                          {patient.condition || "Unknown"}
-                        </Badge>
+                        {hasCondition ? (
+                          <Badge className={getConditionClassName(patient.condition)}>
+                            {patient.condition}
+                          </Badge>
+                        ) : null}
                         <Button asChild variant="outline" onClick={(event) => event.stopPropagation()}>
                           <Link to={`/doctor/patients/${patient.id}`}>Open summary</Link>
                         </Button>
                       </div>
                     </CardContent>
                   </Card>
-                ))}
+                  );
+                })}
               </div>
 
               <div className="flex flex-col gap-3 rounded-lg border bg-card p-4 md:flex-row md:items-center md:justify-between">
@@ -270,7 +317,9 @@ const DoctorPatients = () => {
                   <p>Email: {summaryQuery.data.email || "Not available"}</p>
                   <p>Phone: {summaryQuery.data.phone || "Not available"}</p>
                   <p>Blood type: {summaryQuery.data.bloodType || "Not available"}</p>
-                  <p>Last visit: {formatDateTime(summaryQuery.data.lastVisitAt)}</p>
+                  <p>
+                    Last visit: {formatDateTime(summaryQuery.data.lastVisitAt) || "Not available"}
+                  </p>
                 </div>
 
                 <div className="space-y-3">
