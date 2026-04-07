@@ -653,50 +653,71 @@ const normalizeDoctorPatientListItem = (payload: unknown): DoctorPatientListItem
 
 const normalizeDoctorPatientSummary = (payload: unknown): DoctorPatientSummary => {
   const raw = unwrapPayload(payload);
-  const vitals = mergeRecords(
-    pickRecord(raw, ["latestVitals", "vitals", "recentVitals"]),
-    pickRecord(raw, ["vitalSigns"]),
-  );
+  const patient = pickRecord(raw, ["patient"]);
+  const overview = pickRecord(raw, ["overview"]);
+  const medical = pickRecord(raw, ["medical"]);
   const fallbackName = [
-    pickString(raw, ["firstName", "first_name"]),
-    pickString(raw, ["lastName", "last_name"]),
+    pickString(patient, ["firstName", "first_name"]),
+    pickString(patient, ["lastName", "last_name"]),
   ]
     .filter(Boolean)
     .join(" ");
 
   return {
-    id: pickIdentifier(raw, ["id", "_id", "patientId", "patient_id"]) ?? "",
+    id:
+      pickIdentifier(patient, ["id", "_id", "patientId", "patient_id"]) ??
+      pickIdentifier(raw, ["id", "_id", "patientId", "patient_id"]) ??
+      "",
     fullName:
-      (pickString(raw, ["fullName", "full_name", "displayName", "display_name", "name"]) ??
+      (pickString(patient, ["fullName", "full_name", "displayName", "display_name", "name"]) ??
+        pickString(raw, ["fullName", "full_name", "displayName", "display_name", "name"]) ??
         fallbackName) ||
       "Patient",
-    avatarUrl: pickNullableString(raw, ["avatarUrl", "avatar", "profileImageUrl", "imageUrl"]),
-    age: pickNullableNumber(raw, ["age"]),
-    gender: pickNullableString(raw, ["gender"]),
-    dateOfBirth: pickNullableString(raw, ["dateOfBirth", "date_of_birth", "dob"]),
-    bloodType: pickNullableString(raw, ["bloodType", "blood_type"]),
-    phone: pickNullableString(raw, ["phone", "phoneNumber", "mobile"]),
-    email: pickNullableString(raw, ["email"]),
-    allergies: pickStringArray(raw, ["allergies"]),
-    chronicConditions: pickStringArray(raw, ["chronicConditions", "chronic_conditions"]),
-    currentMedications: pickStringArray(raw, [
+    avatarUrl:
+      pickNullableString(patient, ["avatarUrl", "avatar", "profileImageUrl", "imageUrl"]) ??
+      pickNullableString(raw, ["avatarUrl", "avatar", "profileImageUrl", "imageUrl"]),
+    age:
+      pickNullableNumber(patient, ["age"]) ??
+      pickNullableNumber(raw, ["age"]),
+    gender: pickNullableString(patient, ["gender"]) ?? pickNullableString(raw, ["gender"]),
+    dateOfBirth:
+      pickNullableString(patient, ["dateOfBirth", "date_of_birth", "dob"]) ??
+      pickNullableString(raw, ["dateOfBirth", "date_of_birth", "dob"]),
+    bloodType:
+      pickNullableString(medical, ["bloodType", "blood_type"]) ??
+      pickNullableString(raw, ["bloodType", "blood_type"]),
+    phone:
+      pickNullableString(patient, ["phone", "phoneNumber", "mobile"]) ??
+      pickNullableString(raw, ["phone", "phoneNumber", "mobile"]),
+    email:
+      pickNullableString(patient, ["email"]) ??
+      pickNullableString(raw, ["email"]),
+    allergies: pickStringArray(medical, ["allergies"]),
+    chronicConditions: pickStringArray(medical, ["chronicConditions", "chronic_conditions"]),
+    currentMedications: pickStringArray(medical, [
       "currentMedications",
       "current_medications",
       "medications",
     ]),
-    recentDiagnoses: pickStringArray(raw, [
-      "recentDiagnoses",
-      "recent_diagnoses",
-      "diagnoses",
+    recentDiagnoses: [],
+    latestVitals: undefined,
+    lastVisitAt:
+      pickNullableString(overview, ["lastSeenAt", "last_seen_at"]) ??
+      pickNullableString(raw, ["lastVisitAt", "lastVisit", "last_visit", "updatedAt"]),
+    notes:
+      pickNullableString(medical, ["medicalNotes", "medical_notes", "notes"]) ??
+      pickNullableString(raw, ["notes", "summary", "patientNotes", "patient_notes"]),
+    firstAppointmentAt: pickNullableString(overview, ["firstAppointmentAt", "first_appointment_at"]),
+    totalAppointments: pickNullableNumber(overview, ["totalAppointments", "total_appointments"]),
+    totalPrescriptions: pickNullableNumber(overview, ["totalPrescriptions", "total_prescriptions"]),
+    activePrescriptions: pickNullableNumber(overview, [
+      "activePrescriptions",
+      "active_prescriptions",
     ]),
-    latestVitals: {
-      bloodPressure: pickNullableString(vitals, ["bloodPressure", "blood_pressure"]),
-      heartRate: pickNullableNumber(vitals, ["heartRate", "heart_rate"]),
-      temperatureC: pickNullableNumber(vitals, ["temperatureC", "temperature_c", "temperature"]),
-      weightKg: pickNullableNumber(vitals, ["weightKg", "weight_kg", "weight"]),
-    },
-    lastVisitAt: pickNullableString(raw, ["lastVisitAt", "lastVisit", "last_visit", "updatedAt"]),
-    notes: pickNullableString(raw, ["notes", "summary", "patientNotes", "patient_notes"]),
+    totalConsultations: pickNullableNumber(overview, [
+      "totalConsultations",
+      "total_consultations",
+    ]),
   };
 };
 

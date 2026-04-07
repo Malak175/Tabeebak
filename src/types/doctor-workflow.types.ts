@@ -188,6 +188,11 @@ export interface DoctorPatientSummary {
   latestVitals?: DoctorPatientSummaryVitals;
   lastVisitAt?: string | null;
   notes?: string | null;
+  firstAppointmentAt?: string | null;
+  totalAppointments?: number | null;
+  totalPrescriptions?: number | null;
+  activePrescriptions?: number | null;
+  totalConsultations?: number | null;
 }
 
 export interface DoctorPrescription {
