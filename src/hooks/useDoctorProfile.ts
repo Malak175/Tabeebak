@@ -34,7 +34,8 @@ export const useUpdateDoctorProfileMutation = () => {
 
   return useMutation({
     mutationFn: (payload: UpdateDoctorProfileRequest) => doctorProfileService.updateProfile(payload),
-    onSuccess: () => {
+    onSuccess: (updatedProfile) => {
+      queryClient.setQueryData(doctorQueryKeys.profile(), updatedProfile);
       queryClient.invalidateQueries({ queryKey: doctorQueryKeys.profile() });
       queryClient.invalidateQueries({ queryKey: doctorQueryKeys.dashboardSummary() });
       queryClient.invalidateQueries({ queryKey: myAccountQueryKeys.me() });
@@ -56,7 +57,8 @@ export const useUpdateDoctorProfessionalProfileMutation = () => {
   return useMutation({
     mutationFn: (payload: UpdateDoctorProfessionalProfileRequest) =>
       doctorProfileService.updateProfessionalProfile(payload),
-    onSuccess: () => {
+    onSuccess: (updatedProfessionalProfile) => {
+      queryClient.setQueryData(doctorQueryKeys.professionalProfile(), updatedProfessionalProfile);
       queryClient.invalidateQueries({ queryKey: doctorQueryKeys.professionalProfile() });
       queryClient.invalidateQueries({ queryKey: doctorQueryKeys.dashboardSummary() });
     },

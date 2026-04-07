@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BriefcaseMedical, MapPin, Save, UserRound } from "lucide-react";
+import { BriefcaseMedical, Save, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import {
   useDoctorProfessionalProfileQuery,
@@ -19,6 +19,11 @@ import {
   UpdateDoctorProfessionalProfileRequest,
   UpdateDoctorProfileRequest,
 } from "@/types/doctor-profile.types";
+import {
+  formatEgyptianPhoneForDisplay,
+  getEgyptianPhoneValidationError,
+  normalizeEgyptianPhone,
+} from "@/lib/phone";
 
 const toCommaSeparatedValue = (value?: string[]) => value?.join(", ") ?? "";
 
@@ -59,6 +64,10 @@ export const DoctorProfileSettingsSections = () => {
     postalCode: "",
     bio: "",
   });
+  const [profileErrors, setProfileErrors] = useState({
+    phone: "",
+    alternatePhone: "",
+  });
 
   const [professionalForm, setProfessionalForm] = useState({
     specialty: "",
@@ -76,55 +85,83 @@ export const DoctorProfileSettingsSections = () => {
     servicesOffered: "",
   });
 
+  const hasHydrationData = Boolean(profileQuery.data && professionalQuery.data);
+
   useEffect(() => {
-    if (!profileQuery.data) return;
+    if (!hasHydrationData) return;
+
+    const mergedData = {
+      ...(profileQuery.data ?? {}),
+      ...(professionalQuery.data ?? {}),
+    };
 
     setProfileForm({
-      displayName: profileQuery.data.displayName ?? "",
-      firstName: profileQuery.data.firstName ?? "",
-      lastName: profileQuery.data.lastName ?? "",
-      phone: profileQuery.data.phone ?? "",
-      alternatePhone: profileQuery.data.alternatePhone ?? "",
-      dateOfBirth: profileQuery.data.dateOfBirth?.slice(0, 10) ?? "",
-      gender: profileQuery.data.gender ?? "",
-      addressLine1: profileQuery.data.addressLine1 ?? "",
-      addressLine2: profileQuery.data.addressLine2 ?? "",
-      city: profileQuery.data.city ?? "",
-      state: profileQuery.data.state ?? "",
-      country: profileQuery.data.country ?? "",
-      postalCode: profileQuery.data.postalCode ?? "",
-      bio: profileQuery.data.bio ?? "",
+      displayName: mergedData.displayName ?? "",
+      firstName: mergedData.firstName ?? "",
+      lastName: mergedData.lastName ?? "",
+      phone: formatEgyptianPhoneForDisplay(mergedData.phone ?? ""),
+      alternatePhone: formatEgyptianPhoneForDisplay(mergedData.alternatePhone ?? ""),
+      dateOfBirth: mergedData.dateOfBirth?.slice(0, 10) ?? "",
+      gender: mergedData.gender ?? "",
+      addressLine1: mergedData.addressLine1 ?? "",
+      addressLine2: mergedData.addressLine2 ?? "",
+      city: mergedData.city ?? "",
+      state: mergedData.state ?? "",
+      country: mergedData.country ?? "",
+      postalCode: mergedData.postalCode ?? "",
+      bio: mergedData.bio ?? "",
     });
-  }, [profileQuery.data]);
-
-  useEffect(() => {
-    if (!professionalQuery.data) return;
 
     setProfessionalForm({
-      specialty: professionalQuery.data.specialty ?? "",
-      subspecialty: professionalQuery.data.subspecialty ?? "",
-      licenseNumber: professionalQuery.data.licenseNumber ?? "",
-      yearsOfExperience:
-        professionalQuery.data.yearsOfExperience?.toString() ?? "",
-      consultationFee: professionalQuery.data.consultationFee?.toString() ?? "",
-      clinicName: professionalQuery.data.clinicName ?? "",
-      clinicAddress: professionalQuery.data.clinicAddress ?? "",
-      about: professionalQuery.data.about ?? "",
-      education: toCommaSeparatedValue(professionalQuery.data.education),
-      certifications: toCommaSeparatedValue(professionalQuery.data.certifications),
-      languages: toCommaSeparatedValue(professionalQuery.data.languages),
-      hospitalAffiliations: toCommaSeparatedValue(professionalQuery.data.hospitalAffiliations),
-      servicesOffered: toCommaSeparatedValue(professionalQuery.data.servicesOffered),
+      specialty: mergedData.specialty ?? "",
+      subspecialty: mergedData.subspecialty ?? "",
+      licenseNumber: mergedData.licenseNumber ?? "",
+      yearsOfExperience: mergedData.yearsOfExperience?.toString() ?? "",
+      consultationFee: mergedData.consultationFee?.toString() ?? "",
+      clinicName: mergedData.clinicName ?? "",
+      clinicAddress: mergedData.clinicAddress ?? "",
+      about: mergedData.about ?? "",
+      education: toCommaSeparatedValue(mergedData.education),
+      certifications: toCommaSeparatedValue(mergedData.certifications),
+      languages: toCommaSeparatedValue(mergedData.languages),
+      hospitalAffiliations: toCommaSeparatedValue(mergedData.hospitalAffiliations),
+      servicesOffered: toCommaSeparatedValue(mergedData.servicesOffered),
     });
-  }, [professionalQuery.data]);
+
+    setProfileErrors({ phone: "", alternatePhone: "" });
+  }, [hasHydrationData, profileQuery.data, professionalQuery.data]);
 
   const handleProfileSave = () => {
+    const phoneError = getEgyptianPhoneValidationError(profileForm.phone, "Phone number");
+    const alternatePhoneError = getEgyptianPhoneValidationError(
+      profileForm.alternatePhone,
+      "Alternate phone number",
+    );
+
+    if (phoneError || alternatePhoneError) {
+      setProfileErrors({
+        phone: phoneError ?? "",
+        alternatePhone: alternatePhoneError ?? "",
+      });
+      toast.error("Please correct the phone number format before saving.");
+      return;
+    }
+
+    setProfileErrors({ phone: "", alternatePhone: "" });
+
+    const normalizedPhone = profileForm.phone.trim()
+      ? normalizeEgyptianPhone(profileForm.phone).e164
+      : undefined;
+    const normalizedAlternatePhone = profileForm.alternatePhone.trim()
+      ? normalizeEgyptianPhone(profileForm.alternatePhone).e164
+      : undefined;
+
     const payload: UpdateDoctorProfileRequest = {
       displayName: profileForm.displayName || undefined,
       firstName: profileForm.firstName || undefined,
       lastName: profileForm.lastName || undefined,
-      phone: profileForm.phone || undefined,
-      alternatePhone: profileForm.alternatePhone || undefined,
+      phone: normalizedPhone ?? undefined,
+      alternatePhone: normalizedAlternatePhone ?? undefined,
       dateOfBirth: profileForm.dateOfBirth || undefined,
       gender: profileForm.gender || undefined,
       addressLine1: profileForm.addressLine1 || undefined,
@@ -161,7 +198,6 @@ export const DoctorProfileSettingsSections = () => {
     const payload: UpdateDoctorProfessionalProfileRequest = {
       specialty: professionalForm.specialty || undefined,
       subspecialty: professionalForm.subspecialty || undefined,
-      licenseNumber: professionalForm.licenseNumber || undefined,
       yearsOfExperience: toNullableNumber(professionalForm.yearsOfExperience),
       consultationFee: toNullableNumber(professionalForm.consultationFee),
       clinicName: professionalForm.clinicName || undefined,
@@ -193,7 +229,7 @@ export const DoctorProfileSettingsSections = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {profileQuery.isLoading ? (
+          {profileQuery.isLoading || professionalQuery.isLoading || !hasHydrationData ? (
             <div className="grid gap-4 md:grid-cols-2">
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
@@ -228,11 +264,30 @@ export const DoctorProfileSettingsSections = () => {
                   <Label htmlFor="doctor-phone">Phone</Label>
                   <Input
                     id="doctor-phone"
+                    type="tel"
+                    placeholder="01012345678"
                     value={profileForm.phone}
-                    onChange={(event) =>
-                      setProfileForm((current) => ({ ...current, phone: event.target.value }))
+                    onChange={(event) => {
+                      const nextValue = event.target.value;
+                      setProfileForm((current) => ({ ...current, phone: nextValue }));
+                      if (profileErrors.phone) {
+                        setProfileErrors((current) => ({ ...current, phone: "" }));
+                      }
+                    }}
+                    onBlur={() =>
+                      setProfileErrors((current) => ({
+                        ...current,
+                        phone:
+                          getEgyptianPhoneValidationError(
+                            profileForm.phone,
+                            "Phone number",
+                          ) ?? "",
+                      }))
                     }
                   />
+                  {profileErrors.phone && (
+                    <p className="text-sm text-destructive">{profileErrors.phone}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="doctor-first-name">First Name</Label>
@@ -264,14 +319,38 @@ export const DoctorProfileSettingsSections = () => {
                   <Label htmlFor="doctor-alt-phone">Alternate Phone</Label>
                   <Input
                     id="doctor-alt-phone"
+                    type="tel"
+                    placeholder="01012345678"
                     value={profileForm.alternatePhone}
-                    onChange={(event) =>
+                    onChange={(event) => {
+                      const nextValue = event.target.value;
                       setProfileForm((current) => ({
                         ...current,
-                        alternatePhone: event.target.value,
+                        alternatePhone: nextValue,
+                      }));
+                      if (profileErrors.alternatePhone) {
+                        setProfileErrors((current) => ({
+                          ...current,
+                          alternatePhone: "",
+                        }));
+                      }
+                    }}
+                    onBlur={() =>
+                      setProfileErrors((current) => ({
+                        ...current,
+                        alternatePhone:
+                          getEgyptianPhoneValidationError(
+                            profileForm.alternatePhone,
+                            "Alternate phone number",
+                          ) ?? "",
                       }))
                     }
                   />
+                  {profileErrors.alternatePhone && (
+                    <p className="text-sm text-destructive">
+                      {profileErrors.alternatePhone}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="doctor-dob">Date of Birth</Label>
@@ -402,7 +481,7 @@ export const DoctorProfileSettingsSections = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {professionalQuery.isLoading ? (
+          {professionalQuery.isLoading || profileQuery.isLoading || !hasHydrationData ? (
             <div className="grid gap-4 md:grid-cols-2">
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
@@ -451,13 +530,12 @@ export const DoctorProfileSettingsSections = () => {
                   <Input
                     id="doctor-license-number"
                     value={professionalForm.licenseNumber}
-                    onChange={(event) =>
-                      setProfessionalForm((current) => ({
-                        ...current,
-                        licenseNumber: event.target.value,
-                      }))
-                    }
+                    readOnly
+                    disabled
                   />
+                  <p className="text-xs text-muted-foreground">
+                    License numbers are read-only once verified.
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="doctor-years-of-experience">Years of Experience</Label>
@@ -602,12 +680,6 @@ export const DoctorProfileSettingsSections = () => {
                     placeholder="Comma-separated values"
                   />
                 </div>
-              </div>
-
-              <div className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
-                <MapPin className="mb-2 h-4 w-4" />
-                Empty values are supported, so this form can work even if the backend has not populated
-                every professional profile field yet.
               </div>
 
               <Button
