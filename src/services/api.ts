@@ -167,6 +167,15 @@ export async function apiRequest<T>(
     ...rest,
   };
 
+  debugLog("[API REQUEST CONFIG]", {
+    url: requestConfig.url,
+    baseURL: requestConfig.baseURL ?? apiClient.defaults.baseURL,
+    method: (requestConfig.method ?? "GET").toUpperCase(),
+    timeout: requestConfig.timeout ?? apiClient.defaults.timeout,
+    headers: requestConfig.headers,
+    body: requestConfig.data,
+  });
+
   const response = await apiClient.request<T>(requestConfig);
   return response.data;
 }
