@@ -64,6 +64,22 @@ const pickString = (record: Record<string, unknown>, keys: string[]) => {
   return undefined;
 };
 
+const pickIdentifier = (record: Record<string, unknown>, keys: string[]) => {
+  for (const key of keys) {
+    const value = record[key];
+
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return String(value);
+    }
+  }
+
+  return undefined;
+};
+
 const pickNullableString = (record: Record<string, unknown>, keys: string[]) => {
   for (const key of keys) {
     const value = record[key];
@@ -273,10 +289,83 @@ const normalizeDayName = (value: string | null | undefined) => {
 
 const normalizeDoctorDashboardSummary = (payload: unknown): DoctorDashboardSummary => {
   const raw = unwrapPayload(payload);
+  const counts = mergeRecords(
+    pickRecord(raw, ["counts", "count", "stats", "metrics", "summary"]),
+    pickRecord(raw, ["dashboard", "dashboardSummary", "dashboard_summary"]),
+  );
+  const quickStats = mergeRecords(
+    pickRecord(raw, ["quickStats", "quick_stats"]),
+    pickRecord(raw, ["stats", "summary", "metrics"]),
+  );
+  const todayQueueSource =
+    (Array.isArray(raw.todayQueue) && raw.todayQueue) ||
+    (Array.isArray(raw.today_queue) && raw.today_queue) ||
+    (Array.isArray(raw.queue) && raw.queue) ||
+    (Array.isArray(raw.queueItems) && raw.queueItems) ||
+    (Array.isArray(asRecord(raw.todayQueue).items) && asRecord(raw.todayQueue).items) ||
+    [];
+  const todayQueue = todayQueueSource.map((item) => {
+    const record = asRecord(item);
+    const patient = mergeRecords(
+      pickRecord(record, ["patient", "patientProfile", "patientDetails"]),
+      pickRecord(record, ["patientInfo", "profile"]),
+    );
+    const appointment = mergeRecords(
+      pickRecord(record, ["appointment", "appointmentDetails", "appointmentInfo"]),
+      pickRecord(record, ["appointmentRecord"]),
+    );
+
+    return {
+      id:
+        pickIdentifier(record, ["id", "_id", "appointmentId", "appointment_id"]) ??
+        pickIdentifier(appointment, ["id", "_id", "appointmentId", "appointment_id"]) ??
+        pickIdentifier(patient, ["id", "_id", "patientId", "patient_id"]),
+      patientId:
+        pickIdentifier(record, ["patientId", "patient_id"]) ??
+        pickIdentifier(patient, ["id", "_id", "patientId", "patient_id"]) ??
+        null,
+      patientName:
+        pickString(record, ["patientName", "patient_name", "fullName", "full_name", "name"]) ??
+        pickString(patient, ["fullName", "full_name", "displayName", "name"]) ??
+        "Patient",
+      status:
+        pickNullableString(record, ["status", "appointmentStatus", "appointment_status"]) ??
+        pickNullableString(appointment, ["status", "appointmentStatus", "appointment_status"]),
+      reason:
+        pickNullableString(record, ["reason", "chiefComplaint", "chief_complaint", "complaint"]) ??
+        pickNullableString(appointment, ["reason", "chiefComplaint", "chief_complaint", "complaint"]),
+      scheduledAt:
+        pickNullableString(record, [
+          "scheduledAt",
+          "scheduled_at",
+          "appointmentDateTime",
+          "appointment_datetime",
+          "startAt",
+          "start_at",
+        ]) ??
+        pickNullableString(appointment, [
+          "scheduledAt",
+          "scheduled_at",
+          "appointmentDateTime",
+          "appointment_datetime",
+          "startAt",
+          "start_at",
+        ]),
+    };
+  });
   const professional = mergeRecords(
     pickRecord(raw, ["professionalProfile", "professional_profile"]),
     pickRecord(raw, ["doctorProfile", "doctor_profile"]),
   );
+  const quickStatsTotalPatients =
+    pickNullableNumber(quickStats, [
+      "totalPatients",
+      "total_patients",
+      "totalPatientsCount",
+      "total_patients_count",
+      "patientsCount",
+      "patientCount",
+    ]) ?? null;
 
   return {
     doctorId: pickString(raw, ["doctorId", "id", "_id", "userId"]),
@@ -302,24 +391,65 @@ const normalizeDoctorDashboardSummary = (payload: unknown): DoctorDashboardSumma
       "total_patients_count",
       "patientsCount",
       "patientCount",
-    ]),
+      "totalPatients",
+      "total_patients",
+    ]) ?? pickNullableNumber(counts, [
+      "totalPatientsCount",
+      "total_patients_count",
+      "patientsCount",
+      "patientCount",
+      "totalPatients",
+      "total_patients",
+    ]) ?? quickStatsTotalPatients,
     totalAppointmentsToday: pickNullableNumber(raw, [
       "totalAppointmentsToday",
       "total_appointments_today",
       "appointmentsToday",
+      "todayAppointments",
+      "todaysAppointments",
+      "today_appointments",
+    ]) ?? pickNullableNumber(counts, [
+      "totalAppointmentsToday",
+      "total_appointments_today",
+      "appointmentsToday",
+      "todayAppointments",
+      "todaysAppointments",
+      "today_appointments",
     ]),
     completedAppointmentsToday: pickNullableNumber(raw, [
       "completedAppointmentsToday",
       "completed_appointments_today",
+      "completedToday",
+      "completed_today",
+    ]) ?? pickNullableNumber(counts, [
+      "completedAppointmentsToday",
+      "completed_appointments_today",
+      "completedToday",
+      "completed_today",
     ]),
     upcomingAppointmentsToday: pickNullableNumber(raw, [
       "upcomingAppointmentsToday",
       "upcoming_appointments_today",
+      "upcomingToday",
+      "upcoming_today",
+    ]) ?? pickNullableNumber(counts, [
+      "upcomingAppointmentsToday",
+      "upcoming_appointments_today",
+      "upcomingToday",
+      "upcoming_today",
     ]),
     pendingAppointmentRequestsCount: pickNullableNumber(raw, [
       "pendingAppointmentRequestsCount",
       "pending_appointment_requests_count",
       "pendingRequestsCount",
+      "pendingRequests",
+      "pending_requests",
+    ]) ?? pickNullableNumber(counts, [
+      "pendingAppointmentRequestsCount",
+      "pending_appointment_requests_count",
+      "pendingRequestsCount",
+      "pendingRequests",
+      "pending_requests",
     ]),
     nextAvailableSlot: pickNullableString(raw, [
       "nextAvailableSlot",
@@ -331,6 +461,25 @@ const normalizeDoctorDashboardSummary = (payload: unknown): DoctorDashboardSumma
       "profile_completion_percentage",
       "completionPercentage",
     ]),
+    quickStats: {
+      totalPatients: quickStatsTotalPatients,
+      totalPatientsCount: quickStatsTotalPatients,
+      pendingRequests:
+        pickNullableNumber(quickStats, [
+          "pendingRequests",
+          "pending_requests",
+          "pendingRequestsCount",
+          "pending_requests_count",
+        ]) ?? null,
+      pendingRequestsCount:
+        pickNullableNumber(quickStats, [
+          "pendingRequests",
+          "pending_requests",
+          "pendingRequestsCount",
+          "pending_requests_count",
+        ]) ?? null,
+    },
+    todayQueue,
   };
 };
 

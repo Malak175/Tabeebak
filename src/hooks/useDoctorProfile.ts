@@ -9,7 +9,7 @@ import {
 
 export const doctorQueryKeys = {
   all: ["doctor"] as const,
-  dashboardSummary: () => ["doctor", "dashboard-summary"] as const,
+  dashboardSummary: () => ["dashboard-summary"] as const,
   profile: () => ["doctor", "profile"] as const,
   professionalProfile: () => ["doctor", "professional-profile"] as const,
   availability: () => ["doctor", "availability"] as const,

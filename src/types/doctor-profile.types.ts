@@ -1,3 +1,19 @@
+export interface DoctorDashboardQuickStats {
+  totalPatients?: number | null;
+  totalPatientsCount?: number | null;
+  pendingRequests?: number | null;
+  pendingRequestsCount?: number | null;
+}
+
+export interface DoctorDashboardQueueItem {
+  id?: string;
+  patientId?: string | null;
+  patientName?: string | null;
+  status?: string | null;
+  reason?: string | null;
+  scheduledAt?: string | null;
+}
+
 export interface DoctorDashboardSummary {
   doctorId?: string;
   firstName?: string;
@@ -16,6 +32,8 @@ export interface DoctorDashboardSummary {
   pendingAppointmentRequestsCount?: number | null;
   nextAvailableSlot?: string | null;
   profileCompletionPercentage?: number | null;
+  quickStats?: DoctorDashboardQuickStats | null;
+  todayQueue?: DoctorDashboardQueueItem[];
 }
 
 export interface DoctorProfile {
