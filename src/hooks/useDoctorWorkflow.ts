@@ -30,9 +30,11 @@ export const doctorWorkflowQueryKeys = {
   appointments: (params?: DoctorAppointmentFilterParams) =>
     ["doctor-workflow", "appointments", normalizeListParams(params)] as const,
   todayAppointments: (params?: DoctorAppointmentFilterParams) =>
-    ["doctor-workflow", "appointments", "today", normalizeListParams(params)] as const,
+    ["appointments-today", normalizeListParams(params)] as const,
+  pendingRequests: (params?: DoctorAppointmentRequestFilterParams) =>
+    ["pending-requests", normalizeListParams(params)] as const,
   appointmentDetails: (appointmentId: string) =>
-    ["doctor-workflow", "appointments", "detail", appointmentId] as const,
+    ["appointment-details", appointmentId] as const,
   patients: (params?: DoctorPatientFilterParams) =>
     ["doctor-workflow", "patients", normalizeListParams(params)] as const,
   patientSummary: (patientId: string) =>
@@ -40,8 +42,8 @@ export const doctorWorkflowQueryKeys = {
   prescriptions: (params?: DoctorPrescriptionFilterParams) =>
     ["doctor-workflow", "prescriptions", normalizeListParams(params)] as const,
   prescriptionDetails: (prescriptionId: string) =>
-    ["doctor-workflow", "prescriptions", "detail", prescriptionId] as const,
-  reviewsSummary: () => ["doctor-workflow", "reviews", "summary"] as const,
+    ["prescription", prescriptionId] as const,
+  reviewsSummary: () => ["reviews-summary"] as const,
   reviews: (params?: DoctorReviewFilterParams) =>
     ["doctor-workflow", "reviews", normalizeListParams(params)] as const,
 };
@@ -55,6 +57,16 @@ export const useDoctorAppointmentRequestsQuery = (
     queryFn: () => doctorWorkflowService.getDoctorAppointmentRequests(params),
     enabled,
     placeholderData: (previousData) => previousData,
+  });
+
+export const useDoctorPendingAppointmentRequestsQuery = (
+  params?: DoctorAppointmentRequestFilterParams,
+  enabled = true,
+) =>
+  useQuery({
+    queryKey: doctorWorkflowQueryKeys.pendingRequests(params),
+    queryFn: () => doctorWorkflowService.getDoctorAppointmentRequests(params),
+    enabled,
   });
 
 export const useDoctorAppointmentRequestDetailsQuery = (
@@ -80,6 +92,7 @@ export const useUpdateDoctorAppointmentRequestStatusMutation = () => {
     }) => doctorWorkflowService.updateDoctorAppointmentRequestStatus(requestId, payload),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: doctorWorkflowQueryKeys.appointmentRequests() });
+      queryClient.invalidateQueries({ queryKey: doctorWorkflowQueryKeys.pendingRequests() });
       queryClient.invalidateQueries({ queryKey: doctorWorkflowQueryKeys.all });
       queryClient.invalidateQueries({
         queryKey: doctorWorkflowQueryKeys.appointmentRequestDetails(variables.requestId),
@@ -122,7 +135,6 @@ export const useDoctorTodayAppointmentsQuery = (
     queryKey: doctorWorkflowQueryKeys.todayAppointments(params),
     queryFn: () => doctorWorkflowService.getDoctorTodayAppointments(params),
     enabled,
-    placeholderData: (previousData) => previousData,
   });
 
 export const useDoctorAppointmentDetailsQuery = (
@@ -141,10 +153,11 @@ export const useUpdateDoctorAppointmentMutation = (appointmentId: string) => {
   return useMutation({
     mutationFn: (payload: UpdateDoctorAppointmentPayload) =>
       doctorWorkflowService.updateDoctorAppointment(payload),
-    onSuccess: () => {
-      if (appointmentId) {
+    onSuccess: (_data, variables) => {
+      const resolvedAppointmentId = variables?.appointmentId || appointmentId;
+      if (resolvedAppointmentId) {
         queryClient.invalidateQueries({
-          queryKey: doctorWorkflowQueryKeys.appointmentDetails(appointmentId),
+          queryKey: doctorWorkflowQueryKeys.appointmentDetails(resolvedAppointmentId),
         });
       }
       queryClient.invalidateQueries({ queryKey: doctorWorkflowQueryKeys.appointments() });
@@ -200,10 +213,16 @@ export const useCreateDoctorPrescriptionMutation = (appointmentId: string) => {
   return useMutation({
     mutationFn: (payload: CreatePrescriptionPayload) =>
       doctorWorkflowService.createDoctorPrescription(payload),
-    onSuccess: () => {
+    onSuccess: (data) => {
       if (appointmentId) {
         queryClient.invalidateQueries({
           queryKey: doctorWorkflowQueryKeys.appointmentDetails(appointmentId),
+        });
+      }
+      const latestPrescriptionId = data.prescriptions?.[0]?.id ?? null;
+      if (latestPrescriptionId) {
+        queryClient.invalidateQueries({
+          queryKey: doctorWorkflowQueryKeys.prescriptionDetails(latestPrescriptionId),
         });
       }
       queryClient.invalidateQueries({ queryKey: doctorWorkflowQueryKeys.prescriptions() });
