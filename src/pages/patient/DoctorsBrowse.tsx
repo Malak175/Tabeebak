@@ -107,10 +107,10 @@ const PatientDoctorsBrowsePage = () => {
         </div>
       ) : null}
       <section className="mb-6 rounded-3xl border bg-card p-6 shadow-sm">
-        <p className="text-sm font-medium uppercase tracking-[0.18em] text-primary">Doctor Requests</p>
-        <h1 className="mt-3 text-3xl font-bold">Browse doctors and send a request</h1>
+        <p className="text-sm font-medium uppercase tracking-[0.18em] text-primary">Find a doctor</p>
+        <h1 className="mt-3 text-3xl font-bold">Browse doctors and request an appointment</h1>
         <p className="mt-2 max-w-2xl text-muted-foreground">
-          Provider discovery is backend-backed through the public doctor endpoints. Open a profile to review details, availability, and submit an appointment request.
+          Review profiles, availability, and request an appointment with the right provider.
         </p>
         <div className="mt-6 flex flex-col gap-3 lg:flex-row">
           <div className="relative flex-1">
@@ -211,7 +211,7 @@ const PatientDoctorsBrowsePage = () => {
                   )}
                   <div className="flex flex-wrap gap-2">
                     <Button onClick={() => handleDoctorNavigation(doctor.id, doctor.doctorId)}>
-                      Open details
+                      View details
                     </Button>
                     <Button
                       variant="outline"

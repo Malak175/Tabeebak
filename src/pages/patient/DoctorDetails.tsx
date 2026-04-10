@@ -334,7 +334,7 @@ const PatientDoctorDetailsPage = () => {
                 className="w-full"
                 disabled={createRequestMutation.isPending || !doctor.doctorId || !selectedSlotStart}
               >
-                {createRequestMutation.isPending ? "Submitting..." : "Send request"}
+                {createRequestMutation.isPending ? "Submitting..." : "Request appointment"}
               </Button>
               {!doctor.doctorId ? (
                 <p className="text-sm text-destructive">
