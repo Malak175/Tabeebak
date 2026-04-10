@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+﻿import { Link } from "react-router-dom";
 import { format, isValid, parseISO } from "date-fns";
 import { Calendar, ClipboardList, FlaskConical, Phone, ShieldCheck, User } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
@@ -274,7 +274,7 @@ const PatientDashboard = () => {
           Welcome back, {userName.split(" ")[0]}!
         </h1>
         <p className="text-muted-foreground">
-          Here is a smarter snapshot of your care, even when some modules are still coming online.
+          Here is a clear snapshot of your health and care in one place.
         </p>
       </div>
 
@@ -458,7 +458,7 @@ const PatientDashboard = () => {
               <CardHeader>
                 <CardTitle>Medical History Summary</CardTitle>
                 <CardDescription>
-                  Read-only summary loaded from `/api/v1/patients/me/medical-history-summary`.
+                  Summary of your recorded medical history.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -632,8 +632,8 @@ const PatientDashboard = () => {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between gap-3">
                 <div>
-                  <CardTitle>Recent AI Analyses</CardTitle>
-                  <CardDescription>AI summaries generated from recent lab results.</CardDescription>
+                  <CardTitle>Recent Lab Insights</CardTitle>
+                  <CardDescription>Highlights from recent lab interpretations.</CardDescription>
                 </div>
                 <Button asChild variant="outline" size="sm">
                   <Link to="/patient/lab-results">View Lab Results</Link>
@@ -647,7 +647,7 @@ const PatientDashboard = () => {
                   </>
                 ) : recentLabResultsQuery.isError ? (
                   <Alert variant="destructive">
-                    <AlertTitle>Unable to load AI analyses</AlertTitle>
+                    <AlertTitle>Unable to load lab insights</AlertTitle>
                     <AlertDescription>{(recentLabResultsQuery.error as Error).message}</AlertDescription>
                   </Alert>
                 ) : recentAnalyses.length ? (
@@ -664,7 +664,7 @@ const PatientDashboard = () => {
                   ))
                 ) : (
                   <div className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">
-                    No AI analyses are available yet.
+                    No lab insights are available yet.
                   </div>
                 )}
               </CardContent>
@@ -705,3 +705,4 @@ const PatientDashboard = () => {
 };
 
 export default PatientDashboard;
+
