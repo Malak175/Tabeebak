@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 import { format, isValid, parseISO } from "date-fns";
 import { ClipboardList, Download, FlaskConical, User } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -102,7 +102,7 @@ const PatientLabResults = () => {
       <div className="mb-6">
         <h1 className="mb-2 text-2xl font-bold md:text-3xl">Lab Results & Orders</h1>
         <p className="text-muted-foreground">
-          Live lab results and lab orders are now connected to the backend with pagination and filters.
+          Track your lab results and orders, with filters to help you find what you need.
         </p>
       </div>
 
@@ -201,7 +201,7 @@ const PatientLabResults = () => {
                           <Button asChild variant="outline">
                             <a href={result.reportUrl} target="_blank" rel="noreferrer">
                               <Download className="mr-2 h-4 w-4" />
-                              Report
+                              Open Full Report
                             </a>
                           </Button>
                         ) : null}
@@ -319,3 +319,5 @@ const PatientLabResults = () => {
 };
 
 export default PatientLabResults;
+
+

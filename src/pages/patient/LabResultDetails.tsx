@@ -100,9 +100,9 @@ const normalizePrediction = (payload: unknown): LabPrediction | null => {
 
   const explanation =
     riskLevel === "High"
-      ? "The AI analysis indicates an elevated cardiovascular risk based on the available lab data. Please consider consulting a doctor."
+      ? "The AI analysis indicates an elevated health risk based on the available lab data. Please consider consulting a doctor."
       : riskLevel === "Low"
-        ? "The AI analysis indicates a lower cardiovascular risk based on the available lab data."
+        ? "The AI analysis indicates a lower health risk based on the available lab data."
         : null;
 
   return {
@@ -143,6 +143,7 @@ const PatientLabResultDetails = () => {
   const [prediction, setPrediction] = useState<LabPrediction | null>(null);
   const [predictionLoading, setPredictionLoading] = useState(false);
   const [predicting, setPredicting] = useState(false);
+  const [predictionError, setPredictionError] = useState<string | null>(null);
   const analysisRef = useRef<HTMLDivElement | null>(null);
 
   const requestId = query.data?.requestId ?? null;
@@ -154,6 +155,7 @@ const PatientLabResultDetails = () => {
     let isActive = true;
 
     setPredictionLoading(true);
+    setPredictionError(null);
     apiRequest<unknown>(`/api/v1/test-requests/${requestId}/predictions`, { method: "GET", auth: true })
       .then((response) => {
         if (!isActive) return;
@@ -167,6 +169,7 @@ const PatientLabResultDetails = () => {
           return;
         }
         const message = error instanceof Error ? error.message : "Unable to load AI analysis.";
+        setPredictionError(message);
         toast.error(message);
       })
       .finally(() => {
@@ -181,6 +184,7 @@ const PatientLabResultDetails = () => {
   const handleRunAnalysis = async () => {
     if (!requestId) return;
     setPredicting(true);
+    setPredictionError(null);
     try {
       await apiRequest(`/api/v1/test-requests/${requestId}/predict`, { method: "POST", auth: true });
       const response = await apiRequest<unknown>(`/api/v1/test-requests/${requestId}/predictions`, {
@@ -189,12 +193,15 @@ const PatientLabResultDetails = () => {
       });
       const normalized = normalizePrediction(response);
       if (!normalized) {
-        toast.error("Prediction completed, but no analysis was returned.");
+        const message = "Prediction completed, but no analysis was returned.";
+        setPredictionError(message);
+        toast.error(message);
       }
       setPrediction(normalized);
       analysisRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Unable to run AI analysis.";
+      setPredictionError(message);
       toast.error(message);
     } finally {
       setPredicting(false);
@@ -304,12 +311,12 @@ const PatientLabResultDetails = () => {
         <Button asChild variant="ghost" className="-ml-4 mb-2">
           <Link to="/patient/lab-results">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to lab records
+            Back to lab results
           </Link>
         </Button>
         <h1 className="text-2xl font-bold md:text-3xl">Lab Result Details</h1>
         <p className="text-muted-foreground">
-          Result details are loaded per record from the patient lab results detail endpoint.
+          Review your lab result details, measurements, and related notes.
         </p>
       </div>
 
@@ -433,6 +440,9 @@ const PatientLabResultDetails = () => {
                         : "No AI analysis is available for this request yet."}
                     </p>
                   )}
+                  {predictionError ? (
+                    <p className="mt-3 text-sm text-destructive">{predictionError}</p>
+                  ) : null}
                 </div>
               </CardContent>
             </Card>
@@ -458,17 +468,17 @@ const PatientLabResultDetails = () => {
                 {requestId ? (
                   hasPrediction ? (
                     <>
-                      <Button className="w-full" variant="outline" onClick={handleViewAnalysis}>
-                        View Analysis
-                      </Button>
-                      <Button className="w-full" variant="outline" onClick={handleDownloadAiReport}>
-                        Download AI Report
-                      </Button>
-                    </>
-                  ) : (
-                    <Button
-                      className="w-full"
-                      onClick={handleRunAnalysis}
+                  <Button className="w-full" variant="outline" onClick={handleViewAnalysis}>
+                    View Analysis
+                  </Button>
+                  <Button className="w-full" variant="outline" onClick={handleDownloadAiReport}>
+                    Print / Save AI Report
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  className="w-full"
+                  onClick={handleRunAnalysis}
                       disabled={predicting || predictionLoading}
                     >
                       {predicting ? "Running Analysis..." : "Run AI Analysis"}
@@ -489,14 +499,20 @@ const PatientLabResultDetails = () => {
                       })
                     }
                   >
-                    Book Doctor
+                    Book doctor
                   </Button>
                 ) : null}
               </CardContent>
             </Card>
           </div>
         </div>
-      ) : null}
+      ) : (
+        <Card>
+          <CardContent className="p-6 text-center text-muted-foreground">
+            This lab result could not be found. Please return to your lab results and try again.
+          </CardContent>
+        </Card>
+      )}
     </DashboardLayout>
   );
 };
