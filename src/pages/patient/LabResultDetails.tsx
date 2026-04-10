@@ -205,6 +205,94 @@ const PatientLabResultDetails = () => {
     analysisRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
+  const handleDownloadAiReport = () => {
+    if (!query.data || !prediction) return;
+
+    const reportWindow = window.open("", "_blank", "width=900,height=700");
+    if (!reportWindow) {
+      toast.error("Unable to open the report preview. Please allow pop-ups and try again.");
+      return;
+    }
+
+    const title = "AI Health Risk Report";
+    const documentTitle = `AI Report - ${query.data.testName || "Lab Result"}`;
+    const generatedAt = new Date().toLocaleString();
+    const reportHtml = `
+      <!doctype html>
+      <html lang="en">
+        <head>
+          <meta charset="utf-8" />
+          <title>${documentTitle}</title>
+          <style>
+            body { font-family: Arial, sans-serif; color: #111827; margin: 32px; }
+            h1 { font-size: 22px; margin: 0 0 8px; }
+            h2 { font-size: 16px; margin: 24px 0 8px; }
+            .muted { color: #6b7280; font-size: 13px; }
+            .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+            .card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; }
+            .label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: #6b7280; }
+            .value { font-size: 14px; margin-top: 4px; }
+            .disclaimer { margin-top: 24px; font-size: 12px; color: #6b7280; }
+          </style>
+        </head>
+        <body>
+          <h1>${title}</h1>
+          <div class="muted">
+            Generated from your lab result details.<br/>
+            Generated at: ${generatedAt}
+          </div>
+
+          <h2>Test Details</h2>
+          <div class="grid">
+            <div class="card">
+              <div class="label">Test name</div>
+              <div class="value">${query.data.testName || "Not available"}</div>
+            </div>
+            <div class="card">
+              <div class="label">Laboratory</div>
+              <div class="value">${query.data.laboratoryName || "Not available"}</div>
+            </div>
+            <div class="card">
+              <div class="label">Reported date</div>
+              <div class="value">${formatDate(query.data.reportedAt)}</div>
+            </div>
+          </div>
+
+          <h2>AI Analysis</h2>
+          <div class="grid">
+            <div class="card">
+              <div class="label">Risk level</div>
+              <div class="value">${getRiskTone(prediction.riskLevel).label}</div>
+            </div>
+            <div class="card">
+              <div class="label">Probability</div>
+              <div class="value">${formatProbability(prediction.probability)}</div>
+            </div>
+            <div class="card">
+              <div class="label">Threshold used</div>
+              <div class="value">${prediction.thresholdUsed != null ? prediction.thresholdUsed : "Not available"}</div>
+            </div>
+            <div class="card" style="grid-column: 1 / -1;">
+              <div class="label">Explanation</div>
+              <div class="value">${prediction.explanation || "No explanation provided."}</div>
+            </div>
+          </div>
+
+          <div class="disclaimer">
+            Disclaimer: This AI-generated report is informational only and does not replace professional
+            medical advice, diagnosis, or treatment.
+          </div>
+        </body>
+      </html>
+    `;
+
+    reportWindow.document.open();
+    reportWindow.document.write(reportHtml);
+    reportWindow.document.close();
+    reportWindow.focus();
+    reportWindow.print();
+  };
+
   return (
     <DashboardLayout
       userRole="patient"
@@ -369,9 +457,14 @@ const PatientLabResultDetails = () => {
                 ) : null}
                 {requestId ? (
                   hasPrediction ? (
-                    <Button className="w-full" variant="outline" onClick={handleViewAnalysis}>
-                      View Analysis
-                    </Button>
+                    <>
+                      <Button className="w-full" variant="outline" onClick={handleViewAnalysis}>
+                        View Analysis
+                      </Button>
+                      <Button className="w-full" variant="outline" onClick={handleDownloadAiReport}>
+                        Download AI Report
+                      </Button>
+                    </>
                   ) : (
                     <Button
                       className="w-full"
