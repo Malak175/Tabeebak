@@ -119,7 +119,7 @@ const DoctorPatients = () => {
       <div className="mb-6">
         <h1 className="mb-2 text-2xl font-bold md:text-3xl">Patients</h1>
         <p className="text-muted-foreground">
-          Review your paginated patient roster and live patient summary data from the backend.
+          Review your paginated patient roster and live patient summary data.
         </p>
       </div>
 

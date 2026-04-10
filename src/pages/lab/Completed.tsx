@@ -115,7 +115,7 @@ const LabCompleted = () => {
         <div>
           <h1 className="mb-2 text-2xl font-bold md:text-3xl">Orders & Results History</h1>
           <p className="text-muted-foreground">
-            Browse the live lab order ledger and previously uploaded results from the backend.
+            Browse the live lab order ledger and previously uploaded results.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">

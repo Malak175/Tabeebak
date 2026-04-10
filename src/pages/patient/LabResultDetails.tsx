@@ -383,7 +383,7 @@ const PatientLabResultDetails = () => {
                       ) : (
                         <TableRow>
                           <TableCell colSpan={4} className="text-center text-muted-foreground">
-                            No measurement breakdown was returned for this result.
+                            No measurements are available yet for this result.
                           </TableCell>
                         </TableRow>
                       )}
@@ -499,7 +499,7 @@ const PatientLabResultDetails = () => {
                       })
                     }
                   >
-                    Book doctor
+                    Book an appointment
                   </Button>
                 ) : null}
               </CardContent>

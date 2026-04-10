@@ -65,7 +65,7 @@ const PatientPrescriptionDetails = () => {
         </Button>
         <h1 className="text-2xl font-bold md:text-3xl">Prescription Details</h1>
         <p className="text-muted-foreground">
-          This page fetches a single prescription by id from the live backend.
+          This page shows details for a single prescription.
         </p>
       </div>
 

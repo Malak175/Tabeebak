@@ -78,7 +78,7 @@ const PatientPrescriptions = () => {
       <div className="mb-6">
         <h1 className="mb-2 text-2xl font-bold md:text-3xl">Prescriptions</h1>
         <p className="text-muted-foreground">
-          Browse your medication history with backend pagination and filters.
+          Browse your medication history with filters and pagination.
         </p>
       </div>
 

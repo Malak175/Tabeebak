@@ -659,7 +659,7 @@ export const AccountSettingsContent = ({
 
         <SettingsEditor
           title="Notification Preferences"
-          description="Connected to the shared notification preferences endpoints."
+          description="Manage shared notification preferences."
           icon={Bell}
           values={notificationDraft}
           setValues={setNotificationDraft}
@@ -678,7 +678,7 @@ export const AccountSettingsContent = ({
 
         <SettingsEditor
           title="Security Settings"
-          description="Connected to the shared security settings endpoints."
+          description="Manage shared security settings."
           icon={Shield}
           values={securityDraft}
           setValues={setSecurityDraft}

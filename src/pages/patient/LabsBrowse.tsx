@@ -82,7 +82,7 @@ const PatientLabsBrowsePage = () => {
         <p className="text-sm font-medium uppercase tracking-[0.18em] text-primary">Lab Requests</p>
         <h1 className="mt-3 text-3xl font-bold">Browse labs and request a test</h1>
         <p className="mt-2 max-w-2xl text-muted-foreground">
-          Discovery, branches, and services all come from live backend endpoints. Open a lab to choose services and send a test request.
+          Discover labs, compare services, and send a test request.
         </p>
         <div className="mt-6 flex flex-col gap-3 lg:flex-row">
           <div className="relative flex-1">

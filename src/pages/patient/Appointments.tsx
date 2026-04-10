@@ -154,7 +154,7 @@ const PatientAppointments = () => {
         <div>
           <h1 className="mb-2 text-2xl font-bold md:text-3xl">My Appointments</h1>
           <p className="text-muted-foreground">
-            Your upcoming visits and paginated appointment history are now loaded from the patient endpoints.
+            Your upcoming visits and appointment history appear here.
           </p>
         </div>
         <Button asChild className="gap-2">

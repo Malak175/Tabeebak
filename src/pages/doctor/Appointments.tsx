@@ -189,7 +189,7 @@ const DoctorAppointments = () => {
         <div>
           <h1 className="mb-2 text-2xl font-bold md:text-3xl">Appointments</h1>
           <p className="text-muted-foreground">
-            Manage your live appointment queue and paginated appointment history from the backend.
+            Manage your live appointment queue and appointment history.
           </p>
         </div>
         <div className="rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground">

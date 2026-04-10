@@ -364,7 +364,7 @@ const PatientDashboard = () => {
             <div className="rounded-lg bg-muted p-3 text-muted-foreground">
               {summary?.healthTip?.trim()
                 ? summary.healthTip
-                : "Personalized health tips will appear here when the backend provides them."}
+                : "Personalized health tips will appear here when they are available."}
             </div>
           </CardContent>
         </Card>

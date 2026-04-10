@@ -66,7 +66,7 @@ const PatientAppointmentDetails = () => {
           </Button>
           <h1 className="text-2xl font-bold md:text-3xl">Appointment Details</h1>
           <p className="text-muted-foreground">
-            Appointment data is fetched directly by id from the patient records endpoint.
+            Appointment details are shown for this visit.
           </p>
         </div>
       </div>

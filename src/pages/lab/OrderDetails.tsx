@@ -369,7 +369,7 @@ const LabOrderDetailsPage = () => {
                   <div className="rounded-lg border bg-muted/10 p-4">
                     <p className="text-sm text-muted-foreground">Patient note</p>
                     <p className="mt-2 whitespace-pre-wrap text-sm">
-                      {patientNote || "No patient-facing lab request notes were returned."}
+                      {patientNote || "No notes were added to this request."}
                     </p>
                   </div>
                 </CardContent>
@@ -460,7 +460,7 @@ const LabOrderDetailsPage = () => {
                   />
                   {!detail.requestId ? (
                     <p className="text-sm text-muted-foreground">
-                      Messaging is unavailable because the request ID is missing from the lab detail response.
+                      Messaging is unavailable for this request at the moment.
                     </p>
                   ) : null}
                   {detail.requestId && !detail.canReply ? (

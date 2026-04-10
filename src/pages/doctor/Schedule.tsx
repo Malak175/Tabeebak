@@ -506,7 +506,7 @@ const DoctorSchedule = () => {
                 <Alert>
                   <AlertTitle>No availability data returned</AlertTitle>
                   <AlertDescription>
-                    The backend did not return any schedule rows yet. Save once after configuring the
+                    No schedule rows are available yet. Save once after configuring the
                     schedule to initialize it.
                   </AlertDescription>
                 </Alert>

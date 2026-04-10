@@ -39,18 +39,18 @@ const formatPrice = (price?: number | null, currency?: string | null) => {
 const statusCards = [
   {
     icon: Shield,
-    title: "Verified backend scope",
-    description: "Live lab services are currently available for authenticated laboratory accounts.",
+    title: "Verified scope",
+    description: "Live lab services are available for authenticated laboratory accounts.",
   },
   {
     icon: TestTubeDiagonal,
-    title: "Public catalog pending",
-    description: "Patient-facing test discovery and booking still need a dedicated public API.",
+    title: "Public catalog",
+    description: "Patient-facing test discovery and booking will appear here as they become available.",
   },
   {
     icon: Truck,
     title: "Home collection",
-    description: "Availability is driven by each lab profile once the public catalog is connected.",
+    description: "Availability is driven by each lab profile.",
   },
 ];
 
@@ -80,8 +80,8 @@ const LabServices = () => {
             </h1>
             <p className="mx-auto max-w-2xl text-lg text-primary-foreground/85">
               {isLabUser
-                ? "This view now reflects the services returned by your authenticated laboratory profile instead of placeholder marketing cards."
-                : "The public patient-facing lab catalog is not connected to backend search or booking yet, so this page now shows implementation status instead of fake production data."}
+                ? "This view reflects the services available for your laboratory profile."
+                : "The public patient-facing lab catalog will appear here once available."}
             </p>
           </div>
         </div>
@@ -111,7 +111,7 @@ const LabServices = () => {
                 <div>
                   <h2 className="text-3xl font-bold text-foreground">Your live services</h2>
                   <p className="text-muted-foreground">
-                    Loaded from the laboratory profile APIs that already power the authenticated lab workflow.
+                    Loaded from your laboratory profile.
                   </p>
                 </div>
                 <Button asChild variant="outline" className="gap-2">
@@ -136,7 +136,7 @@ const LabServices = () => {
                     <CardTitle>{profileQuery.data?.displayName || user?.displayName || "Current lab"}</CardTitle>
                   </CardHeader>
                   <CardContent className="text-sm text-muted-foreground">
-                    {profileQuery.data?.accreditation || "Accreditation was not returned by the API."}
+                    {profileQuery.data?.accreditation || "Accreditation not available yet."}
                   </CardContent>
                 </Card>
                 <Card>
@@ -147,7 +147,7 @@ const LabServices = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="text-sm text-muted-foreground">
-                    Availability comes from `/api/v1/labs/me/profile`.
+                    Availability is managed in your lab profile.
                   </CardContent>
                 </Card>
                 <Card>
@@ -156,7 +156,7 @@ const LabServices = () => {
                     <CardTitle>{activeServices.length}</CardTitle>
                   </CardHeader>
                   <CardContent className="text-sm text-muted-foreground">
-                    Count based on `/api/v1/labs/me/services`.
+                    Count based on your active services.
                   </CardContent>
                 </Card>
               </div>
@@ -205,11 +205,9 @@ const LabServices = () => {
                         </div>
                         <div className="flex items-center gap-2">
                           <FlaskConical className="h-4 w-4 text-primary" />
-                          <span>{service.sampleType || "Sample type pending"}</span>
+                          <span>{service.sampleType || "Sample type not available yet"}</span>
                         </div>
-                        <p>
-                          {service.preparationInstructions || "Preparation instructions have not been added yet."}
-                        </p>
+                          <p>{service.preparationInstructions || "Preparation instructions not available yet."}</p>
                       </CardContent>
                     </Card>
                   ))}
@@ -217,7 +215,7 @@ const LabServices = () => {
               ) : (
                 <Card>
                   <CardContent className="p-8 text-center text-muted-foreground">
-                    No active services were returned for this lab yet. Add them from Lab Settings when the backend catalog is ready.
+                    No active services yet. Add them in Lab Settings to make them available.
                   </CardContent>
                 </Card>
               )}
@@ -226,9 +224,9 @@ const LabServices = () => {
             <div className="mx-auto max-w-4xl space-y-6">
               <Alert>
                 <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Public catalog not connected yet</AlertTitle>
+                <AlertTitle>Public catalog coming soon</AlertTitle>
                 <AlertDescription>
-                  The current backend scope exposes laboratory service data for authenticated lab accounts only. Public patient search and booking still need dedicated endpoints before this page can show real catalog results.
+                  Laboratory service data is currently available for authenticated lab accounts only. Public search and booking will appear here once available.
                 </AlertDescription>
               </Alert>
 
@@ -239,20 +237,20 @@ const LabServices = () => {
                     <CardDescription>Already implemented in the authenticated laboratory flow.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-3 text-sm text-muted-foreground">
-                    <p>Lab dashboard metrics are loaded from live laboratory endpoints.</p>
-                    <p>Branch and service management already use the authenticated `labs/me` APIs.</p>
-                    <p>Pending and completed lab workflow pages are backed by live order and result queries.</p>
+                    <p>Lab dashboard metrics are live for authenticated lab accounts.</p>
+                    <p>Branch and service management are available in lab settings.</p>
+                    <p>Pending and completed lab workflow pages are available for active labs.</p>
                   </CardContent>
                 </Card>
 
                 <Card>
                   <CardHeader>
-                    <CardTitle>What still needs backend support</CardTitle>
+                    <CardTitle>What is coming next</CardTitle>
                     <CardDescription>Required before public users can browse real lab tests here.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-3 text-sm text-muted-foreground">
-                    <p>Public test catalog endpoint for patient browsing.</p>
-                    <p>Public lab partner discovery endpoint.</p>
+                    <p>Public test catalog for patient browsing.</p>
+                    <p>Public lab partner discovery.</p>
                     <p>Patient-side booking flow for selecting and reserving a test.</p>
                   </CardContent>
                 </Card>

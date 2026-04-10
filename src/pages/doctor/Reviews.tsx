@@ -60,7 +60,7 @@ const DoctorReviews = () => {
       <div className="mb-6">
         <h1 className="mb-2 text-2xl font-bold md:text-3xl">Reviews</h1>
         <p className="text-muted-foreground">
-          Review patient feedback and aggregated review metrics from the backend.
+          Review patient feedback and aggregated review metrics.
         </p>
       </div>
 

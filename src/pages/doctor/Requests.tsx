@@ -64,7 +64,7 @@ const RequestCard = ({ request }: { request: DoctorAppointmentRequest }) => (
           </span>
         </div>
         <p className="text-sm text-muted-foreground">
-          {request.latestSummary || "No request summary was returned by the backend."}
+          {request.latestSummary || "No request summary is available yet."}
         </p>
       </div>
 

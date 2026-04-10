@@ -124,7 +124,7 @@ const NotificationsPanel = () => {
             Notifications
           </CardTitle>
           <CardDescription>
-            Live account notifications from `/api/v1/me/notifications`, with read-state actions wired to the backend.
+            Live account notifications with read-state actions.
           </CardDescription>
         </div>
         <Button
@@ -321,9 +321,9 @@ const SessionsPanel = () => {
           <Shield className="h-5 w-5" />
           Active Sessions
         </CardTitle>
-        <CardDescription>
-          View devices returned by `/api/v1/me/sessions` and revoke backend sessions directly.
-        </CardDescription>
+          <CardDescription>
+            View active devices and revoke sessions directly.
+          </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {sessionsQuery.isLoading ? (
@@ -395,7 +395,7 @@ const SessionsPanel = () => {
             <Shield className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
             <p className="font-medium">No active sessions were returned.</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Once the backend reports device sessions, they will appear here.
+              Once device sessions are available, they will appear here.
             </p>
           </div>
         )}

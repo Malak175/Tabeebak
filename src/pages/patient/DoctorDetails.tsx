@@ -145,7 +145,7 @@ const PatientDoctorDetailsPage = () => {
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
     if (!doctor?.doctorId) {
-      toast.error("Doctor request cannot be submitted because the backend doctor_id is missing.");
+      toast.error("Doctor request cannot be submitted because the doctor ID is missing.");
       return;
     }
     if (!selectedSlotStart) {
@@ -338,7 +338,7 @@ const PatientDoctorDetailsPage = () => {
               </Button>
               {!doctor.doctorId ? (
                 <p className="text-sm text-destructive">
-                  This profile is missing the backend doctor ID required for request submission.
+                  This profile is missing the doctor ID required for request submission.
                 </p>
               ) : null}
             </form>

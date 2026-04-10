@@ -213,7 +213,7 @@ const DoctorAppointmentDetails = () => {
         <div>
           <h1 className="text-2xl font-bold md:text-3xl">Appointment Details</h1>
           <p className="text-muted-foreground">
-            Live appointment information from the doctor workflow endpoint.
+            Live appointment information for this visit.
           </p>
         </div>
         <Button asChild variant="outline">

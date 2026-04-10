@@ -74,7 +74,7 @@ const PatientLabDetailsPage = () => {
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
     if (!labQuery.data?.labId) {
-      toast.error("Lab request cannot be submitted because the backend lab_id is missing.");
+      toast.error("Lab request cannot be submitted because the lab ID is missing.");
       return;
     }
 
@@ -109,7 +109,7 @@ const PatientLabDetailsPage = () => {
         </Button>
         <h1 className="text-3xl font-bold">Lab details</h1>
         <p className="mt-2 text-muted-foreground">
-          Compare branches and services, then send a backend-backed test request.
+          Compare branches and services, then send a test request.
         </p>
       </div>
 
@@ -348,7 +348,7 @@ const PatientLabDetailsPage = () => {
               </Button>
               {!labQuery.data.labId ? (
                 <p className="text-sm text-destructive">
-                  This profile is missing the backend lab ID required for request submission.
+                  This profile is missing the lab ID required for request submission.
                 </p>
               ) : null}
             </form>

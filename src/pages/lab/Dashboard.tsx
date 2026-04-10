@@ -161,7 +161,7 @@ const LabDashboard = () => {
                   <CardTitle>Operational Snapshot</CardTitle>
                   <CardDescription>
                     Summary cards are backed by `/api/v1/labs/me/dashboard-summary`, while the counts
-                    below refresh from the live branches and services endpoints.
+                    below refresh from your lab branches and services.
                   </CardDescription>
                 </div>
                 <Link to="/lab/settings" className="text-sm text-primary hover:underline">
@@ -204,7 +204,7 @@ const LabDashboard = () => {
                   </div>
                   <div className="text-2xl font-bold">{summary?.urgentTestsCount ?? 0}</div>
                   <p className="text-sm text-muted-foreground">
-                    Urgent tests currently reported by the backend.
+                    Urgent tests currently reported for your lab.
                   </p>
                 </div>
               </CardContent>
@@ -214,7 +214,7 @@ const LabDashboard = () => {
               <Card className="bg-gradient-to-br from-secondary/10 to-primary/5">
                 <CardHeader>
                   <CardTitle>Lab Identity</CardTitle>
-                  <CardDescription>Snapshot from the lab profile endpoint.</CardDescription>
+                  <CardDescription>Snapshot from your lab profile.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm">
                   <div className="rounded-lg bg-background/70 p-3">
