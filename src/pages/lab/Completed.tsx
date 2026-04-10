@@ -16,6 +16,7 @@ import { useLabOrdersQuery, useLabResultsQuery } from "@/hooks/useLabWorkflow";
 import { useLabProfileQuery } from "@/hooks/useLabProfile";
 import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName } from "@/lib/auth";
+import { formatLabStatusLabel, isResultReadyStatus } from "@/lib/labStatus";
 
 const formatDateTime = (value?: string | null) => {
   if (!value) return "Not available";
@@ -33,6 +34,8 @@ const getStatusClassName = (status?: string | null) => {
     case "final":
     case "reported":
     case "delivered":
+    case "result_uploaded":
+    case "result-uploaded":
       return "bg-green-100 text-green-700 border-green-200";
     case "processing":
     case "review":
@@ -199,7 +202,12 @@ const LabCompleted = () => {
                       <div className="flex-1 space-y-2">
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className="text-lg font-semibold">{result.patientName}</h3>
-                          <Badge className={getStatusClassName(result.status)}>{result.status}</Badge>
+                          <Badge className={getStatusClassName(result.status)}>
+                            {formatLabStatusLabel(result.status)}
+                          </Badge>
+                          {isResultReadyStatus(result.status) ? (
+                            <Badge variant="secondary">Results Ready for Analysis</Badge>
+                          ) : null}
                           {result.priority ? <Badge variant="outline">{result.priority}</Badge> : null}
                         </div>
                         <p className="font-medium text-primary">{result.testName}</p>
@@ -293,7 +301,12 @@ const LabCompleted = () => {
                       <div className="flex-1 space-y-2">
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className="text-lg font-semibold">{order.patientName}</h3>
-                          <Badge className={getStatusClassName(order.status)}>{order.status}</Badge>
+                          <Badge className={getStatusClassName(order.status)}>
+                            {formatLabStatusLabel(order.status)}
+                          </Badge>
+                          {isResultReadyStatus(order.status) ? (
+                            <Badge variant="secondary">Results Ready for Analysis</Badge>
+                          ) : null}
                           {order.priority ? <Badge variant="outline">{order.priority}</Badge> : null}
                         </div>
                         <p className="font-medium text-primary">{order.testName}</p>

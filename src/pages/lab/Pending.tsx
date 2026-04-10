@@ -19,6 +19,7 @@ import {
 import { useLabProfileQuery } from "@/hooks/useLabProfile";
 import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName } from "@/lib/auth";
+import { formatLabStatusLabel, isResultReadyStatus } from "@/lib/labStatus";
 
 const formatDateTime = (value?: string | null) => {
   if (!value) return "Not available";
@@ -34,6 +35,8 @@ const getStatusClassName = (status?: string | null) => {
     case "completed":
     case "ready":
     case "reported":
+    case "result_uploaded":
+    case "result-uploaded":
       return "bg-green-100 text-green-700 border-green-200";
     case "processing":
     case "in_progress":
@@ -120,7 +123,7 @@ const LabPending = () => {
         <div>
           <h1 className="mb-2 text-2xl font-bold md:text-3xl">Pending Lab Workflow</h1>
           <p className="text-muted-foreground">
-            Review pending orders and home sample collection requests from the live lab endpoints.
+            Focused view for active items that still need lab action or follow-up.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -205,10 +208,15 @@ const LabPending = () => {
       </Card>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="orders">Pending Orders</TabsTrigger>
-          <TabsTrigger value="samples">Sample Collection</TabsTrigger>
-        </TabsList>
+        <div className="space-y-2">
+          <TabsList>
+          <TabsTrigger value="orders">Active Orders</TabsTrigger>
+          <TabsTrigger value="samples">Active Collections</TabsTrigger>
+          </TabsList>
+          <p className="text-sm text-muted-foreground">
+            This view only shows items that still need lab action. For full history, use Requests or Completed.
+          </p>
+        </div>
 
         <TabsContent value="orders" className="space-y-6">
           {pendingOrdersQuery.isLoading ? (
@@ -233,7 +241,12 @@ const LabPending = () => {
                       <div className="flex-1 space-y-2">
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className="text-lg font-semibold">{order.patientName}</h3>
-                          <Badge className={getStatusClassName(order.status)}>{order.status}</Badge>
+                          <Badge className={getStatusClassName(order.status)}>
+                            {formatLabStatusLabel(order.status)}
+                          </Badge>
+                          {isResultReadyStatus(order.status) ? (
+                            <Badge variant="secondary">Results Ready for Analysis</Badge>
+                          ) : null}
                           {order.priority ? <Badge variant="outline">{order.priority}</Badge> : null}
                         </div>
                         <p className="font-medium text-primary">{order.testName}</p>
@@ -316,7 +329,12 @@ const LabPending = () => {
                       <div className="flex-1 space-y-2">
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className="text-lg font-semibold">{request.patientName}</h3>
-                          <Badge className={getStatusClassName(request.status)}>{request.status}</Badge>
+                          <Badge className={getStatusClassName(request.status)}>
+                            {formatLabStatusLabel(request.status)}
+                          </Badge>
+                          {isResultReadyStatus(request.status) ? (
+                            <Badge variant="secondary">Results Ready for Analysis</Badge>
+                          ) : null}
                           {request.priority ? <Badge variant="outline">{request.priority}</Badge> : null}
                         </div>
                         <p className="font-medium text-primary">{request.testName}</p>

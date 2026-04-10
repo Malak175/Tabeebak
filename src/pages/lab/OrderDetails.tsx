@@ -29,6 +29,7 @@ import {
 import { useLabProfileQuery } from "@/hooks/useLabProfile";
 import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName } from "@/lib/auth";
+import { formatLabStatusLabel, isResultReadyStatus } from "@/lib/labStatus";
 import { UploadLabResultValue } from "@/types/lab-workflow.types";
 
 const formatDateTime = (value?: string | null) => {
@@ -54,6 +55,8 @@ const getStatusClassName = (status?: string | null) => {
     case "completed":
     case "reported":
     case "ready":
+    case "result_uploaded":
+    case "result-uploaded":
       return "bg-green-100 text-green-700 border-green-200";
     case "processing":
     case "sample_collected":
@@ -110,6 +113,7 @@ const LabOrderDetailsPage = () => {
   const [reportedAt, setReportedAt] = useState("");
   const [resultFile, setResultFile] = useState<File | null>(null);
   const [values, setValues] = useState<UploadLabResultValue[]>([createEmptyValue()]);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
 
   const detail = detailsQuery.data;
   const patientNote = [detail?.instructions, detail?.diagnosis, detail?.specimenNotes]
@@ -210,6 +214,7 @@ const LabOrderDetailsPage = () => {
 
   const submitResultUpload = () => {
     if (!orderId) return;
+    setUploadSuccess(false);
 
     const cleanedValues = values.filter(
       (item) => item.name.trim() || item.value?.trim() || item.referenceRange?.trim(),
@@ -232,6 +237,7 @@ const LabOrderDetailsPage = () => {
       {
         onSuccess: () => {
           toast.success("Lab result uploaded successfully.");
+          setUploadSuccess(true);
           setSummary("");
           setConclusion("");
           setResultNotes("");
@@ -242,6 +248,7 @@ const LabOrderDetailsPage = () => {
       },
     );
   };
+  const isUploading = uploadResultMutation.isPending;
 
   const backLink = location.pathname.startsWith("/lab/requests") ? "/lab/requests" : "/lab/pending";
   const backLabel = location.pathname.startsWith("/lab/requests")
@@ -293,7 +300,12 @@ const LabOrderDetailsPage = () => {
               <div className="space-y-3">
                 <div className="flex flex-wrap items-center gap-3">
                   <h2 className="text-2xl font-semibold">{detail.patientName}</h2>
-                  <Badge className={getStatusClassName(detail.status)}>{detail.status}</Badge>
+                  <Badge className={getStatusClassName(detail.status)}>
+                    {formatLabStatusLabel(detail.status)}
+                  </Badge>
+                  {isResultReadyStatus(detail.status) ? (
+                    <Badge variant="secondary">Results Ready for Analysis</Badge>
+                  ) : null}
                   {detail.service?.sampleType ? <Badge variant="outline">{detail.service.sampleType}</Badge> : null}
                   {detail.service?.category ? <Badge variant="outline">{detail.service.category}</Badge> : null}
                 </div>
@@ -341,7 +353,14 @@ const LabOrderDetailsPage = () => {
                     <DetailRow label="Sample type" value={detail.specimenType || detail.service?.sampleType} />
                     <DetailRow
                       label="Sample collection"
-                      value={detail.sampleCollectionStatus || (detail.sampleCollectionRequested ? "Requested" : null)}
+                      value={
+                        detail.sampleCollectionStatus || detail.sampleCollectionRequested
+                          ? formatLabStatusLabel(
+                              detail.sampleCollectionStatus ||
+                                (detail.sampleCollectionRequested ? "Requested" : ""),
+                            )
+                          : null
+                      }
                     />
                     <DetailRow label="Collection address" value={detail.sampleCollectionAddress} />
                     <DetailRow label="Turnaround time" value={detail.service?.turnaroundTime} />
@@ -362,7 +381,7 @@ const LabOrderDetailsPage = () => {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <CalendarClock className="h-5 w-5" />
-                    Review Request
+                    Step 1: Review Request
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -457,7 +476,7 @@ const LabOrderDetailsPage = () => {
           <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
             <Card>
               <CardHeader>
-                <CardTitle>Status Update</CardTitle>
+                <CardTitle>Step 2: Update Status</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
@@ -468,7 +487,7 @@ const LabOrderDetailsPage = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="sample_collected">Sample collected</SelectItem>
+                      <SelectItem value="sample_collected">Sample Collected</SelectItem>
                       <SelectItem value="processing">Processing</SelectItem>
                       <SelectItem value="completed">Completed</SelectItem>
                       <SelectItem value="cancelled">Cancelled</SelectItem>
@@ -498,13 +517,13 @@ const LabOrderDetailsPage = () => {
 
             <Card>
               <CardHeader>
-                <CardTitle>Upload Result</CardTitle>
+                <CardTitle>Step 3: Upload Results</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="resultStatus">Result status</Label>
-                    <Select value={resultStatus} onValueChange={setResultStatus}>
+                    <Select value={resultStatus} onValueChange={setResultStatus} disabled={isUploading}>
                       <SelectTrigger id="resultStatus">
                         <SelectValue placeholder="Result status" />
                       </SelectTrigger>
@@ -522,6 +541,7 @@ const LabOrderDetailsPage = () => {
                       value={referenceNumber}
                       onChange={(event) => setReferenceNumber(event.target.value)}
                       placeholder="Optional result number"
+                      disabled={isUploading}
                     />
                   </div>
                 </div>
@@ -533,6 +553,7 @@ const LabOrderDetailsPage = () => {
                     type="datetime-local"
                     value={reportedAt}
                     onChange={(event) => setReportedAt(event.target.value)}
+                    disabled={isUploading}
                   />
                 </div>
 
@@ -543,6 +564,7 @@ const LabOrderDetailsPage = () => {
                     value={summary}
                     onChange={(event) => setSummary(event.target.value)}
                     placeholder="Clinical summary or interpretation"
+                    disabled={isUploading}
                   />
                 </div>
 
@@ -553,6 +575,7 @@ const LabOrderDetailsPage = () => {
                     value={conclusion}
                     onChange={(event) => setConclusion(event.target.value)}
                     placeholder="Final conclusion"
+                    disabled={isUploading}
                   />
                 </div>
 
@@ -564,6 +587,7 @@ const LabOrderDetailsPage = () => {
                       variant="outline"
                       size="sm"
                       onClick={() => setValues((current) => [...current, createEmptyValue()])}
+                      disabled={isUploading}
                     >
                       Add row
                     </Button>
@@ -576,17 +600,20 @@ const LabOrderDetailsPage = () => {
                           value={item.name}
                           onChange={(event) => handleValueChange(index, "name", event.target.value)}
                           placeholder="Measurement name"
+                          disabled={isUploading}
                         />
                         <div className="grid gap-3 md:grid-cols-2">
                           <Input
                             value={item.value ?? ""}
                             onChange={(event) => handleValueChange(index, "value", event.target.value)}
                             placeholder="Value"
+                            disabled={isUploading}
                           />
                           <Input
                             value={item.unit ?? ""}
                             onChange={(event) => handleValueChange(index, "unit", event.target.value)}
                             placeholder="Unit"
+                            disabled={isUploading}
                           />
                         </div>
                         <div className="grid gap-3 md:grid-cols-2">
@@ -594,11 +621,13 @@ const LabOrderDetailsPage = () => {
                             value={item.referenceRange ?? ""}
                             onChange={(event) => handleValueChange(index, "referenceRange", event.target.value)}
                             placeholder="Reference range"
+                            disabled={isUploading}
                           />
                           <Input
                             value={item.status ?? ""}
                             onChange={(event) => handleValueChange(index, "status", event.target.value)}
                             placeholder="Status or flag"
+                            disabled={isUploading}
                           />
                         </div>
                         {values.length > 1 ? (
@@ -609,6 +638,7 @@ const LabOrderDetailsPage = () => {
                             onClick={() =>
                               setValues((current) => current.filter((_, itemIndex) => itemIndex !== index))
                             }
+                            disabled={isUploading}
                           >
                             Remove row
                           </Button>
@@ -625,19 +655,31 @@ const LabOrderDetailsPage = () => {
                     value={resultNotes}
                     onChange={(event) => setResultNotes(event.target.value)}
                     placeholder="Optional result note"
+                    disabled={isUploading}
                   />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="resultFile">Result file</Label>
-                  <Input id="resultFile" type="file" onChange={handleFileChange} />
+                  <Input id="resultFile" type="file" onChange={handleFileChange} disabled={isUploading} />
                   {resultFile ? <p className="text-sm text-muted-foreground">{resultFile.name}</p> : null}
                 </div>
 
-                <Button onClick={submitResultUpload} disabled={uploadResultMutation.isPending}>
+                <Button onClick={submitResultUpload} disabled={isUploading}>
                   <FileUp className="mr-2 h-4 w-4" />
-                  {uploadResultMutation.isPending ? "Uploading..." : "Upload result"}
+                  {isUploading ? "Uploading..." : "Upload result"}
                 </Button>
+                {isUploading ? (
+                  <p className="text-sm text-muted-foreground">Uploading result and measurements...</p>
+                ) : null}
+                {uploadSuccess ? (
+                  <Alert>
+                    <AlertTitle>Result uploaded</AlertTitle>
+                    <AlertDescription>
+                      The result is now available in history and ready for downstream analysis.
+                    </AlertDescription>
+                  </Alert>
+                ) : null}
               </CardContent>
             </Card>
           </div>
