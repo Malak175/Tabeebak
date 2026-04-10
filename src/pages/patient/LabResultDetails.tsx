@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { format, isValid, parseISO } from "date-fns";
 import { ArrowLeft, Download, FlaskConical, User } from "lucide-react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { patientNavItems } from "@/components/settings/AccountSettingsContent";
@@ -136,6 +136,7 @@ const formatProbability = (value?: number | null) => {
 
 const PatientLabResultDetails = () => {
   const { resultId } = useParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const query = usePatientLabResultDetailsQuery(resultId, Boolean(user));
   const userName = getDisplayName(user ?? {});
@@ -146,6 +147,7 @@ const PatientLabResultDetails = () => {
 
   const requestId = query.data?.requestId ?? null;
   const hasPrediction = Boolean(prediction);
+  const isHighRisk = (prediction?.riskLevel ?? "").trim().toLowerCase() === "high";
 
   useEffect(() => {
     if (!requestId) return;
@@ -379,6 +381,23 @@ const PatientLabResultDetails = () => {
                       {predicting ? "Running Analysis..." : "Run AI Analysis"}
                     </Button>
                   )
+                ) : null}
+                {hasPrediction && isHighRisk ? (
+                  <Button
+                    className="w-full"
+                    onClick={() =>
+                      navigate("/patient/doctors", {
+                        state: {
+                          source: "ai_prediction",
+                          requestId,
+                          resultId,
+                          riskLevel: "High",
+                        },
+                      })
+                    }
+                  >
+                    Book Doctor
+                  </Button>
                 ) : null}
               </CardContent>
             </Card>

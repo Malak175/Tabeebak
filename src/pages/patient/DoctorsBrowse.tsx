@@ -1,6 +1,6 @@
 import { useDeferredValue, useMemo, useState } from "react";
 import { MapPin, Navigation, Search, User } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
   EmptyCard,
@@ -26,6 +26,7 @@ import { DiscoveryLocationParams } from "@/types/patient-booking.types";
 
 const PatientDoctorsBrowsePage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const userName = getDisplayName(user ?? {});
   const [search, setSearch] = useState("");
@@ -55,6 +56,7 @@ const PatientDoctorsBrowsePage = () => {
   const activeQuery = nearbyParams ? nearQuery : doctorsQuery;
   const doctors = useMemo(() => activeQuery.data ?? [], [activeQuery.data]);
   const directoryDoctors = useMemo(() => doctorsQuery.data ?? [], [doctorsQuery.data]);
+  const aiRedirected = (location.state as { source?: string } | null)?.source === "ai_prediction";
 
   const specialties = useMemo(
     () =>
@@ -99,6 +101,11 @@ const PatientDoctorsBrowsePage = () => {
 
   return (
     <DashboardLayout userRole="patient" userName={userName} navItems={patientBookingNavItems} userIcon={User}>
+      {aiRedirected ? (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          You were redirected here after a high-risk AI analysis. Please consider booking a doctor consultation.
+        </div>
+      ) : null}
       <section className="mb-6 rounded-3xl border bg-card p-6 shadow-sm">
         <p className="text-sm font-medium uppercase tracking-[0.18em] text-primary">Doctor Requests</p>
         <h1 className="mt-3 text-3xl font-bold">Browse doctors and send a request</h1>
