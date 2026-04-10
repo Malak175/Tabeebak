@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { format, isValid, parseISO } from "date-fns";
 import { Calendar, ClipboardList, FlaskConical, Phone, ShieldCheck, User } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { patientNavItems } from "@/components/settings/AccountSettingsContent";
@@ -11,9 +12,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   useEmergencyContactQuery,
   useMedicalHistorySummaryQuery,
+  usePatientAppointmentsQuery,
   usePatientDashboardSummaryQuery,
+  usePatientLabResultsQuery,
   usePatientMedicalProfileQuery,
   usePatientProfileQuery,
+  usePatientPrescriptionsQuery,
   useInsuranceQuery,
 } from "@/hooks/usePatientProfile";
 import { useAuth } from "@/hooks/useAuth";
@@ -23,6 +27,13 @@ import { cn } from "@/lib/utils";
 const formatNumber = (value: number | null | undefined, digits = 1) => {
   if (value === null || value === undefined || Number.isNaN(value)) return null;
   return value.toFixed(digits);
+};
+
+const formatDate = (value?: string | null) => {
+  if (!value) return "Not available";
+  const parsed = parseISO(value);
+  if (!isValid(parsed)) return value;
+  return format(parsed, "PPP");
 };
 
 const SummaryStat = ({
@@ -113,6 +124,18 @@ const PatientDashboard = () => {
   const medicalProfileQuery = usePatientMedicalProfileQuery(Boolean(user));
   const emergencyContactQuery = useEmergencyContactQuery(Boolean(user));
   const insuranceQuery = useInsuranceQuery(Boolean(user));
+  const recentLabResultsQuery = usePatientLabResultsQuery(
+    { page: 1, limit: 3, sortBy: "reportedAt", sortOrder: "desc" },
+    Boolean(user),
+  );
+  const recentAppointmentsQuery = usePatientAppointmentsQuery(
+    { page: 1, limit: 3, sortBy: "scheduledAt", sortOrder: "desc" },
+    Boolean(user),
+  );
+  const recentPrescriptionsQuery = usePatientPrescriptionsQuery(
+    { page: 1, limit: 3, sortBy: "prescribedAt", sortOrder: "desc" },
+    Boolean(user),
+  );
 
   const summary = dashboardSummaryQuery.data;
   const profile = profileQuery.data;
@@ -236,6 +259,13 @@ const PatientDashboard = () => {
     hasVitals && { label: "Vital Signs", value: vitalSummary },
     hasBloodSugar && { label: "Blood Sugar", value: `${summary?.bloodSugarMgDl} mg/dL` },
   ].filter(Boolean) as { label: string; value: string }[];
+
+  const recentLabResults = recentLabResultsQuery.data?.data ?? [];
+  const recentAppointments = recentAppointmentsQuery.data?.data ?? [];
+  const recentPrescriptions = recentPrescriptionsQuery.data?.data ?? [];
+  const recentAnalyses = recentLabResults.filter(
+    (result) => Boolean(result.requestId) && Boolean(result.interpretation || result.conclusion),
+  );
 
   return (
     <DashboardLayout userRole="patient" userName={userName} navItems={patientNavItems} userIcon={User}>
@@ -422,13 +452,13 @@ const PatientDashboard = () => {
         )}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Medical History Summary</CardTitle>
-              <CardDescription>
-                Read-only summary loaded from `/api/v1/patients/me/medical-history-summary`.
+        <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Medical History Summary</CardTitle>
+                <CardDescription>
+                  Read-only summary loaded from `/api/v1/patients/me/medical-history-summary`.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -462,11 +492,186 @@ const PatientDashboard = () => {
                   ))}
                 </div>
               )}
-            </CardContent>
-          </Card>
-        </div>
+              </CardContent>
+            </Card>
 
-        <div className="space-y-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-3">
+                <div>
+                  <CardTitle>Recent Lab Results</CardTitle>
+                  <CardDescription>Preview of your latest lab reports.</CardDescription>
+                </div>
+                <Button asChild variant="outline" size="sm">
+                  <Link to="/patient/lab-results">View All</Link>
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {recentLabResultsQuery.isLoading ? (
+                  <>
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                  </>
+                ) : recentLabResultsQuery.isError ? (
+                  <Alert variant="destructive">
+                    <AlertTitle>Unable to load lab results</AlertTitle>
+                    <AlertDescription>{(recentLabResultsQuery.error as Error).message}</AlertDescription>
+                  </Alert>
+                ) : recentLabResults.length ? (
+                  recentLabResults.map((result) => (
+                    <div key={result.id} className="flex items-start justify-between gap-4 rounded-lg border p-3">
+                      <div>
+                        <p className="text-sm font-medium">{result.testName}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {result.laboratoryName || "Lab pending"} • {formatDate(result.reportedAt)}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="capitalize">
+                        {result.status}
+                      </Badge>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">
+                    No lab results yet.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-3">
+                <div>
+                  <CardTitle>Recent Appointments</CardTitle>
+                  <CardDescription>Your latest visits and bookings.</CardDescription>
+                </div>
+                <Button asChild variant="outline" size="sm">
+                  <Link to="/patient/appointments">View All</Link>
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {recentAppointmentsQuery.isLoading ? (
+                  <>
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                  </>
+                ) : recentAppointmentsQuery.isError ? (
+                  <Alert variant="destructive">
+                    <AlertTitle>Unable to load appointments</AlertTitle>
+                    <AlertDescription>{(recentAppointmentsQuery.error as Error).message}</AlertDescription>
+                  </Alert>
+                ) : recentAppointments.length ? (
+                  recentAppointments.map((appointment) => (
+                    <div key={appointment.id} className="flex items-start justify-between gap-4 rounded-lg border p-3">
+                      <div>
+                        <p className="text-sm font-medium">{appointment.doctorName}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {appointment.doctorSpecialty || "Specialty not available"} •{" "}
+                          {formatDate(appointment.scheduledAt)}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="capitalize">
+                        {appointment.status}
+                      </Badge>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">
+                    No appointments yet.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-3">
+                <div>
+                  <CardTitle>Recent Prescriptions</CardTitle>
+                  <CardDescription>Latest medications added to your record.</CardDescription>
+                </div>
+                <Button asChild variant="outline" size="sm">
+                  <Link to="/patient/prescriptions">View All</Link>
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {recentPrescriptionsQuery.isLoading ? (
+                  <>
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                  </>
+                ) : recentPrescriptionsQuery.isError ? (
+                  <Alert variant="destructive">
+                    <AlertTitle>Unable to load prescriptions</AlertTitle>
+                    <AlertDescription>{(recentPrescriptionsQuery.error as Error).message}</AlertDescription>
+                  </Alert>
+                ) : recentPrescriptions.length ? (
+                  recentPrescriptions.map((prescription) => (
+                    <div
+                      key={prescription.id}
+                      className="flex items-start justify-between gap-4 rounded-lg border p-3"
+                    >
+                      <div>
+                        <p className="text-sm font-medium">{prescription.medicationName}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {prescription.prescriberName || "Prescriber pending"} •{" "}
+                          {formatDate(prescription.prescribedAt)}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="capitalize">
+                        {prescription.status}
+                      </Badge>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">
+                    No prescriptions yet.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-3">
+                <div>
+                  <CardTitle>Recent AI Analyses</CardTitle>
+                  <CardDescription>AI summaries generated from recent lab results.</CardDescription>
+                </div>
+                <Button asChild variant="outline" size="sm">
+                  <Link to="/patient/lab-results">View Lab Results</Link>
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {recentLabResultsQuery.isLoading ? (
+                  <>
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                  </>
+                ) : recentLabResultsQuery.isError ? (
+                  <Alert variant="destructive">
+                    <AlertTitle>Unable to load AI analyses</AlertTitle>
+                    <AlertDescription>{(recentLabResultsQuery.error as Error).message}</AlertDescription>
+                  </Alert>
+                ) : recentAnalyses.length ? (
+                  recentAnalyses.map((result) => (
+                    <div key={`${result.id}-analysis`} className="rounded-lg border p-3">
+                      <p className="text-sm font-medium">{result.testName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDate(result.reportedAt)} • {result.laboratoryName || "Lab pending"}
+                      </p>
+                      <p className="mt-2 text-sm text-muted-foreground line-clamp-2">
+                        {result.interpretation || result.conclusion}
+                      </p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">
+                    No AI analyses are available yet.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Next Steps</CardTitle>
