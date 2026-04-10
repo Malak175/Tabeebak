@@ -605,6 +605,10 @@ const normalizeLabResult = (payload: unknown): LabResult => {
 
   return {
     id: pickString(raw, ["id", "_id", "resultId", "result_id", "labResultId", "lab_result_id"]) ?? "",
+    requestId:
+      pickNullableString(raw, ["requestId", "request_id", "testRequestId", "test_request_id"]) ??
+      pickNullableString(raw, ["orderId", "order_id", "labOrderId", "lab_order_id"]) ??
+      null,
     resultNumber: pickNullableString(raw, ["resultNumber", "result_number", "referenceNumber"]),
     testName:
       pickString(raw, ["testName", "test_name", "name"]) ??

@@ -107,6 +107,7 @@ export interface LabResultMeasurement {
 
 export interface LabResult {
   id: string;
+  requestId?: string | null;
   resultNumber?: string | null;
   testName: string;
   category?: string | null;
