@@ -416,16 +416,17 @@ const LabOrderDetailsPage = () => {
                 description="Shared conversation with the patient for this lab request."
               >
                 <div className="space-y-4">
-                  {detailsQuery.isFetching ? (
-                    <p className="text-xs text-muted-foreground">Refreshing thread...</p>
-                  ) : null}
                   {replyError ? (
                     <Alert variant="destructive">
                       <AlertTitle>Unable to send message</AlertTitle>
                       <AlertDescription>{replyError}</AlertDescription>
                     </Alert>
                   ) : null}
-                  <MessageThread messages={detail.messages} currentUserRole={user?.role || "LAB"} />
+                  <MessageThread
+                    messages={detail.messages}
+                    currentUserRole={user?.role || "LAB"}
+                    isLoading={detailsQuery.isFetching}
+                  />
                   <ReplyComposer
                     value={reply}
                     onChange={(value) => {

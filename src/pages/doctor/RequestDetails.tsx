@@ -12,7 +12,7 @@ import {
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { MessageThread, ReplyComposer } from "@/components/patient/BookingFlowSection";
+import { MessageThread, ReplyComposer, SectionCard } from "@/components/patient/BookingFlowSection";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { doctorNavItems } from "@/components/settings/AccountSettingsContent";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -410,49 +410,41 @@ const DoctorRequestDetailsPage = () => {
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Request Thread</CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    Shared conversation with the patient for this appointment request.
-                  </p>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {query.isFetching ? (
-                    <p className="text-xs text-muted-foreground">Refreshing thread...</p>
-                  ) : null}
+              <SectionCard
+                title="Request Thread"
+                description="Shared conversation with the patient for this appointment request."
+              >
+                <div className="space-y-4">
                   {sendError ? (
                     <Alert variant="destructive">
                       <AlertTitle>Unable to send message</AlertTitle>
                       <AlertDescription>{sendError}</AlertDescription>
                     </Alert>
                   ) : null}
-                  {query.data.messages?.length ? (
-                    <MessageThread messages={query.data.messages} currentUserRole={user?.role || "DOCTOR"} />
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No messages yet for this request.</p>
-                  )}
-                  <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
-                    <ReplyComposer
-                      value={reply}
-                      onChange={(value) => {
-                        setReply(value);
-                        if (sendError) {
-                          setSendError(null);
-                        }
-                      }}
-                      onSubmit={handleSendReply}
-                      isSending={replyMutation.isPending}
-                      disabled={!requestId || !query.data.canReply}
-                    />
-                  </div>
+                  <MessageThread
+                    messages={query.data.messages ?? []}
+                    currentUserRole={user?.role || "DOCTOR"}
+                    isLoading={query.isFetching}
+                  />
+                  <ReplyComposer
+                    value={reply}
+                    onChange={(value) => {
+                      setReply(value);
+                      if (sendError) {
+                        setSendError(null);
+                      }
+                    }}
+                    onSubmit={handleSendReply}
+                    isSending={replyMutation.isPending}
+                    disabled={!requestId || !query.data.canReply}
+                  />
                   {!query.data.canReply ? (
                     <p className="text-sm text-muted-foreground">
                       Replies are unavailable for this request in its current state.
                     </p>
                   ) : null}
-                </CardContent>
-              </Card>
+                </div>
+              </SectionCard>
             </div>
           </div>
         </div>

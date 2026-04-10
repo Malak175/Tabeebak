@@ -1,6 +1,6 @@
 import { format, isValid, parseISO } from "date-fns";
 import { Calendar, Clock, MapPin, MessageSquare, XCircle } from "lucide-react";
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
 import { DoctorAvailability } from "@/types/doctor-profile.types";
 import { buildStableKey } from "@/lib/reactKeys";
@@ -177,9 +177,13 @@ export const RequestSummaryCard = ({ request, href }: RequestCardProps) => {
 export const MessageThread = ({
   messages,
   currentUserRole,
+  isLoading = false,
+  emptyMessage = "No messages yet in this thread.",
 }: {
   messages: RequestMessage[];
   currentUserRole: string;
+  isLoading?: boolean;
+  emptyMessage?: string;
 }) => {
   const normalizeRole = (role?: string | null) => role?.trim().toLowerCase() ?? "";
   const getRoleLabel = (role?: string | null) => {
@@ -210,56 +214,129 @@ export const MessageThread = ({
     }
   };
 
-  if (!messages.length) {
-    return (
-      <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
-        No messages in this request thread yet.
-      </div>
-    );
-  }
+  const groups = useMemo(() => {
+    if (!messages.length) return [];
+
+    const grouped: Array<{
+      senderRole?: string | null;
+      senderName?: string | null;
+      isCurrentUser: boolean;
+      displayRole: string;
+      displayName: string;
+      messages: RequestMessage[];
+    }> = [];
+
+    messages.forEach((message) => {
+      const normalizedRole = normalizeRole(message.senderRole);
+      const displayRole = getRoleLabel(message.senderRole);
+      const displayName = message.senderName || displayRole;
+      const isCurrentUser = normalizedRole === normalizeRole(currentUserRole);
+      const lastGroup = grouped[grouped.length - 1];
+      const sameSender =
+        lastGroup &&
+        normalizeRole(lastGroup.senderRole) === normalizedRole &&
+        (lastGroup.senderName || "") === (message.senderName || "");
+
+      if (sameSender) {
+        lastGroup.messages.push(message);
+      } else {
+        grouped.push({
+          senderRole: message.senderRole,
+          senderName: message.senderName,
+          isCurrentUser,
+          displayRole,
+          displayName,
+          messages: [message],
+        });
+      }
+    });
+
+    return grouped;
+  }, [messages, currentUserRole]);
+
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const isFirstScroll = useRef(true);
+
+  useEffect(() => {
+    if (!bottomRef.current) return;
+    const behavior = isFirstScroll.current ? "auto" : "smooth";
+    bottomRef.current.scrollIntoView({ behavior, block: "end" });
+    isFirstScroll.current = false;
+  }, [messages.length]);
 
   return (
-    <ScrollArea className="h-[320px] rounded-lg border">
-      <div className="space-y-4 p-4">
-        {messages.map((message, index) => {
-          const isCurrentUser =
-            normalizeRole(message.senderRole) === normalizeRole(currentUserRole);
-          const displayRole = getRoleLabel(message.senderRole);
-          const displayName = message.senderName || displayRole;
-
-          return (
-            <div
-              key={buildStableKey(
-                [message.id, message.createdAt, message.senderRole, message.senderName, message.message, index],
-                `message-${index}`,
-              )}
-              className={`flex ${isCurrentUser ? "justify-end" : "justify-start"}`}
-            >
-              <div
-                className={`max-w-[85%] rounded-2xl px-4 py-3 ${
-                  isCurrentUser
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-foreground"
-                }`}
-              >
-                <div className="flex flex-wrap items-center gap-2 text-xs">
-                  <span className="font-medium opacity-90">{displayName}</span>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                      getRoleAccentClassName(message.senderRole, isCurrentUser)
-                    }`}
-                  >
-                    {displayRole}
-                  </span>
-                </div>
-                <p className="mt-1 text-sm">{message.message}</p>
-                <p className="mt-2 text-[11px] opacity-75">{formatDateTime(message.createdAt)}</p>
-              </div>
-            </div>
-          );
-        })}
+    <div className="rounded-lg border border-border/60 bg-background">
+      <div className="flex items-center justify-end border-b border-border/60 px-4 py-2">
+        {isLoading ? (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span className="inline-flex h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+            <span>Updating</span>
+          </div>
+        ) : (
+          <div className="h-3" aria-hidden />
+        )}
       </div>
-    </ScrollArea>
+      <ScrollArea className="h-[320px]">
+        {!groups.length ? (
+          <div className="flex h-[320px] flex-col items-center justify-center gap-2 px-6 text-center text-sm text-muted-foreground">
+            <div className="rounded-full bg-muted p-3">
+              <MessageSquare className="h-5 w-5" />
+            </div>
+            <p>{emptyMessage}</p>
+          </div>
+        ) : (
+          <div className="space-y-5 p-4">
+            {groups.map((group, groupIndex) => (
+              <div
+                key={buildStableKey(
+                  [
+                    group.senderRole,
+                    group.senderName,
+                    group.messages[0]?.id,
+                    group.messages[group.messages.length - 1]?.id,
+                    groupIndex,
+                  ],
+                  `message-group-${groupIndex}`,
+                )}
+                className={`flex ${group.isCurrentUser ? "justify-end" : "justify-start"}`}
+              >
+                <div className="max-w-[85%] space-y-2">
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <span className="font-medium text-foreground/80">{group.displayName}</span>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                        getRoleAccentClassName(group.senderRole, group.isCurrentUser)
+                      }`}
+                    >
+                      {group.displayRole}
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    {group.messages.map((message, messageIndex) => (
+                      <div
+                        key={buildStableKey(
+                          [message.id, message.createdAt, message.message, messageIndex],
+                          `message-${groupIndex}-${messageIndex}`,
+                        )}
+                        className={`rounded-2xl px-4 py-3 shadow-sm ${
+                          group.isCurrentUser
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted text-foreground"
+                        }`}
+                      >
+                        <p className="text-sm leading-relaxed">{message.message}</p>
+                        <p className="mt-2 text-[11px] opacity-75">{formatDateTime(message.createdAt)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+            <div ref={bottomRef} />
+          </div>
+        )}
+      </ScrollArea>
+    </div>
   );
 };
 
@@ -276,7 +353,7 @@ export const ReplyComposer = ({
   isSending: boolean;
   disabled?: boolean;
 }) => (
-  <div className="space-y-3">
+  <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
     <Textarea
       placeholder="Reply in this request thread"
       value={value}
@@ -286,7 +363,14 @@ export const ReplyComposer = ({
     />
     <div className="flex justify-end">
       <Button onClick={onSubmit} disabled={disabled || isSending || !value.trim()}>
-        {isSending ? "Sending..." : "Send message"}
+        {isSending ? (
+          <span className="inline-flex items-center gap-2">
+            <span className="inline-flex h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+            Send message
+          </span>
+        ) : (
+          "Send message"
+        )}
       </Button>
     </div>
   </div>

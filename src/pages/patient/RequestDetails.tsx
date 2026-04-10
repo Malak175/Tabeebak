@@ -210,16 +210,17 @@ const PatientRequestDetailsPage = () => {
             }
           >
             <div className="space-y-4">
-              {activeQuery.isFetching ? (
-                <p className="text-xs text-muted-foreground">Refreshing thread...</p>
-              ) : null}
               {sendError ? (
                 <Alert variant="destructive">
                   <AlertTitle>Unable to send message</AlertTitle>
                   <AlertDescription>{sendError}</AlertDescription>
                 </Alert>
               ) : null}
-              <MessageThread messages={activeRequest.messages} currentUserRole={user?.role || "Patient"} />
+              <MessageThread
+                messages={activeRequest.messages}
+                currentUserRole={user?.role || "Patient"}
+                isLoading={activeQuery.isFetching}
+              />
               {activeRequest.canReply ? (
                 <ReplyComposer
                   value={reply}
