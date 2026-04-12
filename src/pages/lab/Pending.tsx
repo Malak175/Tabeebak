@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { format, isValid, parseISO } from "date-fns";
 import { Clock, Eye, FlaskConical, MapPinned, Search } from "lucide-react";
 import { Link } from "react-router-dom";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
@@ -20,15 +19,9 @@ import { useLabProfileQuery } from "@/hooks/useLabProfile";
 import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName } from "@/lib/auth";
 import { formatLabStatusLabel, isResultReadyStatus } from "@/lib/labStatus";
+import { formatDisplayDateTime } from "@/lib/date-time";
 
-const formatDateTime = (value?: string | null) => {
-  if (!value) return "Not available";
-
-  const parsed = parseISO(value);
-  if (!isValid(parsed)) return value;
-
-  return format(parsed, "PPP p");
-};
+const formatDateTime = (value?: string | null) => formatDisplayDateTime(value);
 
 const getStatusClassName = (status?: string | null) => {
   switch ((status ?? "").toLowerCase()) {

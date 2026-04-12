@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { format, isValid, parseISO } from "date-fns";
 import {
   ArrowLeft,
   CalendarClock,
@@ -30,15 +29,9 @@ import {
 } from "@/hooks/useDoctorWorkflow";
 import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName } from "@/lib/auth";
+import { formatDisplayDateTime } from "@/lib/date-time";
 
-const formatDateTime = (value?: string | null) => {
-  if (!value) return null;
-
-  const parsed = parseISO(value);
-  if (!isValid(parsed)) return value;
-
-  return format(parsed, "PPP p");
-};
+const formatDateTime = (value?: string | null) => formatDisplayDateTime(value);
 
 const getStatusClassName = (status?: string | null) => {
   switch ((status ?? "").toLowerCase()) {

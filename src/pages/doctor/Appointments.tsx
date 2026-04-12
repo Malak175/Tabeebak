@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { format, isValid, parseISO } from "date-fns";
+import { formatDisplayDate, formatDisplayDateTime } from "@/lib/date-time";
 import { Calendar, Clock, MapPin, Search, Stethoscope, UserRound, Video } from "lucide-react";
 import { Link } from "react-router-dom";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
@@ -21,12 +21,8 @@ import { getDisplayName } from "@/lib/auth";
 import { DoctorAppointment } from "@/types/doctor-workflow.types";
 
 const formatDateTime = (value?: string | null, dateOnly = false) => {
-  if (!value) return "Not available";
-
-  const parsed = parseISO(value);
-  if (!isValid(parsed)) return value;
-
-  return format(parsed, dateOnly ? "PPP" : "PPP p");
+  if (dateOnly) return formatDisplayDate(value);
+  return formatDisplayDateTime(value);
 };
 
 const getStatusClassName = (status?: string | null) => {

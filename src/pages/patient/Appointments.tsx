@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { format, isValid, parseISO } from "date-fns";
 import { Calendar, Clock, MapPin, Plus, User, Video } from "lucide-react";
 import { Link } from "react-router-dom";
 import { patientBookingNavItems } from "@/components/patient/patientNavigation";
@@ -18,15 +17,9 @@ import {
 } from "@/hooks/usePatientProfile";
 import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName } from "@/lib/auth";
+import { formatDisplayDateTime } from "@/lib/date-time";
 
-const formatDateTime = (value?: string | null) => {
-  if (!value) return "Date not available";
-
-  const parsed = parseISO(value);
-  if (!isValid(parsed)) return value;
-
-  return format(parsed, "PPP p");
-};
+const formatDateTime = (value?: string | null) => formatDisplayDateTime(value);
 
 const getStatusClassName = (status?: string | null) => {
   switch ((status ?? "").toLowerCase()) {

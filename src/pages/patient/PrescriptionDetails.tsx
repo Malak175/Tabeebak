@@ -1,4 +1,3 @@
-import { format, isValid, parseISO } from "date-fns";
 import { ArrowLeft, ClipboardList, Pill, User } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
@@ -11,15 +10,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { usePatientPrescriptionDetailsQuery } from "@/hooks/usePatientProfile";
 import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName } from "@/lib/auth";
+import { formatDisplayDate } from "@/lib/date-time";
 
-const formatDate = (value?: string | null) => {
-  if (!value) return "Not available";
-
-  const parsed = parseISO(value);
-  if (!isValid(parsed)) return value;
-
-  return format(parsed, "PPP");
-};
+const formatDate = (value?: string | null) => formatDisplayDate(value);
 
 const getStatusClassName = (status?: string | null) => {
   switch ((status ?? "").toLowerCase()) {

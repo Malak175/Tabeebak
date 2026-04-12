@@ -1,10 +1,14 @@
-import { format, isValid, parseISO } from "date-fns";
 import { Calendar, Clock, MapPin, MessageSquare, XCircle } from "lucide-react";
 import { ReactNode, useEffect, useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
 import { DoctorAvailability } from "@/types/doctor-profile.types";
 import { buildStableKey } from "@/lib/reactKeys";
-import { formatDateTime as formatDateTimeParts } from "@/lib/date-time";
+import {
+  formatDateTime as formatDateTimeParts,
+  formatDisplayDate,
+  formatDisplayDateTime,
+  formatDisplayTime,
+} from "@/lib/date-time";
 import {
   DoctorRequestSummary,
   LabRequestSummary,
@@ -19,21 +23,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 
-export const formatDateTime = (value?: string | null) => {
-  if (!value) return "Not available";
+export const formatDateTime = (value?: string | null) => formatDisplayDateTime(value);
 
-  const parsed = parseISO(value);
-  if (!isValid(parsed)) return value;
-
-  return format(parsed, "PPP p");
-};
-
-export const formatDateOnly = (value?: string | null) => {
-  if (!value) return "Not available";
-  const parsed = parseISO(value);
-  if (!isValid(parsed)) return value;
-  return format(parsed, "PPP");
-};
+export const formatDateOnly = (value?: string | null) => formatDisplayDate(value);
 
 export const requestStatusClassName = (status?: RequestStatus) => {
   switch (status) {
@@ -474,7 +466,7 @@ export const RequestDetailsGrid = ({
 }) => {
   const primaryDateTime = preferredDateTime ?? preferredTime ?? undefined;
   const { date, time } = formatDateTimeParts(primaryDateTime);
-  const timeLabel = preferredTime || (time !== "-" ? time : "-");
+  const timeLabel = preferredTime ? formatDisplayTime(preferredTime) : time !== "-" ? time : "-";
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">

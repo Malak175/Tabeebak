@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { format, isValid, parseISO } from "date-fns";
+import { formatDisplayDate, formatDisplayDateTime } from "@/lib/date-time";
 import { Calendar, Clock, MapPin, Stethoscope, Video } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
@@ -21,23 +21,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName } from "@/lib/auth";
 import { toast } from "sonner";
 
-const formatDateTime = (value?: string | null) => {
-  if (!value) return "Not available";
+const formatDateTime = (value?: string | null) => formatDisplayDateTime(value);
 
-  const parsed = parseISO(value);
-  if (!isValid(parsed)) return value;
-
-  return format(parsed, "PPP p");
-};
-
-const formatDateOnly = (value?: string | null) => {
-  if (!value) return "Not available";
-
-  const parsed = parseISO(value);
-  if (!isValid(parsed)) return value;
-
-  return format(parsed, "PPP");
-};
+const formatDateOnly = (value?: string | null) => formatDisplayDate(value);
 
 const getStatusClassName = (status?: string | null) => {
   switch ((status ?? "").toLowerCase()) {

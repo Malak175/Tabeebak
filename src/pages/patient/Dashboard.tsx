@@ -1,5 +1,4 @@
 ﻿import { Link } from "react-router-dom";
-import { format, isValid, parseISO } from "date-fns";
 import { Calendar, ClipboardList, FlaskConical, Phone, ShieldCheck, User } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { patientNavItems } from "@/components/settings/AccountSettingsContent";
@@ -22,6 +21,7 @@ import {
 } from "@/hooks/usePatientProfile";
 import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName } from "@/lib/auth";
+import { formatDisplayDateTime } from "@/lib/date-time";
 import { cn } from "@/lib/utils";
 
 const formatNumber = (value: number | null | undefined, digits = 1) => {
@@ -29,12 +29,7 @@ const formatNumber = (value: number | null | undefined, digits = 1) => {
   return value.toFixed(digits);
 };
 
-const formatDate = (value?: string | null) => {
-  if (!value) return "Not available";
-  const parsed = parseISO(value);
-  if (!isValid(parsed)) return value;
-  return format(parsed, "PPP");
-};
+const formatDate = (value?: string | null) => formatDisplayDateTime(value);
 
 const SummaryStat = ({
   title,

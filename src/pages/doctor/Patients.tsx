@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { format, isValid, parseISO } from "date-fns";
+import { formatDisplayDate } from "@/lib/date-time";
 import { Link } from "react-router-dom";
 import { Search, Stethoscope, UserRound, Users } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
@@ -21,11 +21,7 @@ import { getDisplayName, getInitials } from "@/lib/auth";
 
 const formatDateTime = (value?: string | null) => {
   if (!value) return null;
-
-  const parsed = parseISO(value);
-  if (!isValid(parsed)) return value;
-
-  return format(parsed, "PPP");
+  return formatDisplayDate(value);
 };
 
 const getConditionClassName = (value?: string | null) => {

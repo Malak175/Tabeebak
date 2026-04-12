@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
-import { format, isValid, parseISO } from "date-fns";
 import { ArrowLeft, Plus, Trash2, Stethoscope } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
@@ -15,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useCreateDoctorPrescriptionMutation, useDoctorAppointmentDetailsQuery } from "@/hooks/useDoctorWorkflow";
 import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName } from "@/lib/auth";
+import { formatDisplayDateTime } from "@/lib/date-time";
 import { toast } from "sonner";
 
 type MedicationFormValues = {
@@ -29,14 +29,7 @@ type FormValues = {
   medications: MedicationFormValues[];
 };
 
-const formatDateTime = (value?: string | null) => {
-  if (!value) return "Not available";
-
-  const parsed = parseISO(value);
-  if (!isValid(parsed)) return value;
-
-  return format(parsed, "PPP p");
-};
+const formatDateTime = (value?: string | null) => formatDisplayDateTime(value);
 
 const CreatePrescription = () => {
   const { appointmentId } = useParams();
