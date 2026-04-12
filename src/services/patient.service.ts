@@ -108,6 +108,21 @@ const pickNumber = (record: Record<string, unknown>, keys: string[]) => {
   return undefined;
 };
 
+const pickIdValue = (record: Record<string, unknown>, keys: string[]) => {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === "string") {
+      const normalized = value.trim();
+      if (normalized) return normalized;
+    }
+  }
+
+  return undefined;
+};
+
 const pickNullableNumber = (record: Record<string, unknown>, keys: string[]) => {
   const value = pickNumber(record, keys);
   return value ?? null;
@@ -239,6 +254,8 @@ const getListEnvelope = (payload: unknown) => {
     container.lab_orders,
     container.labResults,
     container.lab_results,
+    container.laboratoryResults,
+    container.laboratory_results,
     raw.items,
     raw.results,
     raw.records,
@@ -248,6 +265,8 @@ const getListEnvelope = (payload: unknown) => {
     raw.lab_orders,
     raw.labResults,
     raw.lab_results,
+    raw.laboratoryResults,
+    raw.laboratory_results,
   ];
 
   const items = candidates.find(Array.isArray) as unknown[] | undefined;
@@ -586,28 +605,83 @@ const normalizeLabResultMeasurement = (payload: unknown): LabResultMeasurement =
   };
 };
 
+const normalizeMeasurementMap = (payload: unknown) => {
+  const record = asRecord(payload);
+  const entries = Object.entries(record);
+  if (entries.length === 0) return [];
+
+  return entries.map(([name, value]) => {
+    const detail = asRecord(value);
+    if (Object.keys(detail).length > 0) {
+      return { name, ...detail };
+    }
+    if (value === null || value === undefined) {
+      return { name, value: null };
+    }
+    return { name, value: String(value) };
+  });
+};
+
 const normalizeLabResult = (payload: unknown): LabResult => {
   const raw = unwrapPayload(payload);
+  const resultRecord = mergeRecords(
+    pickRecord(raw, ["laboratoryResult", "laboratory_result", "result", "labResult", "lab_result"]),
+  );
   const laboratory = mergeRecords(pickRecord(raw, ["laboratory", "lab"]));
   const doctor = mergeRecords(pickRecord(raw, ["doctor", "orderingDoctor", "provider"]));
   const test = mergeRecords(pickRecord(raw, ["test", "panel"]));
+  const observations = mergeRecords(pickRecord(raw, ["observations", "observation"]));
 
-  const measurementsSource =
-    (getListEnvelope(raw.measurements).items.length > 0 && getListEnvelope(raw.measurements).items) ||
-    (getListEnvelope(raw.values).items.length > 0 && getListEnvelope(raw.values).items) ||
-    (getListEnvelope(raw.components).items.length > 0 && getListEnvelope(raw.components).items) ||
-    [];
+  const measurementCandidates = [
+    getListEnvelope(raw.measurements).items,
+    getListEnvelope(raw.values).items,
+    getListEnvelope(raw.components).items,
+    getListEnvelope(observations.measurements).items,
+    normalizeMeasurementMap(observations.measurements),
+  ];
+  const measurementsSource = measurementCandidates.find((items) => items.length > 0) ?? [];
 
   const attachments = [
     ...pickStringArray(raw, ["attachments"]),
     ...pickStringArray(raw, ["files"]),
+    ...pickStringArray(raw, ["reportFiles", "report_files"]),
   ];
 
+  const idValue =
+    pickIdValue(raw, [
+      "id",
+      "_id",
+      "resultId",
+      "result_id",
+      "labResultId",
+      "lab_result_id",
+      "laboratoryResultId",
+      "laboratory_result_id",
+    ]) ??
+    pickIdValue(resultRecord, [
+      "id",
+      "_id",
+      "resultId",
+      "result_id",
+      "labResultId",
+      "lab_result_id",
+      "laboratoryResultId",
+      "laboratory_result_id",
+    ]);
+
+  if (idValue === undefined) {
+    console.warn("[Normalizer] Raw item:", raw);
+    console.warn("[Normalizer] Final id:", idValue);
+  } else {
+    console.warn("[Normalizer] Raw item:", raw);
+    console.warn("[Normalizer] Final id:", idValue);
+  }
+
   return {
-    id: pickString(raw, ["id", "_id", "resultId", "result_id", "labResultId", "lab_result_id"]) ?? "",
+    id: idValue as unknown as string,
     requestId:
-      pickNullableString(raw, ["requestId", "request_id", "testRequestId", "test_request_id"]) ??
-      pickNullableString(raw, ["orderId", "order_id", "labOrderId", "lab_order_id"]) ??
+      (pickIdValue(raw, ["requestId", "request_id", "testRequestId", "test_request_id"]) ??
+        pickIdValue(raw, ["orderId", "order_id", "labOrderId", "lab_order_id"])) ??
       null,
     resultNumber: pickNullableString(raw, ["resultNumber", "result_number", "referenceNumber"]),
     testName:
@@ -622,16 +696,22 @@ const normalizeLabResult = (payload: unknown): LabResult => {
     collectedAt: pickNullableString(raw, ["collectedAt", "sampleCollectedAt"]),
     reportedAt: pickNullableString(raw, ["reportedAt", "completedAt", "issuedAt", "date"]),
     laboratoryName:
-      pickNullableString(raw, ["laboratoryName", "labName", "lab_name"]) ??
+      pickNullableString(raw, ["laboratoryName", "labName", "lab_name", "laboratory_name"]) ??
       pickNullableString(laboratory, ["name", "displayName"]),
     orderingDoctorName:
       pickNullableString(raw, ["orderingDoctorName", "doctorName", "doctor_name"]) ??
       pickNullableString(doctor, ["displayName", "name", "fullName"]),
-    interpretation: pickNullableString(raw, ["interpretation", "summary"]),
-    conclusion: pickNullableString(raw, ["conclusion", "impression"]),
-    notes: pickNullableString(raw, ["notes", "comment"]),
-    reportUrl: pickNullableString(raw, ["reportUrl", "pdfUrl", "downloadUrl"]),
-    isAbnormal: pickBoolean(raw, ["isAbnormal", "abnormal"]) ?? false,
+    interpretation:
+      pickNullableString(raw, ["interpretation", "summary"]) ??
+      pickNullableString(observations, ["summary", "interpretation"]),
+    conclusion:
+      pickNullableString(raw, ["conclusion", "impression"]) ??
+      pickNullableString(observations, ["notes", "conclusion"]),
+    notes:
+      pickNullableString(raw, ["notes", "comment"]) ??
+      pickNullableString(observations, ["notes", "comment", "remarks"]),
+    reportUrl: pickNullableString(raw, ["reportUrl", "report_url", "pdfUrl", "downloadUrl"]),
+    isAbnormal: pickBoolean(raw, ["isAbnormal", "abnormal", "abnormal_flag"]) ?? false,
     measurements: measurementsSource.map(normalizeLabResultMeasurement),
     attachments,
   };
@@ -824,7 +904,10 @@ export const patientService = {
       auth: true,
     });
 
-    return normalizePaginatedResponse(response, normalizeLabResult);
+    console.warn("[LabResults][Raw API Response]", response);
+    const normalized = normalizePaginatedResponse(response, normalizeLabResult);
+    console.warn("[LabResults][Normalized Response]", normalized);
+    return normalized;
   },
 
   getPatientLabResultById: async (resultId: string): Promise<LabResult> => {

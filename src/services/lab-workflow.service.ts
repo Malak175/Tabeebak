@@ -623,40 +623,40 @@ const normalizeSampleCollectionRequest = (payload: unknown): SampleCollectionReq
 };
 
 const buildResultPayload = (payload: UploadLabResultRequest) => {
-  const hasFiles =
-    Boolean(payload.resultFile) || Boolean(payload.attachments && payload.attachments.length > 0);
-
-  if (!hasFiles) {
-    return {
-      status: payload.status,
-      referenceNumber: payload.referenceNumber,
-      summary: payload.summary,
-      conclusion: payload.conclusion,
-      notes: payload.notes,
-      collectedAt: payload.collectedAt,
-      reportedAt: payload.reportedAt,
-      values: payload.values,
-    };
-  }
-
   const formData = new FormData();
 
   if (payload.status) formData.append("status", payload.status);
-  if (payload.referenceNumber) formData.append("referenceNumber", payload.referenceNumber);
-  if (payload.summary) formData.append("summary", payload.summary);
-  if (payload.conclusion) formData.append("conclusion", payload.conclusion);
-  if (payload.notes) formData.append("notes", payload.notes);
-  if (payload.collectedAt) formData.append("collectedAt", payload.collectedAt);
-  if (payload.reportedAt) formData.append("reportedAt", payload.reportedAt);
-  if (payload.resultFile) formData.append("resultFile", payload.resultFile);
 
-  payload.attachments?.forEach((file) => {
-    formData.append("attachments", file);
-  });
+  const measurements = (payload.values ?? []).reduce<Record<string, unknown>>((result, item) => {
+    const key = item.name?.trim();
+    if (!key) return result;
+    result[key] = {
+      value: item.value ?? "",
+      unit: item.unit ?? "",
+      referenceRange: item.referenceRange ?? "",
+      status: item.status ?? "",
+    };
+    return result;
+  }, {});
 
-  if (payload.values?.length) {
-    formData.append("values", JSON.stringify(payload.values));
+  const observations = {
+    summary: payload.summary || "",
+    notes: payload.conclusion || "",
+    flags: [],
+    measurements,
+  };
+
+  const shouldSendObservations =
+    Boolean(payload.resultFile) === false ||
+    Boolean(payload.summary?.trim()) ||
+    Boolean(payload.conclusion?.trim()) ||
+    Object.keys(measurements).length > 0;
+
+  if (shouldSendObservations) {
+    formData.append("observations", JSON.stringify(observations));
   }
+
+  if (payload.resultFile) formData.append("file", payload.resultFile);
 
   return formData;
 };

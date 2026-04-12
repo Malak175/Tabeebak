@@ -1,6 +1,6 @@
 import { ChangeEvent, useEffect, useState } from "react";
 import { format, isValid, parseISO } from "date-fns";
-import { ArrowLeft, CalendarClock, FileUp, FlaskConical, Save, User } from "lucide-react";
+import { ArrowLeft, CalendarClock, CheckCircle2, FileUp, FlaskConical, Save, User, XCircle } from "lucide-react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
@@ -29,17 +29,12 @@ import {
 import { useLabProfileQuery } from "@/hooks/useLabProfile";
 import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName } from "@/lib/auth";
+import { formatDisplayDateTime } from "@/lib/date-time";
+import { HEART_MEASUREMENT_SCHEMA } from "@/lib/heartMeasurementSchema";
 import { formatLabStatusLabel, isResultReadyStatus } from "@/lib/labStatus";
 import { UploadLabResultValue } from "@/types/lab-workflow.types";
 
-const formatDateTime = (value?: string | null) => {
-  if (!value) return "Not available";
-
-  const parsed = parseISO(value);
-  if (!isValid(parsed)) return value;
-
-  return format(parsed, "PPP p");
-};
+const formatDateTime = (value?: string | null) => formatDisplayDateTime(value);
 
 const toDateTimeInputValue = (value?: string | null) => {
   if (!value) return "";
@@ -52,6 +47,8 @@ const toDateTimeInputValue = (value?: string | null) => {
 
 const getStatusClassName = (status?: string | null) => {
   switch ((status ?? "").toLowerCase()) {
+    case "approved":
+    case "accepted":
     case "completed":
     case "reported":
     case "ready":
@@ -59,18 +56,115 @@ const getStatusClassName = (status?: string | null) => {
     case "result-uploaded":
       return "bg-green-100 text-green-700 border-green-200";
     case "processing":
+    case "in_progress":
+    case "in-progress":
     case "sample_collected":
     case "sample-collected":
+    case "sample_collection_requested":
+    case "sample-collection-requested":
       return "bg-blue-100 text-blue-700 border-blue-200";
     case "pending":
     case "requested":
+    case "under_review":
+    case "under-review":
       return "bg-yellow-100 text-yellow-700 border-yellow-200";
     case "cancelled":
     case "canceled":
+    case "rejected":
       return "bg-red-100 text-red-700 border-red-200";
     default:
       return "bg-muted text-muted-foreground border-border";
   }
+};
+
+const normalizeStatusKey = (status?: string | null) =>
+  (status ?? "")
+    .trim()
+    .replace(/([a-z])([A-Z])/g, "$1_$2")
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+
+const CANONICAL_STATUS_MAP: Record<string, string> = {
+  pending: "Pending",
+  assigned_to_doctor: "Assigned_To_Doctor",
+  sample_collection_requested: "Sample_Collection_Requested",
+  sample_collected: "Sample_Collected",
+  in_progress: "In_Progress",
+  result_uploaded: "Result_Uploaded",
+  completed: "Completed",
+  cancelled: "Cancelled",
+  rejected: "Rejected",
+  approved: "Approved",
+  accepted: "Accepted",
+};
+
+const toCanonicalStatus = (status?: string | null) => {
+  const normalized = normalizeStatusKey(status);
+  if (!normalized) return "";
+  if (normalized === "canceled") return CANONICAL_STATUS_MAP.cancelled;
+  if (normalized === "processing") return CANONICAL_STATUS_MAP.in_progress;
+  return CANONICAL_STATUS_MAP[normalized] ?? "";
+};
+
+const getReviewPresentation = (status?: string | null) => {
+  const normalized = toCanonicalStatus(status);
+  const approvedStatuses = [
+    "Approved",
+    "Accepted",
+    "Sample_Collection_Requested",
+    "Sample_Collected",
+    "In_Progress",
+    "Result_Uploaded",
+  ];
+
+  if (approvedStatuses.includes(normalized)) {
+    return {
+      label: "Approved",
+      tone: "success",
+      description: "The request has been accepted and can proceed.",
+    };
+  }
+  if (normalized === "Rejected") {
+    return {
+      label: "Rejected",
+      tone: "danger",
+      description: "The request was declined and is no longer active.",
+    };
+  }
+  if (normalized === "Cancelled") {
+    return {
+      label: "Cancelled",
+      tone: "danger",
+      description: "The request has been cancelled and is no longer active.",
+    };
+  }
+  return null;
+};
+
+const getStatusOptions = (status?: string | null) => {
+  const normalized = normalizeStatusKey(status);
+  const workflow = [
+    "pending",
+    "assigned_to_doctor",
+    "sample_collection_requested",
+    "sample_collected",
+    "in_progress",
+    "result_uploaded",
+    "completed",
+  ];
+  const terminals = ["cancelled", "rejected", "completed"];
+
+  if (!normalized) return [];
+  if (terminals.includes(normalized)) {
+    return [CANONICAL_STATUS_MAP[normalized]];
+  }
+  const currentIndex = workflow.indexOf(normalized);
+  if (currentIndex === -1) {
+    return [];
+  }
+  const forwardStatuses = workflow.slice(currentIndex);
+  const withCancel = forwardStatuses.includes("cancelled") ? forwardStatuses : [...forwardStatuses, "cancelled"];
+  return withCancel.map((statusKey) => CANONICAL_STATUS_MAP[statusKey]).filter(Boolean);
 };
 
 const DetailRow = ({ label, value }: { label: string; value?: string | null }) => (
@@ -88,6 +182,15 @@ const createEmptyValue = (): UploadLabResultValue => ({
   status: "",
 });
 
+const createDefaultValues = (): UploadLabResultValue[] =>
+  Object.entries(HEART_MEASUREMENT_SCHEMA).map(([key, schema]) => ({
+    name: key,
+    value: "",
+    unit: schema.unit,
+    referenceRange: schema.referenceRange,
+    status: "",
+  }));
+
 const LabOrderDetailsPage = () => {
   const { orderId } = useParams();
   const location = useLocation();
@@ -100,33 +203,80 @@ const LabOrderDetailsPage = () => {
   const uploadResultMutation = useUploadLabOrderResultMutation();
   const userName = getDisplayName(profileQuery.data ?? user ?? {});
 
-  const [status, setStatus] = useState("processing");
+  const [status, setStatus] = useState("");
   const [statusNotes, setStatusNotes] = useState("");
   const [reviewMessage, setReviewMessage] = useState("");
   const [reply, setReply] = useState("");
   const [replyError, setReplyError] = useState<string | null>(null);
-  const [resultStatus, setResultStatus] = useState("completed");
+  const [resultStatus, setResultStatus] = useState("Draft");
   const [referenceNumber, setReferenceNumber] = useState("");
   const [summary, setSummary] = useState("");
   const [conclusion, setConclusion] = useState("");
   const [resultNotes, setResultNotes] = useState("");
   const [reportedAt, setReportedAt] = useState("");
   const [resultFile, setResultFile] = useState<File | null>(null);
-  const [values, setValues] = useState<UploadLabResultValue[]>([createEmptyValue()]);
+  const [values, setValues] = useState<UploadLabResultValue[]>(createDefaultValues);
   const [uploadSuccess, setUploadSuccess] = useState(false);
 
   const detail = detailsQuery.data;
   const patientNote = [detail?.instructions, detail?.diagnosis, detail?.specimenNotes]
     .filter(Boolean)
     .join("\n\n");
+  const reviewPresentation = getReviewPresentation(detail?.status);
+  const normalizedStatus = toCanonicalStatus(detail?.status);
+  const isReviewed = Boolean(reviewPresentation);
+  const messagingEnabledStatuses = [
+    "Pending",
+    "Sample_Collection_Requested",
+    "Sample_Collected",
+    "In_Progress",
+    "Result_Uploaded",
+    "Assigned_To_Doctor",
+  ];
+  const messagingDisabledStatuses = ["Cancelled", "Rejected", "Completed"];
+  const canReplyToRequest =
+    Boolean(detail?.requestId) &&
+    messagingEnabledStatuses.includes(normalizedStatus) &&
+    !messagingDisabledStatuses.includes(normalizedStatus);
+  const statusOptions = getStatusOptions(detail?.status);
+  const statusSelectOptions = statusOptions.length
+    ? statusOptions
+    : status
+      ? [toCanonicalStatus(status)]
+      : [];
+
+  useEffect(() => {
+    if (!detail) return;
+    const helperNoRequest = !detail.requestId;
+    const helperBlocked = Boolean(detail.requestId) && !canReplyToRequest;
+
+    console.debug("[LabOrderDetails] Thread Debug (raw)", {
+      status: detail.status,
+      canReply: detail.canReply,
+      sampleCollectionStatus: detail.sampleCollectionStatus,
+      sampleCollectionRequested: detail.sampleCollectionRequested,
+      resultStatus: detail.resultStatus,
+      requestId: detail.requestId,
+    });
+
+    console.debug("[LabOrderDetails] Thread Debug (derived)", {
+      normalizedStatus,
+      messagingEnabledStatuses,
+      messagingDisabledStatuses,
+      isMessagingAllowed: canReplyToRequest,
+      helperNoRequest,
+      helperBlocked,
+    });
+  }, [detail, normalizedStatus, canReplyToRequest, messagingEnabledStatuses, messagingDisabledStatuses]);
 
   useEffect(() => {
     if (!detail) return;
 
-    setStatus(detail.status);
+    setStatus(toCanonicalStatus(detail.status));
     setStatusNotes(detail.internalNotes ?? detail.notes ?? "");
     setReviewMessage(detail.notes ?? "");
-    setResultStatus(detail.resultStatus ?? "completed");
+    const isOrderCompleted = toCanonicalStatus(detail.status) === "Completed";
+    setResultStatus(detail.resultStatus ?? (isOrderCompleted ? "Final" : "Draft"));
     setReferenceNumber(detail.resultId ?? detail.orderNumber ?? "");
     setResultNotes(detail.internalNotes ?? "");
     setReportedAt(toDateTimeInputValue(detail.completedAt));
@@ -168,8 +318,10 @@ const LabOrderDetailsPage = () => {
         },
       },
       {
-        onSuccess: () =>
-          toast.success(action === "approve" ? "Order approved successfully." : "Order rejected successfully."),
+        onSuccess: () => {
+          toast.success(action === "approve" ? "Order approved successfully." : "Order rejected successfully.");
+          void detailsQuery.refetch();
+        },
         onError: (error: Error) => toast.error(error.message),
       },
     );
@@ -194,7 +346,7 @@ const LabOrderDetailsPage = () => {
   };
 
   const handleSendReply = () => {
-    if (!detail?.requestId || !reply.trim()) return;
+    if (!detail?.requestId || !reply.trim() || !canReplyToRequest) return;
 
     setReplyError(null);
     messageMutation.mutate(
@@ -242,7 +394,7 @@ const LabOrderDetailsPage = () => {
           setConclusion("");
           setResultNotes("");
           setResultFile(null);
-          setValues([createEmptyValue()]);
+          setValues(createDefaultValues());
         },
         onError: (error: Error) => toast.error(error.message),
       },
@@ -309,6 +461,31 @@ const LabOrderDetailsPage = () => {
                   {detail.service?.sampleType ? <Badge variant="outline">{detail.service.sampleType}</Badge> : null}
                   {detail.service?.category ? <Badge variant="outline">{detail.service.category}</Badge> : null}
                 </div>
+                {reviewPresentation ? (
+                  <div
+                    className={`flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 text-sm ${
+                      reviewPresentation.tone === "success"
+                        ? "border-green-200 bg-green-50/80 text-green-800"
+                        : "border-red-200 bg-red-50/80 text-red-700"
+                    }`}
+                  >
+                    {reviewPresentation.tone === "success" ? (
+                      <CheckCircle2 className="h-4 w-4" />
+                    ) : (
+                      <XCircle className="h-4 w-4" />
+                    )}
+                    <Badge
+                      className={`border-transparent ${
+                        reviewPresentation.tone === "success"
+                          ? "bg-green-600 text-white"
+                          : "bg-red-600 text-white"
+                      }`}
+                    >
+                      {reviewPresentation.label}
+                    </Badge>
+                    <span>{reviewPresentation.description}</span>
+                  </div>
+                ) : null}
                 <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                   <span>Requested: {formatDateTime(detail.orderedAt)}</span>
                   <span>Preferred: {formatDateTime(detail.scheduledAt)}</span>
@@ -385,31 +562,59 @@ const LabOrderDetailsPage = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="reviewMessage">Message to patient</Label>
-                    <Textarea
-                      id="reviewMessage"
-                      value={reviewMessage}
-                      onChange={(event) => setReviewMessage(event.target.value)}
-                      placeholder="Optional approval or rejection note"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      This message is sent with the review decision. The shared thread stays separate below.
-                    </p>
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <Button onClick={() => submitReview("approve")} disabled={reviewMutation.isPending}>
-                      {reviewMutation.isPending ? "Saving..." : "Approve request"}
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      onClick={() => submitReview("reject")}
-                      disabled={reviewMutation.isPending}
+                  {isReviewed && reviewPresentation ? (
+                    <div
+                      className={`flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 text-sm ${
+                        reviewPresentation.tone === "success"
+                          ? "border-green-200 bg-green-50/80 text-green-800"
+                          : "border-red-200 bg-red-50/80 text-red-700"
+                      }`}
                     >
-                      {reviewMutation.isPending ? "Saving..." : "Reject request"}
-                    </Button>
-                  </div>
+                      {reviewPresentation.tone === "success" ? (
+                        <CheckCircle2 className="h-4 w-4" />
+                      ) : (
+                        <XCircle className="h-4 w-4" />
+                      )}
+                      <Badge
+                        className={`border-transparent ${
+                          reviewPresentation.tone === "success"
+                            ? "bg-green-600 text-white"
+                            : "bg-red-600 text-white"
+                        }`}
+                      >
+                        {reviewPresentation.label}
+                      </Badge>
+                      <span>{reviewPresentation.description}</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="reviewMessage">Message to patient</Label>
+                        <Textarea
+                          id="reviewMessage"
+                          value={reviewMessage}
+                          onChange={(event) => setReviewMessage(event.target.value)}
+                          placeholder="Optional approval or rejection note"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          This message is sent with the review decision. The shared thread stays separate below.
+                        </p>
+                      </div>
+
+                      <div className="flex flex-col gap-2">
+                        <Button onClick={() => submitReview("approve")} disabled={reviewMutation.isPending}>
+                          {reviewMutation.isPending ? "Saving..." : "Approve request"}
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          onClick={() => submitReview("reject")}
+                          disabled={reviewMutation.isPending}
+                        >
+                          {reviewMutation.isPending ? "Saving..." : "Reject request"}
+                        </Button>
+                      </div>
+                    </>
+                  )}
                 </CardContent>
               </Card>
 
@@ -456,16 +661,16 @@ const LabOrderDetailsPage = () => {
                     }}
                     onSubmit={handleSendReply}
                     isSending={messageMutation.isPending}
-                    disabled={!detail.requestId || !detail.canReply}
+                    disabled={!canReplyToRequest}
                   />
                   {!detail.requestId ? (
                     <p className="text-sm text-muted-foreground">
                       Messaging is unavailable for this request at the moment.
                     </p>
                   ) : null}
-                  {detail.requestId && !detail.canReply ? (
+                  {detail.requestId && !canReplyToRequest ? (
                     <p className="text-sm text-muted-foreground">
-                      Replies are unavailable for this request in its current state.
+                      Replies are disabled because this request is {formatLabStatusLabel(detail.status)}.
                     </p>
                   ) : null}
                 </div>
@@ -486,11 +691,11 @@ const LabOrderDetailsPage = () => {
                       <SelectValue placeholder="Select status" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="sample_collected">Sample Collected</SelectItem>
-                      <SelectItem value="processing">Processing</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
-                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                      {statusSelectOptions.map((option) => (
+                        <SelectItem key={option} value={option}>
+                          {formatLabStatusLabel(option)}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -528,9 +733,10 @@ const LabOrderDetailsPage = () => {
                         <SelectValue placeholder="Result status" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="completed">Completed</SelectItem>
-                        <SelectItem value="reported">Reported</SelectItem>
-                        <SelectItem value="final">Final</SelectItem>
+                        <SelectItem value="Draft">Draft</SelectItem>
+                        <SelectItem value="Final">Final</SelectItem>
+                        <SelectItem value="Reported">Reported</SelectItem>
+                        <SelectItem value="Amended">Amended</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -596,12 +802,20 @@ const LabOrderDetailsPage = () => {
                   <div className="space-y-3">
                     {values.map((item, index) => (
                       <div key={index} className="grid gap-3 rounded-lg border p-3">
-                        <Input
-                          value={item.name}
-                          onChange={(event) => handleValueChange(index, "name", event.target.value)}
-                          placeholder="Measurement name"
-                          disabled={isUploading}
-                        />
+                        <div className="space-y-1">
+                          <Input
+                            value={item.name}
+                            onChange={(event) => handleValueChange(index, "name", event.target.value)}
+                            placeholder="Measurement name"
+                            disabled={isUploading}
+                          />
+                          {HEART_MEASUREMENT_SCHEMA[item.name] ? (
+                            <p className="text-xs text-muted-foreground">
+                              {HEART_MEASUREMENT_SCHEMA[item.name].label} —{" "}
+                              {HEART_MEASUREMENT_SCHEMA[item.name].description}
+                            </p>
+                          ) : null}
+                        </div>
                         <div className="grid gap-3 md:grid-cols-2">
                           <Input
                             value={item.value ?? ""}

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { format, isValid, parseISO } from "date-fns";
+import { differenceInYears, isValid, parseISO } from "date-fns";
 import { ArrowLeft, Download, FlaskConical, User } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -18,11 +18,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { usePatientLabResultDetailsQuery } from "@/hooks/usePatientProfile";
+import { usePatientLabResultDetailsQuery, usePatientProfileQuery } from "@/hooks/usePatientProfile";
 import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName } from "@/lib/auth";
 import { apiRequest } from "@/services/api";
 import { ApiError } from "@/types/api.types";
+import { formatDisplayDateTime } from "@/lib/date-time";
+import { getHeartMeasurementSchema } from "@/lib/heartMeasurementSchema";
 
 type LabPrediction = {
   riskLevel?: string | null;
@@ -31,14 +33,7 @@ type LabPrediction = {
   thresholdUsed?: number | null;
 };
 
-const formatDate = (value?: string | null) => {
-  if (!value) return "Not available";
-
-  const parsed = parseISO(value);
-  if (!isValid(parsed)) return value;
-
-  return format(parsed, "PPP");
-};
+const formatDate = (value?: string | null) => formatDisplayDateTime(value);
 
 const getStatusClassName = (status?: string | null) => {
   switch ((status ?? "").toLowerCase()) {
@@ -70,7 +65,10 @@ const normalizePrediction = (payload: unknown): LabPrediction | null => {
   const record = raw as Record<string, unknown>;
   const predictionValue = record.prediction as number | string | undefined;
   const probabilityValue = record.probability as number | string | undefined;
-  const thresholdValue = record.threshold_used as number | string | undefined;
+  const thresholdValue =
+    (record.thresholdUsed as number | string | undefined) ??
+    (record.threshold_used as number | string | undefined) ??
+    (record.threshold as number | string | undefined);
   const successValue = record.success as boolean | undefined;
 
   if (successValue === false) return null;
@@ -105,12 +103,15 @@ const normalizePrediction = (payload: unknown): LabPrediction | null => {
         ? "The AI analysis indicates a lower health risk based on the available lab data."
         : null;
 
-  return {
+  const normalized = {
     riskLevel,
     probability: Number.isFinite(parsedProbability) ? parsedProbability : null,
     explanation,
     thresholdUsed: Number.isFinite(parsedThreshold) ? parsedThreshold : null,
   };
+  console.warn("[Prediction] Raw response:", payload);
+  console.warn("[Prediction] Normalized thresholdUsed:", normalized.thresholdUsed);
+  return normalized;
 };
 
 const getRiskTone = (riskLevel?: string | null) => {
@@ -134,11 +135,79 @@ const formatProbability = (value?: number | null) => {
   return `${Math.round(clamped)}%`;
 };
 
+const parseRange = (raw?: string | null) => {
+  if (!raw) return { min: null, max: null };
+  const value = raw.trim();
+  if (!value) return { min: null, max: null };
+
+  const betweenMatch = value.match(/^\s*(-?\d+(?:\.\d+)?)\s*-\s*(-?\d+(?:\.\d+)?)\s*$/);
+  if (betweenMatch) {
+    const min = Number(betweenMatch[1]);
+    const max = Number(betweenMatch[2]);
+    if (Number.isFinite(min) && Number.isFinite(max)) {
+      return { min, max };
+    }
+  }
+
+  const maxMatch = value.match(/^\s*(?:<=|<)\s*(-?\d+(?:\.\d+)?)\s*$/);
+  if (maxMatch) {
+    const max = Number(maxMatch[1]);
+    return { min: null, max: Number.isFinite(max) ? max : null };
+  }
+
+  const minMatch = value.match(/^\s*(?:>=|>)\s*(-?\d+(?:\.\d+)?)\s*$/);
+  if (minMatch) {
+    const min = Number(minMatch[1]);
+    return { min: Number.isFinite(min) ? min : null, max: null };
+  }
+
+  return { min: null, max: null };
+};
+
+const parseNumericValue = (raw?: string | null) => {
+  if (!raw) return null;
+  const cleaned = raw.trim().replace(/,/g, "");
+  if (!cleaned) return null;
+  const parsed = Number(cleaned);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const computeMeasurementStatus = (
+  value?: string | null,
+  referenceRange?: string | null,
+  explicitStatus?: string | null,
+) => {
+  if (explicitStatus?.trim()) return explicitStatus.trim();
+  const numericValue = parseNumericValue(value);
+  const { min, max } = parseRange(referenceRange);
+  if (numericValue == null || (min == null && max == null)) return null;
+  if (min != null && numericValue < min) return "Low";
+  if (max != null && numericValue > max) return "High";
+  return "Normal";
+};
+
+const getStatusTone = (status?: string | null) => {
+  const normalized = (status ?? "").trim().toLowerCase();
+  if (normalized === "normal") return "text-green-700";
+  if (normalized === "high") return "text-red-600";
+  if (normalized === "low") return "text-orange-600";
+  return "text-muted-foreground";
+};
+
+const computeAge = (dateOfBirth?: string | null) => {
+  if (!dateOfBirth) return null;
+  const parsed = parseISO(dateOfBirth);
+  if (!isValid(parsed)) return null;
+  const age = differenceInYears(new Date(), parsed);
+  return Number.isFinite(age) && age >= 0 ? age : null;
+};
+
 const PatientLabResultDetails = () => {
   const { resultId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const query = usePatientLabResultDetailsQuery(resultId, Boolean(user));
+  const profileQuery = usePatientProfileQuery(Boolean(user));
   const userName = getDisplayName(user ?? {});
   const [prediction, setPrediction] = useState<LabPrediction | null>(null);
   const [predictionLoading, setPredictionLoading] = useState(false);
@@ -183,10 +252,23 @@ const PatientLabResultDetails = () => {
 
   const handleRunAnalysis = async () => {
     if (!requestId) return;
+    const profile = profileQuery.data;
+    const age = computeAge(profile?.dateOfBirth ?? null);
+    const gender = profile?.gender ?? null;
+    if (age == null || !gender) {
+      const message = "Patient age and gender are required for AI analysis. Please update your profile.";
+      setPredictionError(message);
+      toast.error(message);
+      return;
+    }
     setPredicting(true);
     setPredictionError(null);
     try {
-      await apiRequest(`/api/v1/test-requests/${requestId}/predict`, { method: "POST", auth: true });
+      await apiRequest(`/api/v1/test-requests/${requestId}/predict`, {
+        method: "POST",
+        auth: true,
+        body: { age, gender },
+      });
       const response = await apiRequest<unknown>(`/api/v1/test-requests/${requestId}/predictions`, {
         method: "GET",
         auth: true,
@@ -215,6 +297,47 @@ const PatientLabResultDetails = () => {
   const handleDownloadAiReport = () => {
     if (!query.data || !prediction) return;
 
+  const measurementRows = query.data.measurements.length
+      ? query.data.measurements
+          .map(
+            (measurement) => {
+              const schemaMatch = getHeartMeasurementSchema(measurement.name ?? null);
+              const schema = schemaMatch?.schema ?? null;
+              const keyLabel = schemaMatch?.key ?? (measurement.name || "Not available");
+              const label = schema?.label ?? (measurement.name || "Not available");
+              const unit = measurement.unit || schema?.unit || "Not available";
+              const referenceRange =
+                measurement.referenceRange || schema?.referenceRange || "Not available";
+              const description = schema?.description ?? "";
+              const derivedStatus = computeMeasurementStatus(
+                measurement.value ?? null,
+                schema?.referenceRange ?? measurement.referenceRange ?? null,
+                measurement.status ?? null,
+              );
+              const statusClass =
+                derivedStatus === "Normal"
+                  ? "status-normal"
+                  : derivedStatus === "High"
+                    ? "status-high"
+                    : derivedStatus === "Low"
+                      ? "status-low"
+                      : "status-muted";
+              return `
+              <tr>
+                <td>${keyLabel}</td>
+                <td>${label}</td>
+                <td>${measurement.value || "Not available"}</td>
+                <td>${unit}</td>
+                <td>${referenceRange}</td>
+                <td class="${statusClass}">${derivedStatus || "Not available"}</td>
+                <td>${description || "Not available"}</td>
+              </tr>
+            `;
+            },
+          )
+          .join("")
+      : "";
+
     const reportWindow = window.open("", "_blank", "width=900,height=700");
     if (!reportWindow) {
       toast.error("Unable to open the report preview. Please allow pop-ups and try again.");
@@ -239,6 +362,13 @@ const PatientLabResultDetails = () => {
             .card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; }
             .label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: #6b7280; }
             .value { font-size: 14px; margin-top: 4px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+            th, td { border: 1px solid #e5e7eb; padding: 8px; text-align: left; font-size: 13px; }
+            th { background: #f9fafb; text-transform: uppercase; letter-spacing: 0.04em; font-size: 11px; color: #6b7280; }
+            .status-normal { color: #15803d; font-weight: 600; }
+            .status-high { color: #dc2626; font-weight: 600; }
+            .status-low { color: #ea580c; font-weight: 600; }
+            .status-muted { color: #6b7280; }
             .disclaimer { margin-top: 24px; font-size: 12px; color: #6b7280; }
           </style>
         </head>
@@ -284,6 +414,30 @@ const PatientLabResultDetails = () => {
               <div class="value">${prediction.explanation || "No explanation provided."}</div>
             </div>
           </div>
+
+          <h2>Measurements</h2>
+          ${
+            measurementRows
+              ? `
+            <table>
+              <thead>
+                <tr>
+                  <th>Key</th>
+                  <th>Scientific Label</th>
+                  <th>Value</th>
+                  <th>Unit</th>
+                  <th>Reference Range</th>
+                  <th>Status / Flag</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${measurementRows}
+              </tbody>
+            </table>
+          `
+              : `<p class="muted">No measurements were provided for this result.</p>`
+          }
 
           <div class="disclaimer">
             Disclaimer: This AI-generated report is informational only and does not replace professional
@@ -369,18 +523,45 @@ const PatientLabResultDetails = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {query.data.measurements.length ? (
-                        query.data.measurements.map((measurement, index) => (
-                          <TableRow key={`${measurement.name}-${index}`}>
-                            <TableCell>{measurement.name}</TableCell>
-                            <TableCell>
-                              {[measurement.value, measurement.unit].filter(Boolean).join(" ")}
-                            </TableCell>
-                            <TableCell>{measurement.referenceRange || "Not provided"}</TableCell>
-                            <TableCell>{measurement.status || "Normal"}</TableCell>
-                          </TableRow>
-                        ))
-                      ) : (
+                        {query.data.measurements.length ? (
+                          query.data.measurements.map((measurement, index) => (
+                            (() => {
+                              const schemaMatch = getHeartMeasurementSchema(measurement.name ?? null);
+                              const schema = schemaMatch?.schema ?? null;
+                              const displayName = schema?.label ?? measurement.name;
+                              const unit = measurement.unit || schema?.unit || "Not provided";
+                              const referenceRange =
+                                measurement.referenceRange || schema?.referenceRange || "Not provided";
+                              const derivedStatus = computeMeasurementStatus(
+                                measurement.value ?? null,
+                                schema?.referenceRange ?? measurement.referenceRange ?? null,
+                                measurement.status ?? null,
+                              );
+                              const statusLabel = derivedStatus || "Not available";
+                              return (
+                            <TableRow key={`${measurement.name}-${index}`}>
+                              <TableCell>
+                                {displayName}
+                                {schema?.description ? (
+                                  <p className="mt-1 text-xs text-muted-foreground">
+                                    {schema.description}
+                                  </p>
+                                ) : null}
+                              </TableCell>
+                              <TableCell>
+                                [measurement.value, unit === "Not provided" ? null : unit]
+                                  .filter(Boolean)
+                                  .join(" ")
+                              </TableCell>
+                              <TableCell>{referenceRange}</TableCell>
+                              <TableCell className={getStatusTone(derivedStatus)}>
+                                {statusLabel}
+                              </TableCell>
+                            </TableRow>
+                              );
+                            })()
+                          ))
+                        ) : (
                         <TableRow>
                           <TableCell colSpan={4} className="text-center text-muted-foreground">
                             No measurements are available yet for this result.

@@ -1,7 +1,6 @@
 ﻿import { useMemo, useState } from "react";
-import { format, isValid, parseISO } from "date-fns";
 import { ClipboardList, Download, FlaskConical, User } from "lucide-react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { patientNavItems } from "@/components/settings/AccountSettingsContent";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -18,15 +17,9 @@ import {
 } from "@/hooks/usePatientProfile";
 import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName } from "@/lib/auth";
+import { formatDisplayDate } from "@/lib/date-time";
 
-const formatDate = (value?: string | null) => {
-  if (!value) return "Not available";
-
-  const parsed = parseISO(value);
-  if (!isValid(parsed)) return value;
-
-  return format(parsed, "PPP");
-};
+const formatDate = (value?: string | null) => formatDisplayDate(value);
 
 const getStatusClassName = (status?: string | null) => {
   switch ((status ?? "").toLowerCase()) {
@@ -56,6 +49,7 @@ const RecordCardSkeleton = () => (
 );
 
 const PatientLabResults = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("results");
   const [resultsPage, setResultsPage] = useState(1);
@@ -91,6 +85,48 @@ const PatientLabResults = () => {
   const resultsQuery = usePatientLabResultsQuery(resultsFilters, enabled);
   const ordersQuery = usePatientLabOrdersQuery(ordersFilters, enabled);
   const userName = getDisplayName(user ?? {});
+  const resolveResultId = (result: Record<string, unknown>) => {
+    const topLevel =
+      (result.id as string | undefined) ||
+      (result.resultId as string | undefined) ||
+      (result.laboratoryResultId as string | undefined) ||
+      (result.laboratory_result_id as string | undefined) ||
+      (result.labResultId as string | undefined) ||
+      (result.lab_result_id as string | undefined);
+    if (topLevel) return topLevel;
+
+    const nestedCandidates = [
+      result.laboratory_result,
+      result.laboratoryResult,
+      result.result,
+      result.lab_result,
+      result.labResult,
+    ];
+
+    for (const candidate of nestedCandidates) {
+      if (!candidate || typeof candidate !== "object") continue;
+      const record = candidate as Record<string, unknown>;
+      const nestedId =
+        (record.id as string | undefined) ||
+        (record.resultId as string | undefined) ||
+        (record.laboratoryResultId as string | undefined) ||
+        (record.laboratory_result_id as string | undefined) ||
+        (record.labResultId as string | undefined) ||
+        (record.lab_result_id as string | undefined);
+      if (nestedId) return nestedId;
+    }
+
+    return "";
+  };
+
+  if (resultsQuery.data?.data?.length) {
+    const first = resultsQuery.data.data[0] as unknown as Record<string, unknown>;
+    const resolvedId = resolveResultId(first);
+    const route = `/patient/lab-results/${resolvedId}`;
+    console.warn("[LabResults][First Rendered Item]", first);
+    console.warn("[LabResults][First Resolved Id]", resolvedId);
+    console.warn("[LabResults][First Route]", route);
+  }
 
   return (
     <DashboardLayout
@@ -173,7 +209,14 @@ const PatientLabResults = () => {
           ) : resultsQuery.data?.data.length ? (
             <>
               <div className="grid gap-4">
-                {resultsQuery.data.data.map((result) => (
+                {resultsQuery.data.data.map((result) => {
+                  const resolvedId = resolveResultId(result as unknown as Record<string, unknown>);
+                  const route = `/patient/lab-results/${resolvedId}`;
+                  console.warn("[LabResults][Rendered Item]", result);
+                  console.warn("[LabResults][Resolved Id]", resolvedId);
+                  console.warn("[LabResults][Route]", route);
+
+                  return (
                   <Card key={result.id}>
                     <CardContent className="flex flex-col gap-4 p-6 md:flex-row md:items-center">
                       <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
@@ -194,8 +237,19 @@ const PatientLabResults = () => {
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        <Button asChild variant="outline">
-                          <Link to={`/patient/lab-results/${result.id}`}>View details</Link>
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            console.warn("[LabResults][Details Click] Result:", result);
+                            console.warn("[LabResults][Details Click] Resolved Id:", resolvedId);
+                            if (!resolvedId) {
+                              console.warn("[LabResults][Details Click] Missing result id; not navigating.");
+                              return;
+                            }
+                            navigate(route);
+                          }}
+                        >
+                          View details
                         </Button>
                         {result.reportUrl ? (
                           <Button asChild variant="outline">
@@ -208,7 +262,8 @@ const PatientLabResults = () => {
                       </div>
                     </CardContent>
                   </Card>
-                ))}
+                );
+                })}
               </div>
 
               <div className="flex flex-col gap-3 rounded-lg border bg-card p-4 md:flex-row md:items-center md:justify-between">
