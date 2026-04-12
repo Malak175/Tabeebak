@@ -344,29 +344,42 @@ export const ReplyComposer = ({
   onSubmit: () => void;
   isSending: boolean;
   disabled?: boolean;
-}) => (
-  <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
-    <Textarea
-      placeholder="Reply in this request thread"
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      disabled={disabled || isSending}
-      rows={4}
-    />
-    <div className="flex justify-end">
-      <Button onClick={onSubmit} disabled={disabled || isSending || !value.trim()}>
-        {isSending ? (
-          <span className="inline-flex items-center gap-2">
-            <span className="inline-flex h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-            Send message
-          </span>
-        ) : (
-          "Send message"
-        )}
-      </Button>
+}) => {
+  const textareaDisabled = Boolean(disabled || isSending);
+  const sendDisabled = Boolean(disabled || isSending || !value.trim());
+
+  console.debug("[ReplyComposer] Props", {
+    disabled,
+    isSending,
+    valueLength: value.length,
+    textareaDisabled,
+    sendDisabled,
+  });
+
+  return (
+    <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
+      <Textarea
+        placeholder="Reply in this request thread"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        disabled={textareaDisabled}
+        rows={4}
+      />
+      <div className="flex justify-end">
+        <Button onClick={onSubmit} disabled={sendDisabled}>
+          {isSending ? (
+            <span className="inline-flex items-center gap-2">
+              <span className="inline-flex h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              Send message
+            </span>
+          ) : (
+            "Send message"
+          )}
+        </Button>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 export const CancelRequestButton = ({
   onCancel,

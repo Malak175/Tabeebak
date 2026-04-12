@@ -1260,11 +1260,14 @@ export const patientBookingService = {
     requestId: string,
     payload: CreateRequestMessagePayload,
   ): Promise<RequestMessage> {
-    const response = await apiRequest<unknown>(`/api/v1/appointment-requests/${requestId}/messages`, {
-      method: "POST",
-      auth: true,
-      body: payload,
-    });
+    const response = await apiRequest<unknown>(
+      `/api/v1/chat/patient_doctor/${requestId}/messages`,
+      {
+        method: "POST",
+        auth: true,
+        body: payload,
+      },
+    );
 
     return normalizeMessage(response);
   },
@@ -1326,11 +1329,14 @@ export const patientBookingService = {
     requestId: string,
     payload: CreateRequestMessagePayload,
   ): Promise<RequestMessage> {
-    const response = await apiRequest<unknown>(`/api/v1/test-requests/${requestId}/messages`, {
-      method: "POST",
-      auth: true,
-      body: payload,
-    });
+    const response = await apiRequest<unknown>(
+      `/api/v1/chat/patient_lab/${requestId}/messages`,
+      {
+        method: "POST",
+        auth: true,
+        body: payload,
+      },
+    );
 
     return normalizeMessage(response);
   },

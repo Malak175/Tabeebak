@@ -741,11 +741,14 @@ export const labWorkflowService = {
     requestId: string,
     payload: SendLabOrderMessageRequest | CreateRequestMessagePayload,
   ): Promise<RequestMessage> => {
-    const response = await apiRequest<unknown>(`/api/v1/test-requests/${requestId}/messages`, {
-      method: "POST",
-      body: payload,
-      auth: true,
-    });
+    const response = await apiRequest<unknown>(
+      `/api/v1/chat/patient_lab/${requestId}/messages`,
+      {
+        method: "POST",
+        body: payload,
+        auth: true,
+      },
+    );
 
     return normalizeMessage(response);
   },

@@ -868,11 +868,14 @@ export const doctorWorkflowService = {
     requestId: string,
     payload: CreateDoctorAppointmentRequestMessagePayload | CreateRequestMessagePayload,
   ): Promise<RequestMessage> => {
-    const response = await apiRequest<unknown>(`/api/v1/appointment-requests/${requestId}/messages`, {
-      method: "POST",
-      body: payload,
-      auth: true,
-    });
+    const response = await apiRequest<unknown>(
+      `/api/v1/chat/patient_doctor/${requestId}/messages`,
+      {
+        method: "POST",
+        body: payload,
+        auth: true,
+      },
+    );
 
     return normalizeMessage(response);
   },
