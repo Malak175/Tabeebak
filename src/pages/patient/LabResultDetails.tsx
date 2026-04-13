@@ -24,7 +24,8 @@ import { getDisplayName } from "@/lib/auth";
 import { apiRequest } from "@/services/api";
 import { ApiError } from "@/types/api.types";
 import { formatDisplayDateTime } from "@/lib/date-time";
-import { getHeartMeasurementSchema } from "@/lib/heartMeasurementSchema";
+import { resolveHeartMeasurementDefaults } from "@/lib/heartMeasurementSchema";
+import { computeMeasurementStatus } from "@/lib/measurementStatus";
 
 type LabPrediction = {
   riskLevel?: string | null;
@@ -135,62 +136,13 @@ const formatProbability = (value?: number | null) => {
   return `${Math.round(clamped)}%`;
 };
 
-const parseRange = (raw?: string | null) => {
-  if (!raw) return { min: null, max: null };
-  const value = raw.trim();
-  if (!value) return { min: null, max: null };
-
-  const betweenMatch = value.match(/^\s*(-?\d+(?:\.\d+)?)\s*-\s*(-?\d+(?:\.\d+)?)\s*$/);
-  if (betweenMatch) {
-    const min = Number(betweenMatch[1]);
-    const max = Number(betweenMatch[2]);
-    if (Number.isFinite(min) && Number.isFinite(max)) {
-      return { min, max };
-    }
-  }
-
-  const maxMatch = value.match(/^\s*(?:<=|<)\s*(-?\d+(?:\.\d+)?)\s*$/);
-  if (maxMatch) {
-    const max = Number(maxMatch[1]);
-    return { min: null, max: Number.isFinite(max) ? max : null };
-  }
-
-  const minMatch = value.match(/^\s*(?:>=|>)\s*(-?\d+(?:\.\d+)?)\s*$/);
-  if (minMatch) {
-    const min = Number(minMatch[1]);
-    return { min: Number.isFinite(min) ? min : null, max: null };
-  }
-
-  return { min: null, max: null };
-};
-
-const parseNumericValue = (raw?: string | null) => {
-  if (!raw) return null;
-  const cleaned = raw.trim().replace(/,/g, "");
-  if (!cleaned) return null;
-  const parsed = Number(cleaned);
-  return Number.isFinite(parsed) ? parsed : null;
-};
-
-const computeMeasurementStatus = (
-  value?: string | null,
-  referenceRange?: string | null,
-  explicitStatus?: string | null,
-) => {
-  if (explicitStatus?.trim()) return explicitStatus.trim();
-  const numericValue = parseNumericValue(value);
-  const { min, max } = parseRange(referenceRange);
-  if (numericValue == null || (min == null && max == null)) return null;
-  if (min != null && numericValue < min) return "Low";
-  if (max != null && numericValue > max) return "High";
-  return "Normal";
-};
-
 const getStatusTone = (status?: string | null) => {
   const normalized = (status ?? "").trim().toLowerCase();
   if (normalized === "normal") return "text-green-700";
   if (normalized === "high") return "text-red-600";
   if (normalized === "low") return "text-orange-600";
+  if (normalized === "valid") return "text-green-700";
+  if (normalized === "invalid") return "text-red-600";
   return "text-muted-foreground";
 };
 
@@ -301,7 +253,7 @@ const PatientLabResultDetails = () => {
       ? query.data.measurements
           .map(
             (measurement) => {
-              const schemaMatch = getHeartMeasurementSchema(measurement.name ?? null);
+              const schemaMatch = resolveHeartMeasurementDefaults(measurement.name ?? null);
               const schema = schemaMatch?.schema ?? null;
               const keyLabel = schemaMatch?.key ?? (measurement.name || "Not available");
               const label = schema?.label ?? (measurement.name || "Not available");
@@ -309,11 +261,19 @@ const PatientLabResultDetails = () => {
               const referenceRange =
                 measurement.referenceRange || schema?.referenceRange || "Not available";
               const description = schema?.description ?? "";
-              const derivedStatus = computeMeasurementStatus(
-                measurement.value ?? null,
-                schema?.referenceRange ?? measurement.referenceRange ?? null,
-                measurement.status ?? null,
-              );
+              const computedStatus = schemaMatch
+                ? computeMeasurementStatus({
+                    value: measurement.value ?? null,
+                    referenceRange: schemaMatch.referenceRange ?? measurement.referenceRange ?? null,
+                    mode: schemaMatch.statusMode,
+                  })
+                : computeMeasurementStatus({
+                    value: measurement.value ?? null,
+                    referenceRange: measurement.referenceRange ?? null,
+                  });
+              const derivedStatus = schemaMatch
+                ? computedStatus
+                : measurement.status ?? computedStatus ?? null;
               const statusClass =
                 derivedStatus === "Normal"
                   ? "status-normal"
@@ -321,6 +281,10 @@ const PatientLabResultDetails = () => {
                     ? "status-high"
                     : derivedStatus === "Low"
                       ? "status-low"
+                      : derivedStatus === "Valid"
+                        ? "status-normal"
+                        : derivedStatus === "Invalid"
+                          ? "status-high"
                       : "status-muted";
               return `
               <tr>
@@ -526,17 +490,25 @@ const PatientLabResultDetails = () => {
                         {query.data.measurements.length ? (
                           query.data.measurements.map((measurement, index) => (
                             (() => {
-                              const schemaMatch = getHeartMeasurementSchema(measurement.name ?? null);
+                              const schemaMatch = resolveHeartMeasurementDefaults(measurement.name ?? null);
                               const schema = schemaMatch?.schema ?? null;
                               const displayName = schema?.label ?? measurement.name;
                               const unit = measurement.unit || schema?.unit || "Not provided";
                               const referenceRange =
                                 measurement.referenceRange || schema?.referenceRange || "Not provided";
-                              const derivedStatus = computeMeasurementStatus(
-                                measurement.value ?? null,
-                                schema?.referenceRange ?? measurement.referenceRange ?? null,
-                                measurement.status ?? null,
-                              );
+                              const computedStatus = schemaMatch
+                                ? computeMeasurementStatus({
+                                    value: measurement.value ?? null,
+                                    referenceRange: schemaMatch.referenceRange ?? measurement.referenceRange ?? null,
+                                    mode: schemaMatch.statusMode,
+                                  })
+                                : computeMeasurementStatus({
+                                    value: measurement.value ?? null,
+                                    referenceRange: measurement.referenceRange ?? null,
+                                  });
+                              const derivedStatus = schemaMatch
+                                ? computedStatus
+                                : measurement.status ?? computedStatus ?? null;
                               const statusLabel = derivedStatus || "Not available";
                               return (
                             <TableRow key={`${measurement.name}-${index}`}>

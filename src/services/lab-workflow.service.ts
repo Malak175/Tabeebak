@@ -426,6 +426,7 @@ const normalizeLabOrder = (payload: unknown): LabOrder => {
 };
 
 const normalizeLabOrderDetails = (payload: unknown): LabOrderDetails => {
+  const payloadRecord = asRecord(payload);
   const raw = unwrapPayload(payload);
   const base = normalizeLabOrder(raw);
   const request = mergeRecords(pickRecord(raw, ["request", "testRequest", "test_request"]));
@@ -456,7 +457,11 @@ const normalizeLabOrderDetails = (payload: unknown): LabOrderDetails => {
       : resolveMessageList(request).length
         ? resolveMessageList(request)
         : resolveMessageList(order);
+  const numericOrderRequestId =
+    pickNullableNumber(order, ["id", "_id"]) ??
+    pickNullableNumber(raw, ["orderId", "order_id", "labOrderId", "lab_order_id"]);
   const requestId =
+    (numericOrderRequestId != null ? String(numericOrderRequestId) : null) ??
     pickNullableString(raw, ["requestId", "request_id", "testRequestId", "test_request_id"]) ??
     pickNullableString(request, ["id", "_id", "requestId", "request_id", "testRequestId", "test_request_id"]) ??
     pickNullableString(order, ["requestId", "request_id", "testRequestId", "test_request_id"]);
@@ -691,6 +696,11 @@ export const labWorkflowService = {
       method: "GET",
       auth: true,
     });
+    const responseRecord = asRecord(response);
+    const responseData = asRecord(responseRecord.data);
+    const responseOrder = asRecord(responseData.order);
+    console.warn("[labWorkflowService] raw requestId", responseRecord.requestId);
+    console.warn("[labWorkflowService] raw data.order.id", responseOrder.id);
 
     return normalizeLabOrderDetails(response);
   },
@@ -741,6 +751,9 @@ export const labWorkflowService = {
     requestId: string,
     payload: SendLabOrderMessageRequest | CreateRequestMessagePayload,
   ): Promise<RequestMessage> => {
+    console.warn("[labWorkflowService] sendLabOrderMessage threadId", requestId);
+    console.warn("[labWorkflowService] sendLabOrderMessage payload", payload);
+    console.warn("[labWorkflowService] sendLabOrderMessage url", `/api/v1/chat/patient_lab/${requestId}/messages`);
     const response = await apiRequest<unknown>(
       `/api/v1/chat/patient_lab/${requestId}/messages`,
       {

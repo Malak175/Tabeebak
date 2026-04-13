@@ -30,7 +30,8 @@ import { useLabProfileQuery } from "@/hooks/useLabProfile";
 import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName } from "@/lib/auth";
 import { formatDisplayDateTime } from "@/lib/date-time";
-import { HEART_MEASUREMENT_SCHEMA } from "@/lib/heartMeasurementSchema";
+import { HEART_MEASUREMENT_SCHEMA, resolveHeartMeasurementDefaults } from "@/lib/heartMeasurementSchema";
+import { computeMeasurementStatus } from "@/lib/measurementStatus";
 import { formatLabStatusLabel, isResultReadyStatus } from "@/lib/labStatus";
 import { UploadLabResultValue } from "@/types/lab-workflow.types";
 
@@ -183,13 +184,16 @@ const createEmptyValue = (): UploadLabResultValue => ({
 });
 
 const createDefaultValues = (): UploadLabResultValue[] =>
-  Object.entries(HEART_MEASUREMENT_SCHEMA).map(([key, schema]) => ({
-    name: key,
-    value: "",
-    unit: schema.unit,
-    referenceRange: schema.referenceRange,
-    status: "",
-  }));
+  Object.keys(HEART_MEASUREMENT_SCHEMA).map((key) => {
+    const defaults = resolveHeartMeasurementDefaults(key);
+    return {
+      name: key,
+      value: "",
+      unit: defaults?.unit ?? "score",
+      referenceRange: defaults?.referenceRange ?? "",
+      status: "",
+    };
+  });
 
 const LabOrderDetailsPage = () => {
   const { orderId } = useParams();
@@ -238,6 +242,13 @@ const LabOrderDetailsPage = () => {
     Boolean(detail?.requestId) &&
     messagingEnabledStatuses.includes(normalizedStatus) &&
     !messagingDisabledStatuses.includes(normalizedStatus);
+  useEffect(() => {
+    console.warn("[LabOrderDetails] Raw details response", detailsQuery.data);
+    console.warn("[LabOrderDetails] Normalized detail", detail);
+    console.warn("[LabOrderDetails] detail.id", detail?.id);
+    console.warn("[LabOrderDetails] detail.requestId", detail?.requestId);
+    console.warn("[LabOrderDetails] canReplyToRequest", canReplyToRequest);
+  }, [detailsQuery.data, detail, canReplyToRequest]);
   const statusOptions = getStatusOptions(detail?.status);
   const statusSelectOptions = statusOptions.length
     ? statusOptions
@@ -290,10 +301,18 @@ const LabOrderDetailsPage = () => {
     setValues((current) =>
       current.map((item, itemIndex) =>
         itemIndex === index
-          ? {
-              ...item,
-              [field]: value,
-            }
+          ? (() => {
+              if (field !== "name") {
+                return { ...item, [field]: value };
+              }
+              const defaults = resolveHeartMeasurementDefaults(value);
+              return {
+                ...item,
+                name: value,
+                unit: defaults?.unit ?? item.unit,
+                referenceRange: defaults?.referenceRange ?? item.referenceRange,
+              };
+            })()
           : item,
       ),
     );
@@ -348,6 +367,23 @@ const LabOrderDetailsPage = () => {
   const handleSendReply = () => {
     if (!detail?.requestId || !reply.trim() || !canReplyToRequest) return;
 
+    const numericThreadId = Number(detail.requestId);
+    const isValidThreadId = Number.isInteger(numericThreadId) && numericThreadId > 0;
+    console.warn("[LabOrderDetails] Send message threadId (raw)", detail.requestId);
+    console.warn("[LabOrderDetails] Send message threadId (numeric)", numericThreadId);
+    console.warn(
+      "[LabOrderDetails] Send message url",
+      `/api/v1/chat/patient_lab/${numericThreadId}/messages`,
+    );
+    console.warn("[LabOrderDetails] Send message payload", { message: reply.trim() });
+
+    if (!isValidThreadId) {
+      const message = "Unable to send message: invalid thread id.";
+      setReplyError(message);
+      toast.error(message);
+      return;
+    }
+
     setReplyError(null);
     messageMutation.mutate(
       { message: reply.trim() },
@@ -368,7 +404,32 @@ const LabOrderDetailsPage = () => {
     if (!orderId) return;
     setUploadSuccess(false);
 
-    const cleanedValues = values.filter(
+    const normalizedValues = values.map((item) => {
+      const defaults = resolveHeartMeasurementDefaults(item.name);
+      if (!defaults) {
+        if (item.status?.trim()) return item;
+        const computedStatus = computeMeasurementStatus({
+          value: item.value ?? null,
+          referenceRange: item.referenceRange ?? null,
+        });
+        return { ...item, status: computedStatus ?? item.status ?? "" };
+      }
+
+      const computedStatus = computeMeasurementStatus({
+        value: item.value ?? null,
+        referenceRange: defaults.referenceRange ?? item.referenceRange ?? null,
+        mode: defaults.statusMode,
+      });
+
+      return {
+        ...item,
+        unit: defaults.unit,
+        referenceRange: defaults.referenceRange ?? item.referenceRange,
+        status: computedStatus ?? "",
+      };
+    });
+
+    const cleanedValues = normalizedValues.filter(
       (item) => item.name.trim() || item.value?.trim() || item.referenceRange?.trim(),
     );
 
@@ -809,41 +870,71 @@ const LabOrderDetailsPage = () => {
                             placeholder="Measurement name"
                             disabled={isUploading}
                           />
-                          {HEART_MEASUREMENT_SCHEMA[item.name] ? (
+                          {resolveHeartMeasurementDefaults(item.name) ? (
                             <p className="text-xs text-muted-foreground">
-                              {HEART_MEASUREMENT_SCHEMA[item.name].label} —{" "}
-                              {HEART_MEASUREMENT_SCHEMA[item.name].description}
+                              {resolveHeartMeasurementDefaults(item.name)?.schema.label} —{" "}
+                              {resolveHeartMeasurementDefaults(item.name)?.schema.description}
                             </p>
                           ) : null}
                         </div>
-                        <div className="grid gap-3 md:grid-cols-2">
-                          <Input
-                            value={item.value ?? ""}
-                            onChange={(event) => handleValueChange(index, "value", event.target.value)}
-                            placeholder="Value"
-                            disabled={isUploading}
-                          />
-                          <Input
-                            value={item.unit ?? ""}
-                            onChange={(event) => handleValueChange(index, "unit", event.target.value)}
-                            placeholder="Unit"
-                            disabled={isUploading}
-                          />
-                        </div>
-                        <div className="grid gap-3 md:grid-cols-2">
-                          <Input
-                            value={item.referenceRange ?? ""}
-                            onChange={(event) => handleValueChange(index, "referenceRange", event.target.value)}
-                            placeholder="Reference range"
-                            disabled={isUploading}
-                          />
-                          <Input
-                            value={item.status ?? ""}
-                            onChange={(event) => handleValueChange(index, "status", event.target.value)}
-                            placeholder="Status or flag"
-                            disabled={isUploading}
-                          />
-                        </div>
+                        {(() => {
+                          const defaults = resolveHeartMeasurementDefaults(item.name);
+                          const unitValue = defaults?.unit ?? (item.unit ?? "");
+                          const referenceValue = defaults?.referenceRange ?? (item.referenceRange ?? "");
+                          const isSchemaRow = Boolean(defaults);
+                          const computedStatus = computeMeasurementStatus({
+                            value: item.value ?? null,
+                            referenceRange: defaults?.referenceRange ?? item.referenceRange ?? null,
+                            mode: defaults?.statusMode,
+                          });
+                          const statusLabel = computedStatus ?? "Not available";
+
+                          return (
+                            <>
+                              <div className="grid gap-3 md:grid-cols-2">
+                                <Input
+                                  value={item.value ?? ""}
+                                  onChange={(event) => handleValueChange(index, "value", event.target.value)}
+                                  placeholder="Value"
+                                  disabled={isUploading}
+                                />
+                                <Input
+                                  value={unitValue}
+                                  onChange={(event) => handleValueChange(index, "unit", event.target.value)}
+                                  placeholder="Unit"
+                                  disabled={isUploading || isSchemaRow}
+                                  readOnly={isSchemaRow}
+                                />
+                              </div>
+                              <div className="grid gap-3 md:grid-cols-2">
+                                <Input
+                                  value={referenceValue}
+                                  onChange={(event) =>
+                                    handleValueChange(index, "referenceRange", event.target.value)
+                                  }
+                                  placeholder="Reference range"
+                                  disabled={isUploading || isSchemaRow}
+                                  readOnly={isSchemaRow}
+                                />
+                                {isSchemaRow ? (
+                                  <div className="space-y-1">
+                                    <Label className="text-xs text-muted-foreground">Status / flag</Label>
+                                    <div className="rounded-md border bg-muted/20 px-3 py-2 text-sm">
+                                      {statusLabel}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <Input
+                                    value={item.status ?? ""}
+                                    onChange={(event) => handleValueChange(index, "status", event.target.value)}
+                                    placeholder="Status or flag"
+                                    disabled={isUploading}
+                                  />
+                                )}
+                              </div>
+                            </>
+                          );
+                        })()}
                         {values.length > 1 ? (
                           <Button
                             type="button"
