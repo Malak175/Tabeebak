@@ -50,7 +50,7 @@ const SummaryStat = ({
   actionTo: string;
   badge?: { text: string; variant?: "default" | "secondary" | "destructive" | "outline" };
 }) => (
-  <Card className="h-full">
+  <Card className="h-full min-h-[260px]">
     <CardContent className="flex h-full flex-col p-5">
       <div className="mb-4 flex items-start justify-between">
         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
@@ -77,7 +77,7 @@ const SummaryStat = ({
 );
 
 const SummaryStatSkeleton = () => (
-  <Card>
+  <Card className="min-h-[260px]">
     <CardContent className="space-y-3 p-5">
       <Skeleton className="h-12 w-12 rounded-2xl" />
       <Skeleton className="h-8 w-24" />
@@ -164,10 +164,10 @@ const PatientDashboard = () => {
   const hasBloodSugar =
     summary?.bloodSugarMgDl !== null && summary?.bloodSugarMgDl !== undefined;
 
-  const upcomingAppointmentsCount = summary?.upcomingAppointmentsCount ?? null;
-  const hasUpcomingAppointments = typeof upcomingAppointmentsCount === "number" && upcomingAppointmentsCount > 0;
-  const pendingLabResultsCount = summary?.pendingLabResultsCount ?? null;
-  const hasPendingLabResults = typeof pendingLabResultsCount === "number" && pendingLabResultsCount > 0;
+  const upcomingAppointmentsCount = summary?.upcomingAppointmentsCount ?? 0;
+  const hasUpcomingAppointments = upcomingAppointmentsCount > 0;
+  const pendingLabResultsCount = summary?.pendingLabResultsCount ?? 0;
+  const hasPendingLabResults = pendingLabResultsCount > 0;
   const medicationsFallbackCount =
     medicalProfile?.currentMedications?.length ??
     historyQuery.data?.currentMedications?.length ??
@@ -258,6 +258,8 @@ const PatientDashboard = () => {
   const recentLabResults = recentLabResultsQuery.data?.data ?? [];
   const recentAppointments = recentAppointmentsQuery.data?.data ?? [];
   const recentPrescriptions = recentPrescriptionsQuery.data?.data ?? [];
+  const hasAnyAppointments = recentAppointments.length > 0;
+  const hasAnyLabResults = recentLabResults.length > 0;
   const recentAnalyses = recentLabResults.filter(
     (result) => Boolean(result.requestId) && Boolean(result.interpretation || result.conclusion),
   );
@@ -377,26 +379,46 @@ const PatientDashboard = () => {
         ) : (
           <>
             <SummaryStat
-              title="Upcoming Appointments"
-              value={hasUpcomingAppointments ? String(upcomingAppointmentsCount) : undefined}
-              emptyLabel="No upcoming appointments"
+              title="Appointments"
+              value={
+                hasUpcomingAppointments
+                  ? String(upcomingAppointmentsCount)
+                  : hasAnyAppointments
+                    ? String(recentAppointments.length)
+                    : undefined
+              }
+              emptyLabel="No appointments yet"
               helper={
                 hasUpcomingAppointments
-                  ? "Scheduled visits ahead"
-                  : "Schedule your next visit with a doctor"
+                  ? "Upcoming visits scheduled"
+                  : hasAnyAppointments
+                    ? "Review your recent appointment history"
+                    : "Schedule your next visit with a doctor"
               }
               icon={Calendar}
-              actionLabel={hasUpcomingAppointments ? "View Appointments" : "Book an Appointment"}
-              actionTo={hasUpcomingAppointments ? "/patient/appointments" : "/patient/book"}
+              actionLabel={hasUpcomingAppointments || hasAnyAppointments ? "View Appointments" : "Book an Appointment"}
+              actionTo={hasUpcomingAppointments || hasAnyAppointments ? "/patient/appointments" : "/patient/book"}
             />
             <SummaryStat
               title="Lab Results"
-              value={hasPendingLabResults ? String(pendingLabResultsCount) : undefined}
+              value={
+                hasPendingLabResults
+                  ? String(pendingLabResultsCount)
+                  : hasAnyLabResults
+                    ? String(recentLabResults.length)
+                    : undefined
+              }
               emptyLabel="No lab results yet"
-              helper={hasPendingLabResults ? "Pending results in progress" : "Request a lab test to get started"}
+              helper={
+                hasPendingLabResults
+                  ? "Pending results in progress"
+                  : hasAnyLabResults
+                    ? "Recent lab results are available"
+                    : "Request a lab test to get started"
+              }
               icon={FlaskConical}
-              actionLabel={hasPendingLabResults ? "View Lab Results" : "Request a Lab Test"}
-              actionTo={hasPendingLabResults ? "/patient/lab-results" : "/patient/labs"}
+              actionLabel={hasPendingLabResults || hasAnyLabResults ? "View Lab Results" : "Request a Lab Test"}
+              actionTo={hasPendingLabResults || hasAnyLabResults ? "/patient/lab-results" : "/patient/labs"}
             />
             <SummaryStat
               title="Current Medications"
