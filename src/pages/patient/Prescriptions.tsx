@@ -45,6 +45,7 @@ const PatientPrescriptions = () => {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
+  const [detailsWarning, setDetailsWarning] = useState<string | null>(null);
 
   const filters = useMemo(
     () => ({
@@ -132,8 +133,22 @@ const PatientPrescriptions = () => {
       ) : query.data?.data.length ? (
         <div className="space-y-6">
           <div className="grid gap-4">
-            {query.data.data.map((prescription) => (
-              <Card key={prescription.id}>
+            {query.data.data.map((prescription, index) => {
+              const resolvedId = prescription.id?.trim();
+              const detailsRoute = resolvedId ? `/patient/prescriptions/${resolvedId}` : "";
+              const cardKey =
+                resolvedId ||
+                prescription.prescriptionNumber ||
+                `${prescription.medicationName}-${index}`;
+
+              console.warn("[Prescriptions][Details]", {
+                prescription,
+                resolvedId,
+                detailsRoute,
+              });
+
+              return (
+              <Card key={cardKey}>
                 <CardContent className="flex flex-col gap-4 p-6 md:flex-row md:items-center">
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
                     <Pill className="h-5 w-5" />
@@ -155,13 +170,26 @@ const PatientPrescriptions = () => {
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Button asChild variant="outline">
-                      <Link to={`/patient/prescriptions/${prescription.id}`}>View details</Link>
-                    </Button>
+                    {resolvedId ? (
+                      <Button asChild variant="outline">
+                        <Link to={detailsRoute}>View details</Link>
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        onClick={() =>
+                          setDetailsWarning(
+                            "Unable to open prescription details right now. Please refresh or contact support.",
+                          )
+                        }
+                      >
+                        View details
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
-            ))}
+            )})}
           </div>
 
           <div className="flex flex-col gap-3 rounded-lg border bg-card p-4 md:flex-row md:items-center md:justify-between">
@@ -194,6 +222,12 @@ const PatientPrescriptions = () => {
           </CardContent>
         </Card>
       )}
+      {detailsWarning ? (
+        <Alert className="mt-6" variant="destructive">
+          <AlertTitle>Prescription details unavailable</AlertTitle>
+          <AlertDescription>{detailsWarning}</AlertDescription>
+        </Alert>
+      ) : null}
     </DashboardLayout>
   );
 };

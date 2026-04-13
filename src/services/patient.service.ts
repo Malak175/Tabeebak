@@ -531,36 +531,72 @@ const normalizePrescription = (payload: unknown): Prescription => {
   const raw = unwrapPayload(payload);
   const medication = mergeRecords(pickRecord(raw, ["medication", "drug"]));
   const prescriber = mergeRecords(pickRecord(raw, ["doctor", "prescriber"]));
+  const idValue = pickIdValue(raw, ["id", "_id", "prescriptionId", "prescription_id"]);
+  const quantityValue =
+    pickNullableString(raw, ["quantity", "qty", "amount", "dispenseQuantity", "dispense_quantity"]) ??
+    (pickNumber(raw, ["quantity", "qty", "amount", "dispenseQuantity", "dispense_quantity"])?.toString() ??
+      null);
+  const durationValue =
+    pickNullableString(raw, ["duration", "durationDays", "duration_days", "daysSupply", "days_supply"]) ??
+    (pickNumber(raw, ["duration", "durationDays", "duration_days", "daysSupply", "days_supply"])?.toString() ??
+      null);
 
   return {
-    id: pickString(raw, ["id", "_id", "prescriptionId", "prescription_id"]) ?? "",
+    id: idValue !== undefined ? String(idValue) : "",
     prescriptionNumber: pickNullableString(raw, [
       "prescriptionNumber",
       "prescription_number",
       "referenceNumber",
+      "reference",
+      "reference_id",
+      "referenceId",
     ]),
     medicationName:
-      pickString(raw, ["medicationName", "medication_name", "drugName", "drug_name"]) ??
-      pickString(medication, ["name", "displayName"]) ??
+      pickString(raw, ["medicationName", "medication_name", "drugName", "drug_name", "name"]) ??
+      pickString(medication, ["name", "displayName", "genericName"]) ??
       "Medication",
-    dosage: pickNullableString(raw, ["dosage", "dose"]),
-    frequency: pickNullableString(raw, ["frequency"]),
-    duration: pickNullableString(raw, ["duration"]),
-    quantity: pickNullableString(raw, ["quantity"]),
-    instructions: pickText(raw, ["instructions", "direction", "directions"]) ?? null,
-    status: pickString(raw, ["status", "prescriptionStatus", "prescription_status"]) ?? "active",
-    prescribedAt: pickNullableString(raw, ["prescribedAt", "issuedAt", "createdAt", "date"]),
-    expiresAt: pickNullableString(raw, ["expiresAt", "expiryDate", "endDate"]),
+    dosage: pickNullableString(raw, ["dosage", "dose", "strength", "doseAmount", "dose_amount"]),
+    frequency: pickNullableString(raw, ["frequency", "freq", "frequencyPerDay", "frequency_per_day"]),
+    duration: durationValue,
+    quantity: quantityValue,
+    instructions: pickText(raw, ["instructions", "direction", "directions", "sig"]) ?? null,
+    status:
+      pickString(raw, ["status", "prescriptionStatus", "prescription_status", "state"]) ?? "active",
+    prescribedAt: pickNullableString(raw, [
+      "prescribedAt",
+      "issuedAt",
+      "createdAt",
+      "date",
+      "prescribed_on",
+    ]),
+    expiresAt: pickNullableString(raw, [
+      "expiresAt",
+      "expiryDate",
+      "endDate",
+      "expirationDate",
+      "expiration_date",
+      "expires_on",
+    ]),
     refillsRemaining: pickNullableNumber(raw, [
       "refillsRemaining",
       "refillCount",
       "remainingRefills",
+      "refills",
+      "refills_remaining",
     ]),
     prescriberName:
-      pickNullableString(raw, ["prescriberName", "doctorName", "doctor_name"]) ??
-      pickNullableString(prescriber, ["displayName", "name", "fullName"]),
-    diagnosis: pickNullableString(raw, ["diagnosis"]),
-    notes: pickNullableString(raw, ["notes", "note"]),
+      pickNullableString(raw, ["prescriberName", "doctorName", "doctor_name", "prescribedBy", "providerName"]) ??
+      pickNullableString(prescriber, ["displayName", "name", "fullName", "full_name"]),
+    diagnosis:
+      pickText(raw, [
+        "diagnosis",
+        "diagnoses",
+        "diagnosisText",
+        "icdDescription",
+        "icd_description",
+        "indication",
+      ]) ?? null,
+    notes: pickText(raw, ["notes", "note", "remarks", "comment"]) ?? null,
   };
 };
 

@@ -60,6 +60,10 @@ const PatientPrescriptionDetails = () => {
         <p className="text-muted-foreground">
           This page shows details for a single prescription.
         </p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Status guide: Active = currently valid, Completed = course finished, Expired = end date
+          passed.
+        </p>
       </div>
 
       {query.isLoading ? (
