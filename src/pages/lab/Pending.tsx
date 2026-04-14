@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Clock, Eye, FlaskConical, MapPinned, Search } from "lucide-react";
+import { Clock, Eye, FlaskConical, Search } from "lucide-react";
 import { Link } from "react-router-dom";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { labNavItems } from "@/components/settings/AccountSettingsContent";
@@ -11,37 +11,29 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  usePendingLabOrdersQuery,
-  useSampleCollectionRequestsQuery,
-} from "@/hooks/useLabWorkflow";
+import { useLabOrdersQuery, usePendingLabOrdersQuery } from "@/hooks/useLabWorkflow";
 import { useLabProfileQuery } from "@/hooks/useLabProfile";
 import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName } from "@/lib/auth";
-import { formatLabStatusLabel, isResultReadyStatus } from "@/lib/labStatus";
+import { formatLabStatusLabel, isResultReadyStatus, normalizeLabOrderStatus } from "@/lib/labStatus";
 import { formatDisplayDateTime } from "@/lib/date-time";
 
 const formatDateTime = (value?: string | null) => formatDisplayDateTime(value);
 
 const getStatusClassName = (status?: string | null) => {
-  switch ((status ?? "").toLowerCase()) {
-    case "completed":
-    case "ready":
-    case "reported":
-    case "result_uploaded":
-    case "result-uploaded":
+  switch (normalizeLabOrderStatus(status)) {
+    case "Completed":
+    case "Result_Uploaded":
+    case "Assigned_To_Doctor":
       return "bg-green-100 text-green-700 border-green-200";
-    case "processing":
-    case "in_progress":
-    case "in-progress":
+    case "In_Progress":
       return "bg-blue-100 text-blue-700 border-blue-200";
-    case "requested":
-    case "pending":
-    case "sample_collected":
-    case "sample-collected":
+    case "Pending":
+    case "Sample_Collection_Requested":
+    case "Sample_Collected":
       return "bg-yellow-100 text-yellow-700 border-yellow-200";
-    case "cancelled":
-    case "canceled":
+    case "Cancelled":
+    case "Rejected":
       return "bg-red-100 text-red-700 border-red-200";
     default:
       return "bg-muted text-muted-foreground border-border";
@@ -88,21 +80,21 @@ const LabPending = () => {
     [ordersPage, priority, search, status],
   );
 
-  const sampleCollectionFilters = useMemo(
+  const collectionFilters = useMemo(
     () => ({
       page: collectionsPage,
       limit: 6,
       search,
-      status: status === "all" ? undefined : status,
+      status: status === "all" ? ["Sample_Collection_Requested", "Sample_Collected"] : status,
       priority: priority === "all" ? undefined : priority,
-      sortBy: "requestedAt",
+      sortBy: "orderedAt",
       sortOrder: "desc" as const,
     }),
     [collectionsPage, priority, search, status],
   );
 
   const pendingOrdersQuery = usePendingLabOrdersQuery(orderFilters, enabled);
-  const sampleRequestsQuery = useSampleCollectionRequestsQuery(sampleCollectionFilters, enabled);
+  const collectionOrdersQuery = useLabOrdersQuery(collectionFilters, enabled);
 
   return (
     <DashboardLayout
@@ -124,7 +116,7 @@ const LabPending = () => {
             {pendingOrdersQuery.data?.total ?? 0} pending orders
           </Badge>
           <Badge variant="outline">
-            {sampleRequestsQuery.data?.total ?? 0} sample requests
+            {collectionOrdersQuery.data?.total ?? 0} collection requests
           </Badge>
         </div>
       </div>
@@ -160,10 +152,12 @@ const LabPending = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All statuses</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="requested">Requested</SelectItem>
-              <SelectItem value="processing">Processing</SelectItem>
-              <SelectItem value="sample_collected">Sample collected</SelectItem>
+              <SelectItem value="Pending">Awaiting Review</SelectItem>
+              <SelectItem value="Sample_Collection_Requested">Collection Requested</SelectItem>
+              <SelectItem value="Sample_Collected">Sample Collected</SelectItem>
+              <SelectItem value="In_Progress">In Progress</SelectItem>
+              <SelectItem value="Result_Uploaded">Results Ready</SelectItem>
+              <SelectItem value="Assigned_To_Doctor">Sent to Doctor</SelectItem>
             </SelectContent>
           </Select>
           <Select
@@ -300,59 +294,55 @@ const LabPending = () => {
         </TabsContent>
 
         <TabsContent value="samples" className="space-y-6">
-          {sampleRequestsQuery.isLoading ? (
+          {collectionOrdersQuery.isLoading ? (
             <OrdersSkeleton />
-          ) : sampleRequestsQuery.isError ? (
+          ) : collectionOrdersQuery.isError ? (
             <Alert variant="destructive">
               <AlertTitle>Unable to load sample collection requests</AlertTitle>
               <AlertDescription>
-                {(sampleRequestsQuery.error as Error).message}
+                {(collectionOrdersQuery.error as Error).message}
               </AlertDescription>
             </Alert>
-          ) : sampleRequestsQuery.data?.data.length ? (
+          ) : collectionOrdersQuery.data?.data.length ? (
             <>
               <div className="space-y-4">
-                {sampleRequestsQuery.data.data.map((request) => (
-                  <Card key={request.id}>
+                {collectionOrdersQuery.data.data.map((order) => (
+                  <Card key={order.id}>
                     <CardContent className="flex flex-col gap-4 p-6 lg:flex-row lg:items-center">
                       <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-                        <MapPinned className="h-5 w-5" />
+                        <Clock className="h-5 w-5" />
                       </div>
 
                       <div className="flex-1 space-y-2">
                         <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="text-lg font-semibold">{request.patientName}</h3>
-                          <Badge className={getStatusClassName(request.status)}>
-                            {formatLabStatusLabel(request.status)}
+                          <h3 className="text-lg font-semibold">{order.patientName}</h3>
+                          <Badge className={getStatusClassName(order.status)}>
+                            {formatLabStatusLabel(order.status)}
                           </Badge>
-                          {isResultReadyStatus(request.status) ? (
+                          {isResultReadyStatus(order.status) ? (
                             <Badge variant="secondary">Results Ready for Analysis</Badge>
                           ) : null}
-                          {request.priority ? <Badge variant="outline">{request.priority}</Badge> : null}
+                          {order.priority ? <Badge variant="outline">{order.priority}</Badge> : null}
                         </div>
-                        <p className="font-medium text-primary">{request.testName}</p>
+                        <p className="font-medium text-primary">{order.testName}</p>
                         <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                          <span>Order: {request.orderNumber || request.orderId || "Not available"}</span>
-                          <span>Phone: {request.patientPhone || "Not available"}</span>
+                          <span>Order: {order.orderNumber || order.id}</span>
+                          <span>Doctor: {order.orderingDoctorName || "Not available"}</span>
+                          <span>Patient phone: {order.patientPhone || "Not available"}</span>
                         </div>
                         <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                          <span>Requested {formatDateTime(request.requestedAt)}</span>
-                          <span>Scheduled {formatDateTime(request.scheduledAt)}</span>
+                          <span>Created {formatDateTime(order.orderedAt)}</span>
+                          <span>Scheduled {formatDateTime(order.scheduledAt)}</span>
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                          {request.address || "No collection address was returned yet."}
-                        </p>
                       </div>
 
                       <div className="flex flex-wrap gap-2">
-                        {request.orderId ? (
-                          <Button asChild variant="outline">
-                            <Link to={`/lab/orders/${request.orderId}`}>
-                              <Eye className="mr-2 h-4 w-4" />
-                              Order
-                            </Link>
-                          </Button>
-                        ) : null}
+                        <Button asChild variant="outline">
+                          <Link to={`/lab/orders/${order.id}`}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            Order
+                          </Link>
+                        </Button>
                       </div>
                     </CardContent>
                   </Card>
@@ -361,20 +351,20 @@ const LabPending = () => {
 
               <div className="flex flex-col gap-3 rounded-lg border bg-card p-4 md:flex-row md:items-center md:justify-between">
                 <p className="text-sm text-muted-foreground">
-                  Page {sampleRequestsQuery.data.page} of {sampleRequestsQuery.data.totalPages} with{" "}
-                  {sampleRequestsQuery.data.total} collection requests
+                  Page {collectionOrdersQuery.data.page} of {collectionOrdersQuery.data.totalPages} with{" "}
+                  {collectionOrdersQuery.data.total} collection requests
                 </p>
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
-                    disabled={!sampleRequestsQuery.data.hasPreviousPage}
+                    disabled={!collectionOrdersQuery.data.hasPreviousPage}
                     onClick={() => setCollectionsPage((current) => Math.max(1, current - 1))}
                   >
                     Previous
                   </Button>
                   <Button
                     variant="outline"
-                    disabled={!sampleRequestsQuery.data.hasNextPage}
+                    disabled={!collectionOrdersQuery.data.hasNextPage}
                     onClick={() => setCollectionsPage((current) => current + 1)}
                   >
                     Next

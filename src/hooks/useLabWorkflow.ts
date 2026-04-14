@@ -126,6 +126,8 @@ export const useUploadLabOrderResultMutation = () => {
     }) => labWorkflowService.uploadLabOrderResult(orderId, payload),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: labWorkflowQueryKeys.all });
+      queryClient.invalidateQueries({ queryKey: ["lab-workflow", "orders"] });
+      queryClient.invalidateQueries({ queryKey: ["lab-workflow", "results"] });
       queryClient.invalidateQueries({
         queryKey: labWorkflowQueryKeys.orderDetails(variables.orderId),
       });

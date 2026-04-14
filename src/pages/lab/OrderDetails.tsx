@@ -1,13 +1,14 @@
 import { ChangeEvent, useEffect, useState } from "react";
-import { format, isValid, parseISO } from "date-fns";
 import { ArrowLeft, CalendarClock, CheckCircle2, FileUp, FlaskConical, Save, User, XCircle } from "lucide-react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
+  JourneyTimeline,
   MessageThread,
   ReplyComposer,
   SectionCard,
 } from "@/components/patient/BookingFlowSection";
+import type { JourneyStep } from "@/components/patient/BookingFlowSection";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { labNavItems } from "@/components/settings/AccountSettingsContent";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -32,98 +33,136 @@ import { getDisplayName } from "@/lib/auth";
 import { formatDisplayDateTime } from "@/lib/date-time";
 import { HEART_MEASUREMENT_SCHEMA, resolveHeartMeasurementDefaults } from "@/lib/heartMeasurementSchema";
 import { computeMeasurementStatus } from "@/lib/measurementStatus";
-import { formatLabStatusLabel, isResultReadyStatus } from "@/lib/labStatus";
+import {
+  formatLabStatusLabel,
+  isResultReadyStatus,
+  normalizeLabOrderStatus,
+  type CanonicalLabOrderStatus,
+} from "@/lib/labStatus";
 import { UploadLabResultValue } from "@/types/lab-workflow.types";
 
 const formatDateTime = (value?: string | null) => formatDisplayDateTime(value);
 
-const toDateTimeInputValue = (value?: string | null) => {
-  if (!value) return "";
-
-  const parsed = parseISO(value);
-  if (!isValid(parsed)) return "";
-
-  return format(parsed, "yyyy-MM-dd'T'HH:mm");
-};
-
 const getStatusClassName = (status?: string | null) => {
-  switch ((status ?? "").toLowerCase()) {
-    case "approved":
-    case "accepted":
-    case "completed":
-    case "reported":
-    case "ready":
-    case "result_uploaded":
-    case "result-uploaded":
+  switch (normalizeLabOrderStatus(status)) {
+    case "Completed":
+    case "Result_Uploaded":
+    case "Assigned_To_Doctor":
       return "bg-green-100 text-green-700 border-green-200";
-    case "processing":
-    case "in_progress":
-    case "in-progress":
-    case "sample_collected":
-    case "sample-collected":
-    case "sample_collection_requested":
-    case "sample-collection-requested":
+    case "In_Progress":
+    case "Sample_Collected":
+    case "Sample_Collection_Requested":
       return "bg-blue-100 text-blue-700 border-blue-200";
-    case "pending":
-    case "requested":
-    case "under_review":
-    case "under-review":
+    case "Pending":
       return "bg-yellow-100 text-yellow-700 border-yellow-200";
-    case "cancelled":
-    case "canceled":
-    case "rejected":
+    case "Cancelled":
+    case "Rejected":
       return "bg-red-100 text-red-700 border-red-200";
     default:
       return "bg-muted text-muted-foreground border-border";
   }
 };
 
-const normalizeStatusKey = (status?: string | null) =>
-  (status ?? "")
-    .trim()
-    .replace(/([a-z])([A-Z])/g, "$1_$2")
-    .toLowerCase()
-    .replace(/[\s-]+/g, "_");
-
-const CANONICAL_STATUS_MAP: Record<string, string> = {
-  pending: "Pending",
-  assigned_to_doctor: "Assigned_To_Doctor",
-  sample_collection_requested: "Sample_Collection_Requested",
-  sample_collected: "Sample_Collected",
-  in_progress: "In_Progress",
-  result_uploaded: "Result_Uploaded",
-  completed: "Completed",
-  cancelled: "Cancelled",
-  rejected: "Rejected",
-  approved: "Approved",
-  accepted: "Accepted",
+const STATUS_TRANSITION_MAP: Record<CanonicalLabOrderStatus, CanonicalLabOrderStatus[]> = {
+  Pending: ["Sample_Collection_Requested", "In_Progress", "Rejected", "Cancelled"],
+  Sample_Collection_Requested: ["Sample_Collected", "Cancelled"],
+  Sample_Collected: ["In_Progress", "Cancelled"],
+  In_Progress: ["Result_Uploaded", "Cancelled"],
+  Result_Uploaded: ["Assigned_To_Doctor", "Completed"],
+  Assigned_To_Doctor: ["Completed"],
+  Completed: [],
+  Rejected: [],
+  Cancelled: [],
 };
 
 const toCanonicalStatus = (status?: string | null) => {
-  const normalized = normalizeStatusKey(status);
-  if (!normalized) return "";
-  if (normalized === "canceled") return CANONICAL_STATUS_MAP.cancelled;
-  if (normalized === "processing") return CANONICAL_STATUS_MAP.in_progress;
-  return CANONICAL_STATUS_MAP[normalized] ?? "";
+  return normalizeLabOrderStatus(status);
+};
+
+const getLabTimelineSteps = (
+  status?: string | null,
+  sampleCollectionRequired?: boolean,
+): JourneyStep[] => {
+  const requiresCollection = sampleCollectionRequired !== false;
+  const steps: JourneyStep[] = [
+    { label: "Request", state: "upcoming", helper: "Submitted" },
+    {
+      label: "Collection",
+      state: "upcoming",
+      helper: requiresCollection ? "Sample collection" : "Not required",
+    },
+    { label: "Processing", state: "upcoming", helper: "Lab processing" },
+    { label: "Results", state: "upcoming", helper: "Result upload" },
+    { label: "Completion", state: "upcoming", helper: "Hand-off" },
+  ];
+
+  const setState = (index: number, state: JourneyStep["state"]) => {
+    steps[index] = { ...steps[index], state };
+  };
+
+  const canonicalStatus = toCanonicalStatus(status);
+
+  switch (canonicalStatus) {
+    case "Pending":
+      setState(0, "current");
+      break;
+    case "Sample_Collection_Requested":
+      setState(0, "complete");
+      setState(1, "current");
+      break;
+    case "Sample_Collected":
+    case "In_Progress":
+      setState(0, "complete");
+      setState(1, "complete");
+      setState(2, "current");
+      break;
+    case "Result_Uploaded":
+      setState(0, "complete");
+      setState(1, "complete");
+      setState(2, "complete");
+      setState(3, "current");
+      break;
+    case "Assigned_To_Doctor":
+      setState(0, "complete");
+      setState(1, "complete");
+      setState(2, "complete");
+      setState(3, "complete");
+      setState(4, "current");
+      break;
+    case "Completed":
+      steps.forEach((_, index) => setState(index, "complete"));
+      break;
+    case "Cancelled":
+    case "Rejected":
+      setState(0, "complete");
+      break;
+    default:
+      setState(0, "current");
+  }
+
+  if (!requiresCollection) {
+    steps[1] = { ...steps[1], state: "complete", helper: "Not required" };
+  }
+
+  if (canonicalStatus === "Cancelled" || canonicalStatus === "Rejected") {
+    for (let index = 1; index < steps.length; index += 1) {
+      if (steps[index].state !== "complete") {
+        setState(index, "upcoming");
+      }
+    }
+    const blockedIndex = steps.findIndex((step, index) => index > 0 && step.state !== "complete");
+    if (blockedIndex !== -1) {
+      setState(blockedIndex, "blocked");
+    }
+  }
+
+  return steps;
 };
 
 const getReviewPresentation = (status?: string | null) => {
   const normalized = toCanonicalStatus(status);
-  const approvedStatuses = [
-    "Approved",
-    "Accepted",
-    "Sample_Collection_Requested",
-    "Sample_Collected",
-    "In_Progress",
-    "Result_Uploaded",
-  ];
-
-  if (approvedStatuses.includes(normalized)) {
-    return {
-      label: "Approved",
-      tone: "success",
-      description: "The request has been accepted and can proceed.",
-    };
+  if (normalized === "Pending") {
+    return null;
   }
   if (normalized === "Rejected") {
     return {
@@ -139,33 +178,28 @@ const getReviewPresentation = (status?: string | null) => {
       description: "The request has been cancelled and is no longer active.",
     };
   }
+  if (normalized) {
+    return {
+      label: "Reviewed",
+      tone: "success",
+      description: "The request has moved past review and is in the active workflow.",
+    };
+  }
   return null;
 };
 
-const getStatusOptions = (status?: string | null) => {
-  const normalized = normalizeStatusKey(status);
-  const workflow = [
-    "pending",
-    "assigned_to_doctor",
-    "sample_collection_requested",
-    "sample_collected",
-    "in_progress",
-    "result_uploaded",
-    "completed",
-  ];
-  const terminals = ["cancelled", "rejected", "completed"];
+const resolveReviewedOrderStatus = (
+  action: "approve" | "reject",
+  sampleCollectionRequired?: boolean,
+): "Sample_Collection_Requested" | "In_Progress" | "Rejected" => {
+  if (action === "reject") return "Rejected";
+  return sampleCollectionRequired !== false ? "Sample_Collection_Requested" : "In_Progress";
+};
 
-  if (!normalized) return [];
-  if (terminals.includes(normalized)) {
-    return [CANONICAL_STATUS_MAP[normalized]];
-  }
-  const currentIndex = workflow.indexOf(normalized);
-  if (currentIndex === -1) {
-    return [];
-  }
-  const forwardStatuses = workflow.slice(currentIndex);
-  const withCancel = forwardStatuses.includes("cancelled") ? forwardStatuses : [...forwardStatuses, "cancelled"];
-  return withCancel.map((statusKey) => CANONICAL_STATUS_MAP[statusKey]).filter(Boolean);
+const getStatusOptions = (status?: string | null) => {
+  const currentStatus = toCanonicalStatus(status) as CanonicalLabOrderStatus | "";
+  if (!currentStatus) return [];
+  return STATUS_TRANSITION_MAP[currentStatus] ?? [];
 };
 
 const DetailRow = ({ label, value }: { label: string; value?: string | null }) => (
@@ -212,23 +246,26 @@ const LabOrderDetailsPage = () => {
   const [reviewMessage, setReviewMessage] = useState("");
   const [reply, setReply] = useState("");
   const [replyError, setReplyError] = useState<string | null>(null);
-  const [resultStatus, setResultStatus] = useState("Draft");
   const [referenceNumber, setReferenceNumber] = useState("");
   const [summary, setSummary] = useState("");
   const [conclusion, setConclusion] = useState("");
   const [resultNotes, setResultNotes] = useState("");
-  const [reportedAt, setReportedAt] = useState("");
   const [resultFile, setResultFile] = useState<File | null>(null);
   const [values, setValues] = useState<UploadLabResultValue[]>(createDefaultValues);
   const [uploadSuccess, setUploadSuccess] = useState(false);
 
   const detail = detailsQuery.data;
-  const patientNote = [detail?.instructions, detail?.diagnosis, detail?.specimenNotes]
-    .filter(Boolean)
-    .join("\n\n");
   const reviewPresentation = getReviewPresentation(detail?.status);
   const normalizedStatus = toCanonicalStatus(detail?.status);
+  const branchName = detail?.branch?.name ?? null;
+  const requestedServices = detail?.services ?? [];
+  const orderingDoctorName = detail?.orderingDoctor?.fullName || detail?.orderingDoctorName || null;
+  const sampleCollectionLabel = detail?.sampleCollectionStatus
+    ? formatLabStatusLabel(detail.sampleCollectionStatus)
+    : null;
+  const resultStatusLabel = detail?.resultStatus ? formatLabStatusLabel(detail.resultStatus) : null;
   const isReviewed = Boolean(reviewPresentation);
+  const timelineSteps = getLabTimelineSteps(detail?.status, detail?.sampleCollectionRequired);
   const messagingEnabledStatuses = [
     "Pending",
     "Sample_Collection_Requested",
@@ -250,11 +287,7 @@ const LabOrderDetailsPage = () => {
     console.warn("[LabOrderDetails] canReplyToRequest", canReplyToRequest);
   }, [detailsQuery.data, detail, canReplyToRequest]);
   const statusOptions = getStatusOptions(detail?.status);
-  const statusSelectOptions = statusOptions.length
-    ? statusOptions
-    : status
-      ? [toCanonicalStatus(status)]
-      : [];
+  const hasAvailableStatusTransition = statusOptions.length > 0;
 
   useEffect(() => {
     if (!detail) return;
@@ -283,14 +316,12 @@ const LabOrderDetailsPage = () => {
   useEffect(() => {
     if (!detail) return;
 
-    setStatus(toCanonicalStatus(detail.status));
+    const nextStatuses = getStatusOptions(detail.status);
+    setStatus(nextStatuses[0] ?? "");
     setStatusNotes(detail.internalNotes ?? detail.notes ?? "");
     setReviewMessage(detail.notes ?? "");
-    const isOrderCompleted = toCanonicalStatus(detail.status) === "Completed";
-    setResultStatus(detail.resultStatus ?? (isOrderCompleted ? "Final" : "Draft"));
     setReferenceNumber(detail.resultId ?? detail.orderNumber ?? "");
     setResultNotes(detail.internalNotes ?? "");
-    setReportedAt(toDateTimeInputValue(detail.completedAt));
   }, [detail]);
 
   const handleValueChange = (
@@ -327,18 +358,21 @@ const LabOrderDetailsPage = () => {
   const submitReview = (action: "approve" | "reject") => {
     if (!orderId) return;
 
+    const nextStatus = resolveReviewedOrderStatus(action, detail?.sampleCollectionRequired);
+
     reviewMutation.mutate(
       {
         orderId,
         payload: {
           action,
+          status: nextStatus,
           message: reviewMessage || null,
           notes: statusNotes || null,
         },
       },
       {
         onSuccess: () => {
-          toast.success(action === "approve" ? "Order approved successfully." : "Order rejected successfully.");
+          toast.success(action === "approve" ? "Review saved successfully." : "Order rejected successfully.");
           void detailsQuery.refetch();
         },
         onError: (error: Error) => toast.error(error.message),
@@ -347,7 +381,7 @@ const LabOrderDetailsPage = () => {
   };
 
   const submitStatusUpdate = () => {
-    if (!orderId) return;
+    if (!orderId || !status) return;
 
     updateStatusMutation.mutate(
       {
@@ -437,12 +471,10 @@ const LabOrderDetailsPage = () => {
       {
         orderId,
         payload: {
-          status: resultStatus,
-          referenceNumber: referenceNumber || null,
+          status: "Result_Uploaded",
           summary: summary || null,
           conclusion: conclusion || null,
           notes: resultNotes || null,
-          reportedAt: reportedAt ? new Date(reportedAt).toISOString() : null,
           resultFile,
           values: cleanedValues,
         },
@@ -562,6 +594,8 @@ const LabOrderDetailsPage = () => {
             </CardContent>
           </Card>
 
+          <JourneyTimeline title="Journey" steps={timelineSteps} />
+
           <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
             <div className="space-y-6">
               <Card>
@@ -571,47 +605,63 @@ const LabOrderDetailsPage = () => {
                 <CardContent className="space-y-4">
                   <div className="grid gap-4 md:grid-cols-2">
                     <DetailRow label="Request number" value={detail.orderNumber || detail.requestId || detail.id} />
-                    <DetailRow label="Requested test" value={detail.testName} />
                     <DetailRow label="Patient name" value={detail.patient.fullName} />
-                    <DetailRow
-                      label="Patient details"
-                      value={[
-                        detail.patient.age ? `${detail.patient.age} years` : null,
-                        detail.patient.gender,
-                      ]
-                        .filter(Boolean)
-                        .join(" - ")}
-                    />
                     <DetailRow label="Phone" value={detail.patient.phone} />
-                    <DetailRow label="Preferred time" value={formatDateTime(detail.scheduledAt)} />
-                    <DetailRow label="Ordering doctor" value={detail.orderingDoctor?.fullName || detail.orderingDoctorName} />
-                    <DetailRow label="Doctor specialty" value={detail.orderingDoctor?.specialty} />
-                    <DetailRow label="Service category" value={detail.service?.category} />
-                    <DetailRow label="Selected service" value={detail.service?.name || detail.testName} />
-                    <DetailRow label="Sample type" value={detail.specimenType || detail.service?.sampleType} />
-                    <DetailRow
-                      label="Sample collection"
-                      value={
-                        detail.sampleCollectionStatus || detail.sampleCollectionRequested
-                          ? formatLabStatusLabel(
-                              detail.sampleCollectionStatus ||
-                                (detail.sampleCollectionRequested ? "Requested" : ""),
-                            )
-                          : null
-                      }
-                    />
-                    <DetailRow label="Collection address" value={detail.sampleCollectionAddress} />
-                    <DetailRow label="Turnaround time" value={detail.service?.turnaroundTime} />
-                  </div>
-
-                  <div className="rounded-lg border bg-muted/10 p-4">
-                    <p className="text-sm text-muted-foreground">Patient note</p>
-                    <p className="mt-2 whitespace-pre-wrap text-sm">
-                      {patientNote || "No notes were added to this request."}
-                    </p>
+                    <DetailRow label="Status" value={formatLabStatusLabel(detail.status)} />
+                    <DetailRow label="Priority" value={detail.priority} />
+                    <DetailRow label="Created at" value={formatDateTime(detail.orderedAt)} />
+                    {orderingDoctorName ? <DetailRow label="Ordering doctor" value={orderingDoctorName} /> : null}
+                    {branchName ? <DetailRow label="Branch" value={branchName} /> : null}
+                    {sampleCollectionLabel ? (
+                      <DetailRow label="Sample collection" value={sampleCollectionLabel} />
+                    ) : null}
+                    {resultStatusLabel ? <DetailRow label="Result status" value={resultStatusLabel} /> : null}
                   </div>
                 </CardContent>
               </Card>
+
+              {requestedServices.length ? (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Requested Services</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {requestedServices.length === 1 ? (
+                      <div className="rounded-lg border bg-muted/10 p-4">
+                        <p className="font-medium">{requestedServices[0].name}</p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {requestedServices[0].code ? (
+                            <Badge variant="outline">Code: {requestedServices[0].code}</Badge>
+                          ) : null}
+                          {requestedServices[0].category ? (
+                            <Badge variant="outline">{requestedServices[0].category}</Badge>
+                          ) : null}
+                          {requestedServices[0].sampleType ? (
+                            <Badge variant="outline">Sample: {requestedServices[0].sampleType}</Badge>
+                          ) : null}
+                          {requestedServices[0].tatHours != null ? (
+                            <Badge variant="outline">TAT: {requestedServices[0].tatHours}h</Badge>
+                          ) : null}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {requestedServices.map((item, index) => (
+                          <div key={item.id || `${item.name}-${index}`} className="rounded-lg border bg-muted/10 p-4">
+                            <p className="font-medium">{item.name}</p>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {item.code ? <Badge variant="outline">Code: {item.code}</Badge> : null}
+                              {item.category ? <Badge variant="outline">{item.category}</Badge> : null}
+                              {item.sampleType ? <Badge variant="outline">Sample: {item.sampleType}</Badge> : null}
+                              {item.tatHours != null ? <Badge variant="outline">TAT: {item.tatHours}h</Badge> : null}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ) : null}
             </div>
 
             <div className="space-y-6">
@@ -697,8 +747,8 @@ const LabOrderDetailsPage = () => {
               </Card>
 
               <SectionCard
-                title="Request Thread"
-                description="Shared conversation with the patient for this lab request."
+                title="Messages"
+                description="Shared messages with the patient for this request."
               >
                 <div className="space-y-4">
                   {replyError ? (
@@ -740,46 +790,48 @@ const LabOrderDetailsPage = () => {
           </div>
 
           <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-            <Card>
-              <CardHeader>
-                <CardTitle>Step 2: Update Status</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="status">Order status</Label>
-                  <Select value={status} onValueChange={setStatus}>
-                    <SelectTrigger id="status">
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {statusSelectOptions.map((option) => (
-                        <SelectItem key={option} value={option}>
-                          {formatLabStatusLabel(option)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+            {hasAvailableStatusTransition ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Step 2: Update Status</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="status">Order status</Label>
+                    <Select value={status} onValueChange={setStatus}>
+                      <SelectTrigger id="status">
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {statusOptions.map((option) => (
+                          <SelectItem key={option} value={option}>
+                            {formatLabStatusLabel(option)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="statusNotes">Internal workflow note</Label>
-                  <Textarea
-                    id="statusNotes"
-                    value={statusNotes}
-                    onChange={(event) => setStatusNotes(event.target.value)}
-                    placeholder="Optional internal note for the request workflow"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Kept separate from the patient-facing review message and the shared request thread.
-                  </p>
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="statusNotes">Internal workflow note</Label>
+                    <Textarea
+                      id="statusNotes"
+                      value={statusNotes}
+                      onChange={(event) => setStatusNotes(event.target.value)}
+                      placeholder="Optional internal note for the request workflow"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Kept separate from the patient-facing review message and the shared request thread.
+                    </p>
+                  </div>
 
-                <Button onClick={submitStatusUpdate} disabled={updateStatusMutation.isPending}>
-                  <Save className="mr-2 h-4 w-4" />
-                  {updateStatusMutation.isPending ? "Saving..." : "Update status"}
-                </Button>
-              </CardContent>
-            </Card>
+                  <Button onClick={submitStatusUpdate} disabled={updateStatusMutation.isPending || !status}>
+                    <Save className="mr-2 h-4 w-4" />
+                    {updateStatusMutation.isPending ? "Saving..." : "Update status"}
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : null}
 
             <Card>
               <CardHeader>
@@ -787,20 +839,6 @@ const LabOrderDetailsPage = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="resultStatus">Result status</Label>
-                    <Select value={resultStatus} onValueChange={setResultStatus} disabled={isUploading}>
-                      <SelectTrigger id="resultStatus">
-                        <SelectValue placeholder="Result status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Draft">Draft</SelectItem>
-                        <SelectItem value="Final">Final</SelectItem>
-                        <SelectItem value="Reported">Reported</SelectItem>
-                        <SelectItem value="Amended">Amended</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
                   <div className="space-y-2">
                     <Label htmlFor="referenceNumber">Result reference</Label>
                     <Input
@@ -811,17 +849,6 @@ const LabOrderDetailsPage = () => {
                       disabled={isUploading}
                     />
                   </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="reportedAt">Reported at</Label>
-                  <Input
-                    id="reportedAt"
-                    type="datetime-local"
-                    value={reportedAt}
-                    onChange={(event) => setReportedAt(event.target.value)}
-                    disabled={isUploading}
-                  />
                 </div>
 
                 <div className="space-y-2">
@@ -841,7 +868,7 @@ const LabOrderDetailsPage = () => {
                     id="conclusion"
                     value={conclusion}
                     onChange={(event) => setConclusion(event.target.value)}
-                    placeholder="Final conclusion"
+                    placeholder="Diagnostic conclusion"
                     disabled={isUploading}
                   />
                 </div>
@@ -965,7 +992,7 @@ const LabOrderDetailsPage = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="resultFile">Result file</Label>
+                  <Label htmlFor="resultFile">Result file (optional)</Label>
                   <Input id="resultFile" type="file" onChange={handleFileChange} disabled={isUploading} />
                   {resultFile ? <p className="text-sm text-muted-foreground">{resultFile.name}</p> : null}
                 </div>

@@ -1,4 +1,4 @@
-import { apiRequest } from "@/services/api";
+import { API_BASE_URL, apiRequest } from "@/services/api";
 import {
   CreateRequestMessagePayload,
   RequestMessage,
@@ -7,6 +7,7 @@ import {
   LabOrder,
   LabOrderDetails,
   LabOrdersFilterParams,
+  LabOrderRequestedService,
   LabResult,
   LabResultsFilterParams,
   PaginatedResponse,
@@ -18,6 +19,7 @@ import {
   UploadLabResultRequest,
   UploadLabResultValue,
 } from "@/types/lab-workflow.types";
+import { normalizeLabOrderStatus } from "@/lib/labStatus";
 
 const asRecord = (value: unknown): Record<string, unknown> =>
   value && typeof value === "object" && !Array.isArray(value)
@@ -338,6 +340,11 @@ const normalizeLabOrder = (payload: unknown): LabOrder => {
     pickRecord(request, ["doctor", "orderingDoctor", "provider"]),
     pickRecord(order, ["doctor", "orderingDoctor", "provider"]),
   );
+  const branch = mergeRecords(
+    pickRecord(raw, ["branch", "labBranch", "lab_branch"]),
+    pickRecord(request, ["branch", "labBranch", "lab_branch"]),
+    pickRecord(order, ["branch", "labBranch", "lab_branch"]),
+  );
   const service = mergeRecords(
     pickRecord(raw, ["service", "labService", "test", "panel"]),
     pickRecord(request, ["service", "labService", "test", "panel"]),
@@ -383,10 +390,11 @@ const normalizeLabOrder = (payload: unknown): LabOrder => {
       pickNullableString(raw, ["category", "testCategory", "test_category", "serviceCategory", "service_category"]) ??
       pickNullableString(service, ["category", "serviceCategory", "service_category"]),
     status:
-      pickString(raw, ["status", "orderStatus", "order_status", "reviewStatus", "review_status", "decision"]) ??
-      pickString(request, ["status", "orderStatus", "order_status", "reviewStatus", "review_status", "decision"]) ??
-      pickString(order, ["status", "orderStatus", "order_status", "reviewStatus", "review_status", "decision"]) ??
-      "pending",
+      normalizeLabOrderStatus(
+        pickString(raw, ["status", "orderStatus", "order_status", "reviewStatus", "review_status", "decision"]) ??
+          pickString(request, ["status", "orderStatus", "order_status", "reviewStatus", "review_status", "decision"]) ??
+          pickString(order, ["status", "orderStatus", "order_status", "reviewStatus", "review_status", "decision"]),
+      ) || "Pending",
     priority: pickNullableString(raw, ["priority", "urgency"]),
     sampleId: pickNullableString(raw, ["sampleId", "sample_id", "specimenId", "specimen_id"]),
     orderedAt:
@@ -425,6 +433,25 @@ const normalizeLabOrder = (payload: unknown): LabOrder => {
   };
 };
 
+const normalizeLabOrderRequestedService = (payload: unknown): LabOrderRequestedService | null => {
+  const raw = unwrapPayload(payload);
+  const name =
+    pickString(raw, ["name", "displayName", "serviceName", "service_name", "testName", "test_name"]) ?? "";
+
+  if (!name) return null;
+
+  return {
+    id: pickNullableString(raw, ["id", "_id", "serviceId", "service_id", "testId", "test_id"]),
+    name,
+    code: pickNullableString(raw, ["code", "serviceCode", "service_code", "testCode", "test_code"]),
+    category: pickNullableString(raw, ["category", "serviceCategory", "service_category"]),
+    sampleType: pickNullableString(raw, ["sampleType", "sample_type", "specimenType", "specimen_type"]),
+    tatHours: pickNullableNumber(raw, ["tatHours", "tat_hours", "turnaroundHours", "turnaround_hours"]),
+    homeCollectionAvailable:
+      pickBoolean(raw, ["homeCollectionAvailable", "home_collection_available"]) ?? null,
+  };
+};
+
 const normalizeLabOrderDetails = (payload: unknown): LabOrderDetails => {
   const payloadRecord = asRecord(payload);
   const raw = unwrapPayload(payload);
@@ -442,6 +469,11 @@ const normalizeLabOrderDetails = (payload: unknown): LabOrderDetails => {
     pickRecord(request, ["doctor", "orderingDoctor", "provider"]),
     pickRecord(order, ["doctor", "orderingDoctor", "provider"]),
   );
+  const branch = mergeRecords(
+    pickRecord(raw, ["branch", "labBranch", "lab_branch"]),
+    pickRecord(request, ["branch", "labBranch", "lab_branch"]),
+    pickRecord(order, ["branch", "labBranch", "lab_branch"]),
+  );
   const service = mergeRecords(
     pickRecord(raw, ["service", "labService", "test", "panel"]),
     pickRecord(request, ["service", "labService", "test", "panel"]),
@@ -451,6 +483,13 @@ const normalizeLabOrderDetails = (payload: unknown): LabOrderDetails => {
     pickRecord(raw, ["sampleCollection", "sampleCollectionRequest", "sample_collection_request"]),
     pickRecord(order, ["sampleCollection", "sampleCollectionRequest", "sample_collection_request"]),
   );
+  const requestedServices = [
+    ...unwrapListPayload(raw.services, ["items", "services"]),
+    ...unwrapListPayload(order.services, ["items", "services"]),
+    ...unwrapListPayload(request.services, ["items", "services"]),
+  ]
+    .map(normalizeLabOrderRequestedService)
+    .filter((item): item is LabOrderRequestedService => Boolean(item));
   const messages =
     resolveMessageList(raw).length
       ? resolveMessageList(raw)
@@ -466,10 +505,36 @@ const normalizeLabOrderDetails = (payload: unknown): LabOrderDetails => {
     pickNullableString(request, ["id", "_id", "requestId", "request_id", "testRequestId", "test_request_id"]) ??
     pickNullableString(order, ["requestId", "request_id", "testRequestId", "test_request_id"]);
   const status =
-    pickString(raw, ["status", "orderStatus", "order_status", "reviewStatus", "review_status", "decision"]) ??
-    pickString(request, ["status", "orderStatus", "order_status", "reviewStatus", "review_status", "decision"]) ??
-    pickString(order, ["status", "orderStatus", "order_status", "reviewStatus", "review_status", "decision"]) ??
-    base.status;
+    normalizeLabOrderStatus(
+      pickString(raw, ["status", "orderStatus", "order_status", "reviewStatus", "review_status", "decision"]) ??
+        pickString(request, ["status", "orderStatus", "order_status", "reviewStatus", "review_status", "decision"]) ??
+        pickString(order, ["status", "orderStatus", "order_status", "reviewStatus", "review_status", "decision"]),
+    ) || base.status;
+  const normalizedBranch = {
+    id: pickNullableString(branch, ["id", "_id", "branchId", "branch_id"]),
+    name: pickNullableString(branch, ["name", "branchName", "branch_name"]),
+    city: pickNullableString(branch, ["city"]),
+  };
+  const fallbackServiceName =
+    pickString(service, ["name", "displayName", "serviceName", "service_name", "testName", "test_name"]) ??
+    base.testName;
+  const services =
+    requestedServices.length > 0
+      ? requestedServices
+      : fallbackServiceName
+        ? [
+            {
+              id: pickNullableString(service, ["id", "_id", "serviceId", "service_id", "testId", "test_id"]),
+              name: fallbackServiceName,
+              code: pickNullableString(service, ["code", "serviceCode", "service_code", "testCode", "test_code"]),
+              category: pickNullableString(service, ["category", "serviceCategory", "service_category"]),
+              sampleType: pickNullableString(service, ["sampleType", "sample_type", "specimenType", "specimen_type"]),
+              tatHours: pickNullableNumber(service, ["tatHours", "tat_hours", "turnaroundHours", "turnaround_hours"]),
+              homeCollectionAvailable:
+                pickBoolean(service, ["homeCollectionAvailable", "home_collection_available"]) ?? null,
+            },
+          ]
+        : [];
 
   return {
     ...base,
@@ -494,6 +559,10 @@ const normalizeLabOrderDetails = (payload: unknown): LabOrderDetails => {
         base.orderingDoctorName,
       specialty: pickNullableString(doctor, ["specialty", "specialization"]),
     },
+    branch:
+      normalizedBranch.id || normalizedBranch.name || normalizedBranch.city
+        ? normalizedBranch
+        : null,
     service: {
       id: pickNullableString(service, ["id", "_id", "serviceId", "service_id", "testId", "test_id"]),
       name:
@@ -504,6 +573,7 @@ const normalizeLabOrderDetails = (payload: unknown): LabOrderDetails => {
       sampleType: pickNullableString(service, ["sampleType", "sample_type", "specimenType", "specimen_type"]),
       turnaroundTime: pickNullableString(service, ["turnaroundTime", "turnaround_time", "duration"]),
     },
+    services,
     resultId: pickNullableString(raw, ["resultId", "result_id"]),
     resultStatus: pickNullableString(raw, ["resultStatus", "result_status"]),
     diagnosis:
@@ -516,6 +586,10 @@ const normalizeLabOrderDetails = (payload: unknown): LabOrderDetails => {
       pickNullableString(raw, ["specimenNotes", "sampleNotes", "sample_notes", "instructions"]) ??
       pickNullableString(service, ["preparationInstructions", "preparation_instructions"]),
     internalNotes: pickNullableString(raw, ["internalNotes", "internal_notes", "labNotes", "notes"]),
+    sampleCollectionRequired:
+      pickBoolean(raw, ["sampleCollectionRequired", "sample_collection_required"]) ??
+      pickBoolean(request, ["sampleCollectionRequired", "sample_collection_required"]) ??
+      pickBoolean(order, ["sampleCollectionRequired", "sample_collection_required"]),
     sampleCollectionRequested:
       pickBoolean(raw, ["sampleCollectionRequested", "sample_collection_requested"]) ??
       Boolean(
@@ -523,8 +597,10 @@ const normalizeLabOrderDetails = (payload: unknown): LabOrderDetails => {
           pickString(raw, ["sampleCollectionStatus", "sample_collection_status"]),
       ),
     sampleCollectionStatus:
-      pickNullableString(sampleCollection, ["status"]) ??
-      pickNullableString(raw, ["sampleCollectionStatus", "sample_collection_status"]),
+      normalizeLabOrderStatus(
+        pickNullableString(sampleCollection, ["status"]) ??
+          pickNullableString(raw, ["sampleCollectionStatus", "sample_collection_status"]),
+      ) || null,
     sampleCollectionAddress:
       joinAddress(sampleCollection) ??
       pickNullableString(raw, ["sampleCollectionAddress", "sample_collection_address"]) ??
@@ -574,7 +650,7 @@ const normalizeLabResult = (payload: unknown): LabResult => {
       "Patient",
     testName: pickString(raw, ["testName", "test_name", "name"]) ?? "Lab result",
     category: pickNullableString(raw, ["category", "testCategory", "test_category"]),
-    status: pickString(raw, ["status", "resultStatus", "result_status"]) ?? "completed",
+    status: normalizeLabOrderStatus(pickString(raw, ["status", "resultStatus", "result_status"])) || "Completed",
     priority: pickNullableString(raw, ["priority", "urgency"]),
     reportedAt: pickNullableString(raw, ["reportedAt", "completedAt", "issuedAt", "date"]),
     collectedAt: pickNullableString(raw, ["collectedAt", "sampleCollectedAt"]),
@@ -618,7 +694,7 @@ const normalizeSampleCollectionRequest = (payload: unknown): SampleCollectionReq
       pickString(raw, ["testName", "test_name"]) ??
       pickString(order, ["testName", "test_name", "name"]) ??
       "Lab order",
-    status: pickString(raw, ["status"]) ?? "requested",
+    status: normalizeLabOrderStatus(pickString(raw, ["status"])) || "Sample_Collection_Requested",
     priority: pickNullableString(raw, ["priority", "urgency"]),
     requestedAt: pickNullableString(raw, ["requestedAt", "createdAt", "date"]),
     scheduledAt: pickNullableString(raw, ["scheduledAt", "scheduledFor"]),
@@ -629,8 +705,7 @@ const normalizeSampleCollectionRequest = (payload: unknown): SampleCollectionReq
 
 const buildResultPayload = (payload: UploadLabResultRequest) => {
   const formData = new FormData();
-
-  if (payload.status) formData.append("status", payload.status);
+  formData.append("status", "Result_Uploaded");
 
   const measurements = (payload.values ?? []).reduce<Record<string, unknown>>((result, item) => {
     const key = item.name?.trim();
@@ -644,27 +719,39 @@ const buildResultPayload = (payload: UploadLabResultRequest) => {
     return result;
   }, {});
 
+  const summary = payload.summary?.trim() || payload.conclusion?.trim() || "";
+  const conclusion = payload.conclusion?.trim() || "";
+  const notes = payload.notes?.trim() || "";
+
   const observations = {
-    summary: payload.summary || "",
-    notes: payload.conclusion || "",
-    flags: [],
+    summary,
+    conclusion,
+    notes,
     measurements,
   };
-
-  const shouldSendObservations =
-    Boolean(payload.resultFile) === false ||
-    Boolean(payload.summary?.trim()) ||
-    Boolean(payload.conclusion?.trim()) ||
-    Object.keys(measurements).length > 0;
-
-  if (shouldSendObservations) {
-    formData.append("observations", JSON.stringify(observations));
+  formData.append("observations", JSON.stringify(observations));
+  if (payload.resultFile) {
+    formData.append("file", payload.resultFile);
   }
-
-  if (payload.resultFile) formData.append("file", payload.resultFile);
 
   return formData;
 };
+
+const snapshotFormData = (formData: FormData) =>
+  Array.from(formData.entries()).map(([key, value]) => {
+    if (value instanceof File) {
+      return {
+        key,
+        value: {
+          name: value.name,
+          size: value.size,
+          type: value.type,
+        },
+      };
+    }
+
+    return { key, value };
+  });
 
 export const labWorkflowService = {
   getLabOrders: async (
@@ -722,14 +809,12 @@ export const labWorkflowService = {
     orderId: string,
     payload: ReviewLabOrderRequest,
   ): Promise<LabOrderDetails> => {
-    const normalizedDecision = payload.action === "approve" ? "approved" : "rejected";
-
     const response = await apiRequest<unknown>(`/api/v1/labs/me/orders/${orderId}/review`, {
       method: "PATCH",
       body: {
-        decision: normalizedDecision,
         action: payload.action,
-        status: normalizedDecision,
+        decision: payload.action,
+        status: payload.status,
         ...(payload.message?.trim()
           ? {
               message: payload.message.trim(),
@@ -770,9 +855,18 @@ export const labWorkflowService = {
     orderId: string,
     payload: UploadLabResultRequest,
   ): Promise<LabResult> => {
-    const response = await apiRequest<unknown>(`/api/v1/labs/me/orders/${orderId}/results`, {
+    const endpoint = `/api/v1/labs/me/orders/${orderId}/results`;
+    const requestUrl = `${API_BASE_URL}${endpoint}`;
+    const requestBody = buildResultPayload(payload);
+    console.log("[labWorkflowService] uploadLabOrderResult request", {
       method: "POST",
-      body: buildResultPayload(payload),
+      endpoint,
+      requestUrl,
+      formData: snapshotFormData(requestBody),
+    });
+    const response = await apiRequest<unknown>(endpoint, {
+      method: "POST",
+      body: requestBody,
       auth: true,
     });
 

@@ -1,30 +1,66 @@
-const STATUS_LABEL_OVERRIDES: Record<string, string> = {
-  sample_collected: "Sample Collected",
-  "sample-collected": "Sample Collected",
-  in_progress: "In Progress",
-  "in-progress": "In Progress",
-  result_uploaded: "Result Uploaded",
-  "result-uploaded": "Result Uploaded",
+export type CanonicalLabOrderStatus =
+  | "Pending"
+  | "Sample_Collection_Requested"
+  | "Sample_Collected"
+  | "In_Progress"
+  | "Result_Uploaded"
+  | "Assigned_To_Doctor"
+  | "Completed"
+  | "Cancelled"
+  | "Rejected";
+
+const STATUS_LABELS: Record<CanonicalLabOrderStatus, string> = {
+  Pending: "Awaiting Review",
+  Sample_Collection_Requested: "Collection Requested",
+  Sample_Collected: "Sample Collected",
+  In_Progress: "In Progress",
+  Result_Uploaded: "Results Ready",
+  Assigned_To_Doctor: "Sent to Doctor",
+  Completed: "Completed",
+  Cancelled: "Cancelled",
+  Rejected: "Rejected",
 };
 
-const toTitleCase = (value: string) =>
-  value
-    .split(" ")
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
-    .join(" ");
+const CANONICAL_STATUS_BY_KEY: Record<string, CanonicalLabOrderStatus> = {
+  PENDING: "Pending",
+  SAMPLE_COLLECTION_REQUESTED: "Sample_Collection_Requested",
+  SAMPLE_COLLECTED: "Sample_Collected",
+  IN_PROGRESS: "In_Progress",
+  RESULT_UPLOADED: "Result_Uploaded",
+  ASSIGNED_TO_DOCTOR: "Assigned_To_Doctor",
+  COMPLETED: "Completed",
+  CANCELLED: "Cancelled",
+  REJECTED: "Rejected",
+};
+
+const LEGACY_STATUS_ALIASES: Record<string, CanonicalLabOrderStatus> = {
+  APPROVED: "In_Progress",
+  ACCEPTED: "In_Progress",
+  PROCESSING: "In_Progress",
+  REQUESTED: "Sample_Collection_Requested",
+};
+
+export const normalizeLabStatusKey = (value?: string | null) =>
+  (value ?? "")
+    .trim()
+    .replace(/([a-z])([A-Z])/g, "$1_$2")
+    .replace(/[\s-]+/g, "_")
+    .toUpperCase();
+
+export const normalizeLabOrderStatus = (status?: string | null): CanonicalLabOrderStatus | "" => {
+  const key = normalizeLabStatusKey(status);
+  if (!key) return "";
+  if (key === "CANCELED") return "Cancelled";
+  return CANONICAL_STATUS_BY_KEY[key] ?? LEGACY_STATUS_ALIASES[key] ?? "";
+};
 
 export const formatLabStatusLabel = (status?: string | null) => {
-  if (!status) return "Unknown";
-  const normalized = status.trim();
-  if (!normalized) return "Unknown";
-  const key = normalized.toLowerCase();
-  if (STATUS_LABEL_OVERRIDES[key]) return STATUS_LABEL_OVERRIDES[key];
-  return toTitleCase(key.replace(/[_-]+/g, " "));
+  const canonical = normalizeLabOrderStatus(status);
+  if (!canonical) return "Unknown";
+  return STATUS_LABELS[canonical];
 };
 
 export const isResultReadyStatus = (status?: string | null) => {
-  if (!status) return false;
-  const normalized = status.trim().toLowerCase();
-  return normalized === "result_uploaded" || normalized === "result-uploaded";
+  const canonical = normalizeLabOrderStatus(status);
+  return canonical === "Result_Uploaded" || canonical === "Assigned_To_Doctor";
 };

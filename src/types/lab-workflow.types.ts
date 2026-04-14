@@ -19,7 +19,7 @@ export interface BaseLabWorkflowFilterParams {
 }
 
 export interface LabOrdersFilterParams extends BaseLabWorkflowFilterParams {
-  status?: string;
+  status?: string | string[];
   category?: string;
   priority?: string;
   orderedFrom?: string;
@@ -55,6 +55,12 @@ export interface LabOrderDoctorSummary {
   specialty?: string | null;
 }
 
+export interface LabOrderBranchSummary {
+  id?: string | null;
+  name?: string | null;
+  city?: string | null;
+}
+
 export interface LabOrderServiceSummary {
   id?: string | null;
   name: string;
@@ -62,6 +68,16 @@ export interface LabOrderServiceSummary {
   category?: string | null;
   sampleType?: string | null;
   turnaroundTime?: string | null;
+}
+
+export interface LabOrderRequestedService {
+  id?: string | null;
+  name: string;
+  code?: string | null;
+  category?: string | null;
+  sampleType?: string | null;
+  tatHours?: number | null;
+  homeCollectionAvailable?: boolean | null;
 }
 
 export interface LabOrder {
@@ -90,13 +106,16 @@ export interface LabOrderDetails extends LabOrder {
   requestId?: string | null;
   patient: LabOrderPatientSummary;
   orderingDoctor?: LabOrderDoctorSummary | null;
+  branch?: LabOrderBranchSummary | null;
   service?: LabOrderServiceSummary | null;
+  services?: LabOrderRequestedService[];
   resultId?: string | null;
   resultStatus?: string | null;
   diagnosis?: string | null;
   specimenType?: string | null;
   specimenNotes?: string | null;
   internalNotes?: string | null;
+  sampleCollectionRequired?: boolean;
   sampleCollectionRequested?: boolean;
   sampleCollectionStatus?: string | null;
   sampleCollectionAddress?: string | null;
@@ -112,6 +131,7 @@ export interface UpdateLabOrderStatusRequest {
 
 export interface ReviewLabOrderRequest {
   action: "approve" | "reject";
+  status: "Sample_Collection_Requested" | "In_Progress" | "Rejected";
   message?: string | null;
   notes?: string | null;
 }
@@ -127,15 +147,11 @@ export interface UploadLabResultValue {
 }
 
 export interface UploadLabResultRequest {
-  status?: string;
-  referenceNumber?: string | null;
+  status: "Result_Uploaded";
   summary?: string | null;
   conclusion?: string | null;
   notes?: string | null;
-  collectedAt?: string | null;
-  reportedAt?: string | null;
   resultFile?: File | null;
-  attachments?: File[];
   values?: UploadLabResultValue[];
 }
 

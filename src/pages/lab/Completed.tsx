@@ -15,28 +15,25 @@ import { useLabOrdersQuery, useLabResultsQuery } from "@/hooks/useLabWorkflow";
 import { useLabProfileQuery } from "@/hooks/useLabProfile";
 import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName } from "@/lib/auth";
-import { formatLabStatusLabel, isResultReadyStatus } from "@/lib/labStatus";
+import { formatLabStatusLabel, isResultReadyStatus, normalizeLabOrderStatus } from "@/lib/labStatus";
 import { formatDisplayDateTime } from "@/lib/date-time";
 
 const formatDateTime = (value?: string | null) => formatDisplayDateTime(value);
 
 const getStatusClassName = (status?: string | null) => {
-  switch ((status ?? "").toLowerCase()) {
-    case "completed":
-    case "ready":
-    case "final":
-    case "reported":
-    case "delivered":
-    case "result_uploaded":
-    case "result-uploaded":
+  switch (normalizeLabOrderStatus(status)) {
+    case "Completed":
+    case "Result_Uploaded":
+    case "Assigned_To_Doctor":
       return "bg-green-100 text-green-700 border-green-200";
-    case "processing":
-    case "review":
+    case "In_Progress":
       return "bg-blue-100 text-blue-700 border-blue-200";
-    case "pending":
+    case "Pending":
+    case "Sample_Collection_Requested":
+    case "Sample_Collected":
       return "bg-yellow-100 text-yellow-700 border-yellow-200";
-    case "cancelled":
-    case "canceled":
+    case "Cancelled":
+    case "Rejected":
       return "bg-red-100 text-red-700 border-red-200";
     default:
       return "bg-muted text-muted-foreground border-border";
@@ -148,10 +145,11 @@ const LabCompleted = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All statuses</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="reported">Reported</SelectItem>
-              <SelectItem value="processing">Processing</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="Completed">Completed</SelectItem>
+              <SelectItem value="Result_Uploaded">Results Ready</SelectItem>
+              <SelectItem value="Assigned_To_Doctor">Sent to Doctor</SelectItem>
+              <SelectItem value="Cancelled">Cancelled</SelectItem>
+              <SelectItem value="Rejected">Rejected</SelectItem>
             </SelectContent>
           </Select>
           <Button
@@ -211,7 +209,7 @@ const LabCompleted = () => {
                         </div>
                         <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                           <span>Collected {formatDateTime(result.collectedAt)}</span>
-                          <span>Reported {formatDateTime(result.reportedAt)}</span>
+                          <span>Result date {formatDateTime(result.reportedAt)}</span>
                         </div>
                       </div>
 
