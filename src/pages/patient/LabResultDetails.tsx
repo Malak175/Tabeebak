@@ -367,7 +367,7 @@ const PatientLabResultDetails = () => {
               <div class="value">${query.data.laboratoryName || "Not available"}</div>
             </div>
             <div class="card">
-              <div class="label">Reported date</div>
+              <div class="label">Result date</div>
               <div class="value">${formatDate(query.data.reportedAt)}</div>
             </div>
           </div>
@@ -487,7 +487,7 @@ const PatientLabResultDetails = () => {
                     <DetailRow label="Ordering Doctor" value={query.data.orderingDoctorName} />
                   ) : null}
                   {query.data.reportedAt ? (
-                    <DetailRow label="Reported At" value={formatDate(query.data.reportedAt)} />
+                    <DetailRow label="Result Date" value={formatDate(query.data.reportedAt)} />
                   ) : null}
                   {query.data.collectedAt ? (
                     <DetailRow label="Collected At" value={formatDate(query.data.collectedAt)} />

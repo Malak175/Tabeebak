@@ -232,7 +232,7 @@ const PatientLabResults = () => {
                           {result.category || "Uncategorized"} • {result.laboratoryName || "Lab pending"}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          Reported on {formatDate(result.reportedAt)} by{" "}
+                          Result date {formatDate(result.reportedAt)} by{" "}
                           {result.orderingDoctorName || "Unknown clinician"}
                         </p>
                       </div>

@@ -806,10 +806,10 @@ const normalizeLabResult = (payload: unknown): LabResult => {
 
   if (idValue === undefined) {
     console.warn("[Normalizer] Raw item:", raw);
-    console.warn("[Normalizer] Final id:", idValue);
+    console.warn("[Normalizer] Resolved id:", idValue);
   } else {
     console.warn("[Normalizer] Raw item:", raw);
-    console.warn("[Normalizer] Final id:", idValue);
+    console.warn("[Normalizer] Resolved id:", idValue);
   }
 
   const doctorFollowUpSummary = {
