@@ -3,7 +3,6 @@ import { Link, useParams } from "react-router-dom";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { doctorNavItems } from "@/components/settings/AccountSettingsContent";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,19 +12,6 @@ import { getDisplayName } from "@/lib/auth";
 import { formatDisplayDate } from "@/lib/date-time";
 
 const formatDate = (value?: string | null) => formatDisplayDate(value);
-
-const getStatusClassName = (status?: string | null) => {
-  switch ((status ?? "").toLowerCase()) {
-    case "active":
-      return "bg-green-100 text-green-700 border-green-200";
-    case "expired":
-      return "bg-red-100 text-red-700 border-red-200";
-    case "completed":
-      return "bg-blue-100 text-blue-700 border-blue-200";
-    default:
-      return "bg-muted text-muted-foreground border-border";
-  }
-};
 
 const DetailRow = ({ label, value }: { label: string; value: string | number }) => (
   <div className="rounded-lg border p-4">
@@ -109,8 +95,7 @@ const DoctorPrescriptionDetails = () => {
                   <Pill className="h-5 w-5" />
                 </div>
                 <CardTitle>{details.medicationName}</CardTitle>
-                <Badge className={getStatusClassName(details.status)}>{details.status}</Badge>
-              </div>
+            </div>
             </CardHeader>
             <CardContent className="grid gap-4 md:grid-cols-2">
               {medicationRows.length ? (

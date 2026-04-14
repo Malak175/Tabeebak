@@ -49,7 +49,6 @@ export interface DoctorPrescriptionFilterParams {
   page?: number;
   limit?: number;
   search?: string;
-  status?: string;
   patientId?: string;
   appointmentId?: string;
   sortBy?: string;
@@ -207,7 +206,6 @@ export interface DoctorPrescription {
   duration?: string | null;
   quantity?: string | null;
   instructions?: string | null;
-  status: string;
   prescribedAt?: string | null;
   expiresAt?: string | null;
   refillsRemaining?: number | null;

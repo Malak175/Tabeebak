@@ -749,7 +749,6 @@ const normalizeDoctorPrescription = (payload: unknown): DoctorPrescription => {
     duration: pickNullableString(raw, ["duration"]),
     quantity: pickNullableString(raw, ["quantity"]),
     instructions: pickNullableString(raw, ["instructions", "direction", "directions"]),
-    status: pickString(raw, ["status", "prescriptionStatus", "prescription_status"]) ?? "active",
     prescribedAt: pickNullableString(raw, ["prescribedAt", "issuedAt", "createdAt", "date"]),
     expiresAt: pickNullableString(raw, ["expiresAt", "expiryDate", "endDate"]),
     refillsRemaining: pickNullableNumber(raw, [
