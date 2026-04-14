@@ -33,6 +33,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -122,7 +123,6 @@ export const LabProfileSettingsSections = () => {
   const [profileForm, setProfileForm] = useState({
     displayName: "",
     legalName: "",
-    phone: "",
     alternatePhone: "",
     description: "",
     accreditation: "",
@@ -152,7 +152,6 @@ export const LabProfileSettingsSections = () => {
     setProfileForm({
       displayName: profileQuery.data.displayName ?? "",
       legalName: profileQuery.data.legalName ?? "",
-      phone: profileQuery.data.phone ?? "",
       alternatePhone: profileQuery.data.alternatePhone ?? "",
       description: profileQuery.data.description ?? "",
       accreditation: profileQuery.data.accreditation ?? "",
@@ -234,13 +233,19 @@ export const LabProfileSettingsSections = () => {
   );
 
   const handleProfileSave = () => {
+    const accreditationName = toNullableString(profileForm.accreditation);
     const payload: UpdateLabProfileRequest = {
       displayName: profileForm.displayName || undefined,
       legalName: toNullableString(profileForm.legalName),
-      phone: toNullableString(profileForm.phone),
       alternatePhone: toNullableString(profileForm.alternatePhone),
       description: toNullableString(profileForm.description),
-      accreditation: toNullableString(profileForm.accreditation),
+      accreditation: accreditationName
+        ? {
+            name: accreditationName,
+            number: null,
+            status: null,
+          }
+        : null,
       licenseNumber: toNullableString(profileForm.licenseNumber),
       taxNumber: toNullableString(profileForm.taxNumber),
       website: toNullableString(profileForm.website),
@@ -439,6 +444,25 @@ export const LabProfileSettingsSections = () => {
             </Alert>
           ) : (
             <>
+              <div className="rounded-xl border p-4">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <div className="font-medium">Laboratory Logo</div>
+                    <div className="text-sm text-muted-foreground">
+                      This is the laboratory branding logo used on public lab profiles.
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-12 w-12">
+                      <AvatarImage src={profileQuery.data?.logoUrl ?? undefined} alt="Lab logo" />
+                      <AvatarFallback className="bg-secondary/20 text-secondary">LAB</AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm text-muted-foreground">
+                      {profileQuery.data?.logoUrl ? "Logo on file" : "No logo uploaded yet"}
+                    </span>
+                  </div>
+                </div>
+              </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="lab-display-name">Laboratory Name</Label>
@@ -461,17 +485,10 @@ export const LabProfileSettingsSections = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="lab-phone">Phone</Label>
-                  <Input
-                    id="lab-phone"
-                    value={profileForm.phone}
-                    onChange={(event) =>
-                      setProfileForm((current) => ({ ...current, phone: event.target.value }))
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lab-alt-phone">Alternate Phone</Label>
+                  <Label htmlFor="lab-alt-phone">Support Phone</Label>
+                  <p className="text-xs text-muted-foreground">
+                    This is the laboratory support contact number, not the account phone.
+                  </p>
                   <Input
                     id="lab-alt-phone"
                     value={profileForm.alternatePhone}

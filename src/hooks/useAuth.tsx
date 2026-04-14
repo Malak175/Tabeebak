@@ -24,6 +24,7 @@ import { MeResponse } from "@/types/me.types";
 import { myAccountQueryKeys } from "@/hooks/useMyAccount";
 import { doctorQueryKeys } from "@/hooks/useDoctorProfile";
 import { patientQueryKeys } from "@/hooks/usePatientProfile";
+import { labQueryKeys } from "@/hooks/useLabProfile";
 
 const IS_DEV = import.meta.env.DEV;
 
@@ -71,6 +72,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     queryClient.removeQueries({ queryKey: myAccountQueryKeys.all });
     queryClient.removeQueries({ queryKey: doctorQueryKeys.all });
     queryClient.removeQueries({ queryKey: patientQueryKeys.all });
+    queryClient.removeQueries({ queryKey: labQueryKeys.all });
   }, [queryClient]);
 
   const setBootstrappedUser = useCallback(

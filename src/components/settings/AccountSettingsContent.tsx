@@ -422,6 +422,15 @@ export const AccountSettingsContent = ({
         <p className="text-muted-foreground">{description}</p>
       </div>
 
+      {dashboardRole === "laboratory" && (
+        <div className="mb-6 rounded-xl border border-dashed bg-background/60 px-4 py-3 text-sm">
+          <div className="font-semibold">Account Settings</div>
+          <p className="text-muted-foreground">
+            These settings apply to the signed-in account and its avatar.
+          </p>
+        </div>
+      )}
+
       {profileQuery.isError && (
         <Alert variant="destructive" className="mb-6">
           <AlertTitle>Unable to load account settings</AlertTitle>
@@ -464,6 +473,11 @@ export const AccountSettingsContent = ({
                   <p className="text-lg font-semibold">{userName}</p>
                   <p className="text-sm text-muted-foreground">{activeProfile?.email}</p>
                   <p className="text-sm text-muted-foreground">{activeProfile?.role}</p>
+                  {dashboardRole === "laboratory" && (
+                    <p className="text-xs text-muted-foreground">
+                      Account avatar is separate from the laboratory logo.
+                    </p>
+                  )}
                 </div>
               </div>
             )}
@@ -496,78 +510,76 @@ export const AccountSettingsContent = ({
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              {dashboardRole === "laboratory" ? <Building2 className="h-5 w-5" /> : <User className="h-5 w-5" />}
-              Basic Information
-            </CardTitle>
-            <CardDescription>Update the shared account profile fields from `/api/v1/me/basic-info`.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="displayName">{dashboardRole === "laboratory" ? "Laboratory Name" : "Display Name"}</Label>
-                <Input
-                  id="displayName"
-                  value={basicInfo.displayName}
-                  onChange={(event) =>
-                    setBasicInfo((current) => ({ ...current, displayName: event.target.value }))
-                  }
-                />
-              </div>
+        {dashboardRole !== "laboratory" && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Basic Information
+              </CardTitle>
+              <CardDescription>Update the shared account profile fields from `/api/v1/me/basic-info`.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="displayName">Display Name</Label>
+                  <Input
+                    id="displayName"
+                    value={basicInfo.displayName}
+                    onChange={(event) =>
+                      setBasicInfo((current) => ({ ...current, displayName: event.target.value }))
+                    }
+                  />
+                </div>
 
-              {dashboardRole !== "laboratory" && (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="firstName">First Name</Label>
-                    <Input
-                      id="firstName"
-                      value={basicInfo.firstName}
-                      onChange={(event) =>
-                        setBasicInfo((current) => ({ ...current, firstName: event.target.value }))
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="lastName">Last Name</Label>
-                    <Input
-                      id="lastName"
-                      value={basicInfo.lastName}
-                      onChange={(event) =>
-                        setBasicInfo((current) => ({ ...current, lastName: event.target.value }))
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="dateOfBirth">Date of Birth</Label>
-                    <Input
-                      id="dateOfBirth"
-                      type="date"
-                      value={basicInfo.dateOfBirth}
-                      onChange={(event) =>
-                        setBasicInfo((current) => ({ ...current, dateOfBirth: event.target.value }))
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="gender">Gender</Label>
-                    <Input
-                      id="gender"
-                      value={basicInfo.gender}
-                      onChange={(event) =>
-                        setBasicInfo((current) => ({ ...current, gender: event.target.value }))
-                      }
-                    />
-                  </div>
-                </>
-              )}
-            </div>
-            <Button onClick={handleBasicInfoSave} disabled={updateBasicInfoMutation.isPending || profileQuery.isLoading}>
-              {updateBasicInfoMutation.isPending ? "Saving..." : "Save Changes"}
-            </Button>
-          </CardContent>
-        </Card>
+                <div className="space-y-2">
+                  <Label htmlFor="firstName">First Name</Label>
+                  <Input
+                    id="firstName"
+                    value={basicInfo.firstName}
+                    onChange={(event) =>
+                      setBasicInfo((current) => ({ ...current, firstName: event.target.value }))
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lastName">Last Name</Label>
+                  <Input
+                    id="lastName"
+                    value={basicInfo.lastName}
+                    onChange={(event) =>
+                      setBasicInfo((current) => ({ ...current, lastName: event.target.value }))
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="dateOfBirth">Date of Birth</Label>
+                  <Input
+                    id="dateOfBirth"
+                    type="date"
+                    value={basicInfo.dateOfBirth}
+                    onChange={(event) =>
+                      setBasicInfo((current) => ({ ...current, dateOfBirth: event.target.value }))
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="gender">Gender</Label>
+                  <Input
+                    id="gender"
+                    value={basicInfo.gender}
+                    onChange={(event) =>
+                      setBasicInfo((current) => ({ ...current, gender: event.target.value }))
+                    }
+                  />
+                </div>
+              </div>
+              <Button onClick={handleBasicInfoSave} disabled={updateBasicInfoMutation.isPending || profileQuery.isLoading}>
+                {updateBasicInfoMutation.isPending ? "Saving..." : "Save Changes"}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>
