@@ -56,50 +56,60 @@ const AppointmentCard = ({
   type?: string | null;
   location?: string | null;
   joinUrl?: string | null;
-}) => (
-  <Card>
-    <CardContent className="flex flex-col gap-4 p-6 md:flex-row md:items-center">
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-        <Calendar className="h-5 w-5" />
-      </div>
-      <div className="flex-1 space-y-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <h3 className="text-lg font-semibold">{doctorName}</h3>
-          <Badge className={getStatusClassName(status)}>{status}</Badge>
+}) => {
+  const hasId = Boolean(id);
+
+  return (
+    <Card>
+      <CardContent className="flex flex-col gap-4 p-6 md:flex-row md:items-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+          <Calendar className="h-5 w-5" />
         </div>
-        <p className="text-sm text-muted-foreground">
-          {doctorSpecialty || "Specialty not available"}
-        </p>
-        <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-          <span className="flex items-center gap-1.5">
-            <Clock className="h-4 w-4" />
-            {formatDateTime(scheduledAt)}
-          </span>
-          <span className="flex items-center gap-1.5">
-            {mode?.toLowerCase().includes("video") || type?.toLowerCase().includes("video") ? (
-              <Video className="h-4 w-4" />
-            ) : (
-              <MapPin className="h-4 w-4" />
-            )}
-            {location || mode || type || "Location pending"}
-          </span>
+        <div className="flex-1 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-lg font-semibold">{doctorName}</h3>
+            <Badge className={getStatusClassName(status)}>{status}</Badge>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {doctorSpecialty || "Specialty not available"}
+          </p>
+          <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <Clock className="h-4 w-4" />
+              {formatDateTime(scheduledAt)}
+            </span>
+            <span className="flex items-center gap-1.5">
+              {mode?.toLowerCase().includes("video") || type?.toLowerCase().includes("video") ? (
+                <Video className="h-4 w-4" />
+              ) : (
+                <MapPin className="h-4 w-4" />
+              )}
+              {location || mode || type || "Location pending"}
+            </span>
+          </div>
         </div>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {joinUrl ? (
-          <Button asChild variant="outline">
-            <a href={joinUrl} target="_blank" rel="noreferrer">
-              Join
-            </a>
-          </Button>
-        ) : null}
-        <Button asChild variant="outline">
-          <Link to={`/patient/appointments/${id}`}>View details</Link>
-        </Button>
-      </div>
-    </CardContent>
-  </Card>
-);
+        <div className="flex flex-wrap gap-2">
+          {joinUrl ? (
+            <Button asChild variant="outline">
+              <a href={joinUrl} target="_blank" rel="noreferrer">
+                Join
+              </a>
+            </Button>
+          ) : null}
+          {hasId ? (
+            <Button asChild variant="outline">
+              <Link to={`/patient/appointments/${id}`}>View details</Link>
+            </Button>
+          ) : (
+            <Button variant="outline" disabled>
+              Details unavailable
+            </Button>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
 
 const AppointmentCardSkeleton = () => (
   <Card>
