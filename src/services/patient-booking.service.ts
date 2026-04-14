@@ -350,6 +350,7 @@ const buildAppointmentRequestBody = (payload: CreateAppointmentRequestPayload) =
     doctor_id: payload.doctorId,
     slotStart: payload.slotStart,
     slot_start: payload.slotStart,
+    sourceTestRequestId: payload.sourceTestRequestId,
     preferredDate: payload.preferredDate,
     preferred_date: payload.preferredDate,
     preferredTime: payload.preferredTime,
@@ -848,6 +849,10 @@ const normalizeDoctorRequestSummary = (payload: unknown): DoctorRequestSummary =
     pickRecord(raw, ["doctor", "provider"]),
     pickRecord(raw, ["doctorProfile", "doctor_profile"]),
   );
+  const appointment = mergeRecords(
+    pickRecord(raw, ["appointment", "appointmentDetails", "appointmentInfo"]),
+    pickRecord(raw, ["appointmentRecord"]),
+  );
   const messages = resolveMessageList(raw);
   const latestMessage = messages[messages.length - 1];
   const statusInfo = normalizeRequestStatus(
@@ -907,6 +912,23 @@ const normalizeDoctorRequestSummary = (payload: unknown): DoctorRequestSummary =
     canReply:
       pickBoolean(raw, ["canReply", "can_reply"]) ??
       (statusInfo.status === "pending" || statusInfo.status === "approved"),
+    appointmentId:
+      pickNullableIdentifier(raw, ["appointmentId", "appointment_id"]) ??
+      pickNullableIdentifier(appointment, ["id", "_id", "appointmentId", "appointment_id"]),
+    appointmentNumber: pickNullableString(raw, ["appointmentNumber", "appointment_number"]) ??
+      pickNullableString(appointment, ["appointmentNumber", "appointment_number"]),
+    appointmentStatus:
+      pickNullableString(raw, ["appointmentStatus", "appointment_status"]) ??
+      pickNullableString(appointment, ["status", "appointmentStatus", "appointment_status"]),
+    appointmentScheduledAt:
+      pickNullableString(raw, ["scheduledAt", "scheduledFor", "appointmentDate"]) ??
+      pickNullableString(appointment, [
+        "scheduledAt",
+        "scheduledFor",
+        "appointmentDate",
+        "appointmentDateTime",
+        "appointment_datetime",
+      ]),
     consultationType,
     consultation_type: consultationType,
     visitType: normalizeVisitTypeLabel(consultationType),

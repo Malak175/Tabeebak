@@ -30,6 +30,7 @@ export const formatDateOnly = (value?: string | null) => formatDisplayDate(value
 export const requestStatusClassName = (status?: RequestStatus) => {
   switch (status) {
     case "approved":
+      return "bg-blue-100 text-blue-700 border-blue-200";
     case "completed":
       return "bg-green-100 text-green-700 border-green-200";
     case "pending":
@@ -123,6 +124,11 @@ export const RequestSummaryCard = ({ request, href }: RequestCardProps) => {
   const derivedTime = preferredDateTime ? formatDateTimeParts(preferredDateTime).time : "-";
   const timeLabel =
     request.preferredTime || (derivedTime !== "-" ? derivedTime : null) || "Time pending";
+  const isApproved = request.status === "approved";
+  const isDoctorRequest = "doctorId" in request;
+  const appointmentId = "appointmentId" in request ? request.appointmentId : null;
+  const appointmentScheduledAt = "appointmentScheduledAt" in request ? request.appointmentScheduledAt : null;
+  const appointmentDateLabel = appointmentScheduledAt ? formatDisplayDateTime(appointmentScheduledAt) : null;
 
   return (
     <Card>
@@ -155,11 +161,32 @@ export const RequestSummaryCard = ({ request, href }: RequestCardProps) => {
             <span className="font-medium">Latest message:</span>{" "}
             <span className="text-muted-foreground">{request.latestMessage || "No messages yet"}</span>
           </p>
+          {isApproved && isDoctorRequest ? (
+            <div className="rounded-lg border border-blue-100 bg-blue-50/60 p-3 text-sm text-blue-900">
+              <p className="font-medium">Approved: appointment is the next step.</p>
+              <p className="mt-1 text-xs text-blue-700/90">
+                {appointmentDateLabel
+                  ? `Scheduled for ${appointmentDateLabel}.`
+                  : "Your request was accepted and the appointment will appear in your appointments list."}
+              </p>
+            </div>
+          ) : null}
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
           <Button asChild variant="outline">
             <Link to={href}>View request</Link>
           </Button>
+          {isApproved && isDoctorRequest ? (
+            appointmentId ? (
+              <Button asChild>
+                <Link to={`/patient/appointments/${appointmentId}`}>View appointment</Link>
+              </Button>
+            ) : (
+              <Button asChild>
+                <Link to="/patient/appointments">View appointments</Link>
+              </Button>
+            )
+          ) : null}
         </div>
       </CardContent>
     </Card>
@@ -448,6 +475,50 @@ export const AvailabilityPanel = ({ availability }: { availability?: DoctorAvail
           {availability.notes}
         </div>
       ) : null}
+    </div>
+  );
+};
+
+export type JourneyStep = {
+  label: string;
+  state: "complete" | "current" | "upcoming" | "blocked";
+  helper?: string;
+};
+
+export const JourneyTimeline = ({
+  title = "Journey",
+  steps,
+}: {
+  title?: string;
+  steps: JourneyStep[];
+}) => {
+  const getTone = (state: JourneyStep["state"]) => {
+    switch (state) {
+      case "complete":
+        return "border-emerald-200 bg-emerald-50 text-emerald-700";
+      case "current":
+        return "border-blue-200 bg-blue-50 text-blue-700";
+      case "blocked":
+        return "border-red-200 bg-red-50 text-red-700";
+      default:
+        return "border-border bg-muted/40 text-muted-foreground";
+    }
+  };
+
+  return (
+    <div className="rounded-lg border bg-muted/10 p-4">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</p>
+      <div className="mt-3 grid gap-3 md:grid-cols-4">
+        {steps.map((step, index) => (
+          <div key={`${step.label}-${index}`} className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className={`h-2.5 w-2.5 rounded-full border ${getTone(step.state)}`} />
+              <p className="text-sm font-medium">{step.label}</p>
+            </div>
+            {step.helper ? <p className="text-xs text-muted-foreground">{step.helper}</p> : null}
+          </div>
+        ))}
+      </div>
     </div>
   );
 };

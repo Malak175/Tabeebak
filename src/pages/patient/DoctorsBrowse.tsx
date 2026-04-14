@@ -56,7 +56,8 @@ const PatientDoctorsBrowsePage = () => {
   const activeQuery = nearbyParams ? nearQuery : doctorsQuery;
   const doctors = useMemo(() => activeQuery.data ?? [], [activeQuery.data]);
   const directoryDoctors = useMemo(() => doctorsQuery.data ?? [], [doctorsQuery.data]);
-  const aiRedirected = (location.state as { source?: string } | null)?.source === "ai_prediction";
+  const aiState = location.state as { source?: string; sourceTestRequestId?: string } | null;
+  const aiRedirected = aiState?.source === "ai_prediction";
 
   const specialties = useMemo(
     () =>
@@ -96,7 +97,11 @@ const PatientDoctorsBrowsePage = () => {
       return;
     }
 
-    navigate(`/patient/doctors/${targetId}`);
+    navigate(`/patient/doctors/${targetId}`, {
+      state: aiState?.sourceTestRequestId
+        ? { source: aiState.source, sourceTestRequestId: aiState.sourceTestRequestId }
+        : null,
+    });
   };
 
   return (

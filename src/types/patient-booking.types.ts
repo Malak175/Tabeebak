@@ -139,6 +139,10 @@ export interface ProviderRequestSummary {
 
 export interface DoctorRequestSummary extends ProviderRequestSummary {
   doctorId?: string | null;
+  appointmentId?: string | null;
+  appointmentNumber?: string | null;
+  appointmentStatus?: string | null;
+  appointmentScheduledAt?: string | null;
   visitType?: VisitType | string | null;
   consultationType?: string | null;
   consultation_type?: string | null;
@@ -220,6 +224,7 @@ export interface CreateAppointmentRequestPayload {
   reason: string;
   note?: string;
   phone?: string;
+  sourceTestRequestId?: string;
 }
 
 export interface CreateTestRequestPayload {

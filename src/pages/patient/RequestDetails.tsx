@@ -3,7 +3,6 @@ import { ArrowLeft, User } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
-  AvailabilityPanel,
   CancelRequestButton,
   EmptyCard,
   ErrorCard,
@@ -12,6 +11,7 @@ import {
   ReplyComposer,
   RequestDetailsGrid,
   SectionCard,
+  JourneyTimeline,
 } from "@/components/patient/BookingFlowSection";
 import { patientBookingNavItems } from "@/components/patient/patientNavigation";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
@@ -27,6 +27,7 @@ import {
   useTestRequestMessageMutation,
 } from "@/hooks/usePatientBooking";
 import { getDisplayName } from "@/lib/auth";
+import { formatDisplayDateTime } from "@/lib/date-time";
 
 const PatientRequestDetailsPage = () => {
   const { requestType, requestId } = useParams();
@@ -34,6 +35,7 @@ const PatientRequestDetailsPage = () => {
   const userName = getDisplayName(user ?? {});
   const [reply, setReply] = useState("");
   const [sendError, setSendError] = useState<string | null>(null);
+  const formatDateTime = (value?: string | null) => formatDisplayDateTime(value);
 
   const isDoctorRequest = requestType === "doctor";
   const doctorQuery = useAppointmentRequestDetailQuery(requestId, isDoctorRequest);
@@ -47,6 +49,44 @@ const PatientRequestDetailsPage = () => {
   const activeRequest = activeQuery.data;
   const sendingMutation = isDoctorRequest ? doctorReplyMutation : labReplyMutation;
   const cancelMutation = isDoctorRequest ? cancelDoctorMutation : cancelLabMutation;
+  const appointmentId =
+    isDoctorRequest && activeRequest && "appointmentId" in activeRequest ? activeRequest.appointmentId : null;
+  const appointmentScheduledAt =
+    isDoctorRequest && activeRequest && "appointmentScheduledAt" in activeRequest
+      ? activeRequest.appointmentScheduledAt
+      : null;
+  const requestStatus = activeRequest?.status;
+  const isRequestRejected =
+    requestStatus === "rejected" || requestStatus === "cancelled" || requestStatus === "canceled";
+  const isRequestApproved = requestStatus === "approved" || requestStatus === "completed";
+  const journeySteps = isDoctorRequest
+    ? [
+        { label: "Request", state: "complete" as const, helper: "Submitted" },
+        {
+          label: "Approval",
+          state: isRequestRejected ? ("blocked" as const) : isRequestApproved ? ("complete" as const) : ("current" as const),
+          helper: isRequestRejected
+            ? "Not approved"
+            : isRequestApproved
+              ? "Accepted"
+              : "Under review",
+        },
+        {
+          label: "Appointment",
+          state: isRequestApproved ? ("current" as const) : ("upcoming" as const),
+          helper: isRequestApproved
+            ? appointmentScheduledAt
+              ? `Scheduled ${formatDateTime(appointmentScheduledAt)}`
+              : "Scheduling in progress"
+            : "Upcoming",
+        },
+        {
+          label: "Outcomes",
+          state: "upcoming" as const,
+          helper: "After the appointment",
+        },
+      ]
+    : [];
 
   if (activeRequest) {
     console.log("Patient Request Details - activeRequest", activeRequest);
@@ -191,9 +231,35 @@ const PatientRequestDetailsPage = () => {
             }
           />
 
-          {isDoctorRequest && "availability" in activeRequest ? (
-            <SectionCard title="Doctor availability snapshot" description="Shown when the request detail includes availability">
-              <AvailabilityPanel availability={activeRequest.availability} />
+          {isDoctorRequest ? <JourneyTimeline title="Journey" steps={journeySteps} /> : null}
+
+          {isDoctorRequest && activeRequest.status === "approved" ? (
+            <SectionCard
+              title="Next step: appointment"
+              description="Approval means your request was accepted and the appointment is now scheduled or being prepared."
+              actions={
+                appointmentId ? (
+                  <Button asChild>
+                    <Link to={`/patient/appointments/${appointmentId}`}>View appointment</Link>
+                  </Button>
+                ) : (
+                  <Button asChild>
+                    <Link to="/patient/appointments">View appointments</Link>
+                  </Button>
+                )
+              }
+            >
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p>
+                  {appointmentScheduledAt
+                    ? `Scheduled for ${formatDateTime(appointmentScheduledAt)}.`
+                    : "Your appointment details will appear in Appointments once scheduling is finalized."}
+                </p>
+                <p>
+                  Prescriptions, lab orders, and follow-up steps will appear after the appointment under
+                  Prescriptions and Lab Results.
+                </p>
+              </div>
             </SectionCard>
           ) : null}
 
