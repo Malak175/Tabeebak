@@ -485,14 +485,60 @@ const normalizeAppointment = (payload: unknown): Appointment => {
     pickRecord(raw, ["doctorProfile"]),
     pickRecord(raw, ["doctorDetails"]),
   );
+  const request = mergeRecords(
+    pickRecord(raw, ["request", "appointmentRequest", "appointment_request"]),
+    pickRecord(raw, ["appointmentRequestDetails", "requestDetails"]),
+  );
+  const prescriptionSummary = mergeRecords(
+    pickRecord(raw, ["prescription", "appointmentPrescription", "rx", "latestPrescription"]),
+  );
+  const prescriptionExists =
+    pickBoolean(prescriptionSummary, ["exists", "hasPrescription", "has_prescription"]) ??
+    pickBoolean(raw, ["hasPrescription", "prescriptionExists", "has_prescription"]) ??
+    null;
+  const prescriptionLatestId =
+    pickIdValue(prescriptionSummary, ["latestId", "latest_id", "prescriptionId", "prescription_id", "id", "_id"]) ??
+    pickIdValue(raw, ["prescriptionId", "prescription_id"]);
+  const prescriptionRecord = mergeRecords(pickRecord(raw, ["prescription", "appointmentPrescription", "rx"]));
+  const prescriptionCandidates = [
+    ...getListEnvelope(raw.prescriptions).items,
+    ...getListEnvelope(raw.appointmentPrescriptions).items,
+    ...getListEnvelope(raw.medications).items,
+    ...getListEnvelope(raw.prescriptionItems).items,
+    ...getListEnvelope(raw.rx).items,
+  ];
+  if (Object.keys(prescriptionRecord).length > 0) {
+    prescriptionCandidates.push(prescriptionRecord);
+  }
+  const prescriptions = prescriptionCandidates.map(normalizePrescription).filter((item) => item.id);
+
+  const labOrderCandidates = [
+    ...getListEnvelope(raw.labOrders).items,
+    ...getListEnvelope(raw.lab_orders).items,
+    ...getListEnvelope(raw.orders).items,
+    ...getListEnvelope(raw.labOrder).items,
+  ];
+  const labOrders = labOrderCandidates.map(normalizeLabOrder).filter((item) => item.id);
+
+  const labResultCandidates = [
+    ...getListEnvelope(raw.labResults).items,
+    ...getListEnvelope(raw.lab_results).items,
+    ...getListEnvelope(raw.results).items,
+    ...getListEnvelope(raw.laboratoryResults).items,
+    ...getListEnvelope(raw.laboratory_results).items,
+  ];
+  const labResults = labResultCandidates.map(normalizeLabResult).filter((item) => item.id);
+
+  const idValue = pickIdValue(raw, ["id", "_id", "appointmentId", "appointment_id"]);
 
   return {
-    id: pickString(raw, ["id", "_id", "appointmentId", "appointment_id"]) ?? "",
+    id: idValue !== undefined && idValue !== null ? String(idValue) : "",
     appointmentNumber: pickNullableString(raw, [
       "appointmentNumber",
       "appointment_number",
       "referenceNumber",
     ]),
+    reference: pickNullableString(raw, ["reference", "appointmentReference", "appointment_reference"]),
     doctorId: pickNullableString(doctor, ["id", "_id", "doctorId", "doctor_id"]),
     doctorName:
       pickString(raw, ["doctorName", "doctor_name", "providerName"]) ??
@@ -524,6 +570,28 @@ const normalizeAppointment = (payload: unknown): Appointment => {
       Boolean(pickString(raw, ["joinUrl", "meetingUrl", "videoCallUrl"])),
     createdAt: pickNullableString(raw, ["createdAt", "created_at"]),
     updatedAt: pickNullableString(raw, ["updatedAt", "updated_at"]),
+    requestId:
+      pickNullableString(raw, ["requestId", "appointmentRequestId", "appointment_request_id"]) ??
+      pickNullableString(request, ["id", "_id", "requestId", "appointmentRequestId", "appointment_request_id"]),
+    requestReference:
+      pickNullableString(raw, ["requestReference", "requestNumber", "request_number", "reference"]) ??
+      pickNullableString(request, ["reference", "requestNumber", "request_number", "referenceNumber"]),
+    requestStatus:
+      pickNullableString(raw, ["requestStatus", "request_status"]) ??
+      pickNullableString(request, ["status", "requestStatus", "request_status"]),
+    requestReason:
+      pickNullableString(raw, ["requestReason"]) ??
+      pickNullableString(request, ["reason", "chiefComplaint", "chief_complaint"]),
+    prescription:
+      prescriptionExists !== null || prescriptionLatestId
+        ? {
+            exists: prescriptionExists ?? Boolean(prescriptionLatestId),
+            latestId: prescriptionLatestId != null ? String(prescriptionLatestId) : null,
+          }
+        : null,
+    prescriptions: prescriptions.length ? prescriptions : undefined,
+    labOrders: labOrders.length ? labOrders : undefined,
+    labResults: labResults.length ? labResults : undefined,
   };
 };
 
@@ -531,6 +599,10 @@ const normalizePrescription = (payload: unknown): Prescription => {
   const raw = unwrapPayload(payload);
   const medication = mergeRecords(pickRecord(raw, ["medication", "drug"]));
   const prescriber = mergeRecords(pickRecord(raw, ["doctor", "prescriber"]));
+  const appointment = mergeRecords(
+    pickRecord(raw, ["appointment", "appointmentDetails", "appointmentInfo"]),
+    pickRecord(raw, ["visit", "visitDetails"]),
+  );
   const idValue = pickIdValue(raw, ["id", "_id", "prescriptionId", "prescription_id"]);
   const quantityValue =
     pickNullableString(raw, ["quantity", "qty", "amount", "dispenseQuantity", "dispense_quantity"]) ??
@@ -560,8 +632,6 @@ const normalizePrescription = (payload: unknown): Prescription => {
     duration: durationValue,
     quantity: quantityValue,
     instructions: pickText(raw, ["instructions", "direction", "directions", "sig"]) ?? null,
-    status:
-      pickString(raw, ["status", "prescriptionStatus", "prescription_status", "state"]) ?? "active",
     prescribedAt: pickNullableString(raw, [
       "prescribedAt",
       "issuedAt",
@@ -597,6 +667,24 @@ const normalizePrescription = (payload: unknown): Prescription => {
         "indication",
       ]) ?? null,
     notes: pickText(raw, ["notes", "note", "remarks", "comment"]) ?? null,
+    appointmentId:
+      pickNullableString(raw, ["appointmentId", "appointment_id", "visitId", "visit_id"]) ??
+      pickNullableString(appointment, ["id", "_id", "appointmentId", "appointment_id"]),
+    appointmentNumber:
+      pickNullableString(raw, ["appointmentNumber", "appointment_number"]) ??
+      pickNullableString(appointment, ["appointmentNumber", "appointment_number", "referenceNumber"]),
+    appointmentStatus:
+      pickNullableString(raw, ["appointmentStatus", "appointment_status"]) ??
+      pickNullableString(appointment, ["status", "appointmentStatus", "appointment_status"]),
+    appointmentScheduledAt:
+      pickNullableString(raw, ["appointmentDate", "scheduledAt", "scheduledFor"]) ??
+      pickNullableString(appointment, [
+        "scheduledAt",
+        "scheduledFor",
+        "appointmentDate",
+        "appointmentDateTime",
+        "appointment_datetime",
+      ]),
   };
 };
 
@@ -667,6 +755,17 @@ const normalizeLabResult = (payload: unknown): LabResult => {
   const doctor = mergeRecords(pickRecord(raw, ["doctor", "orderingDoctor", "provider"]));
   const test = mergeRecords(pickRecord(raw, ["test", "panel"]));
   const observations = mergeRecords(pickRecord(raw, ["observations", "observation"]));
+  const doctorFollowUpRecord = mergeRecords(
+    pickRecord(raw, ["doctorFollowUp", "doctor_follow_up"]),
+    pickRecord(raw, ["followUp", "followup", "follow_up", "followUpSummary", "follow_up_summary"]),
+    pickRecord(raw, ["appointmentRequest", "appointment_request", "doctorRequest", "doctor_request"]),
+  );
+  const doctorFollowUpDoctor = mergeRecords(
+    pickRecord(doctorFollowUpRecord, ["doctor", "provider", "doctorProfile"]),
+  );
+  const doctorFollowUpAppointment = mergeRecords(
+    pickRecord(doctorFollowUpRecord, ["appointment", "appointmentDetails", "appointmentInfo"]),
+  );
 
   const measurementCandidates = [
     getListEnvelope(raw.measurements).items,
@@ -713,6 +812,53 @@ const normalizeLabResult = (payload: unknown): LabResult => {
     console.warn("[Normalizer] Final id:", idValue);
   }
 
+  const doctorFollowUpSummary = {
+    exists: pickBoolean(doctorFollowUpRecord, ["exists", "hasFollowUp", "has_follow_up"]) ?? null,
+    requestId:
+      pickNullableString(doctorFollowUpRecord, [
+        "requestId",
+        "request_id",
+        "appointmentRequestId",
+        "appointment_request_id",
+        "id",
+        "_id",
+      ]) ?? null,
+    requestStatus:
+      pickNullableString(doctorFollowUpRecord, ["status", "requestStatus", "request_status"]) ?? null,
+    doctorId:
+      pickNullableString(doctorFollowUpDoctor, ["id", "_id", "doctorId", "doctor_id"]) ??
+      pickNullableString(doctorFollowUpRecord, ["doctorId", "doctor_id"]) ??
+      null,
+    doctorName:
+      pickNullableString(doctorFollowUpDoctor, ["fullName", "full_name", "displayName", "name"]) ??
+      pickNullableString(doctorFollowUpRecord, ["doctorName", "doctor_name", "providerName"]) ??
+      null,
+    appointmentId:
+      pickNullableString(doctorFollowUpAppointment, ["id", "_id", "appointmentId", "appointment_id"]) ??
+      pickNullableString(doctorFollowUpRecord, ["appointmentId", "appointment_id"]) ??
+      null,
+    appointmentStatus:
+      pickNullableString(doctorFollowUpAppointment, ["status", "appointmentStatus", "appointment_status"]) ??
+      pickNullableString(doctorFollowUpRecord, ["appointmentStatus", "appointment_status"]) ??
+      null,
+    appointmentScheduledAt:
+      pickNullableString(doctorFollowUpAppointment, [
+        "scheduledAt",
+        "scheduledFor",
+        "appointmentDate",
+        "appointmentDateTime",
+        "appointment_datetime",
+      ]) ??
+      pickNullableString(doctorFollowUpRecord, ["scheduledAt", "scheduledFor", "appointmentDate"]) ??
+      null,
+  };
+  const hasDoctorFollowUp =
+    Object.values(doctorFollowUpSummary).filter((value) => {
+      if (value == null) return false;
+      if (typeof value === "string") return value.trim().length > 0;
+      return true;
+    }).length > 0;
+
   return {
     id: idValue as unknown as string,
     requestId:
@@ -748,6 +894,7 @@ const normalizeLabResult = (payload: unknown): LabResult => {
       pickNullableString(observations, ["notes", "comment", "remarks"]),
     reportUrl: pickNullableString(raw, ["reportUrl", "report_url", "pdfUrl", "downloadUrl"]),
     isAbnormal: pickBoolean(raw, ["isAbnormal", "abnormal", "abnormal_flag"]) ?? false,
+    doctorFollowUp: hasDoctorFollowUp ? doctorFollowUpSummary : null,
     measurements: measurementsSource.map(normalizeLabResultMeasurement),
     attachments,
   };

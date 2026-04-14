@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { differenceInYears, isValid, parseISO } from "date-fns";
-import { ArrowLeft, Download, FlaskConical, User } from "lucide-react";
+import { ArrowLeft, CheckCircle, Download, FlaskConical, User } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
@@ -170,6 +170,19 @@ const PatientLabResultDetails = () => {
   const requestId = query.data?.requestId ?? null;
   const hasPrediction = Boolean(prediction);
   const isHighRisk = (prediction?.riskLevel ?? "").trim().toLowerCase() === "high";
+  const doctorFollowUp = query.data?.doctorFollowUp ?? null;
+  const hasDoctorFollowUp =
+    doctorFollowUp?.exists === true ||
+    Boolean(doctorFollowUp?.requestId) ||
+    Boolean(doctorFollowUp?.requestStatus) ||
+    Boolean(doctorFollowUp?.doctorName) ||
+    Boolean(doctorFollowUp?.appointmentId) ||
+    Boolean(doctorFollowUp?.appointmentStatus) ||
+    Boolean(doctorFollowUp?.appointmentScheduledAt);
+  const hasFollowUpAppointment =
+    Boolean(doctorFollowUp?.appointmentId) ||
+    Boolean(doctorFollowUp?.appointmentScheduledAt) ||
+    Boolean(doctorFollowUp?.appointmentStatus);
 
   useEffect(() => {
     if (!requestId) return;
@@ -466,14 +479,26 @@ const PatientLabResultDetails = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid gap-4 md:grid-cols-2">
-                  <DetailRow label="Category" value={query.data.category} />
-                  <DetailRow label="Laboratory" value={query.data.laboratoryName} />
-                  <DetailRow label="Ordering Doctor" value={query.data.orderingDoctorName} />
-                  <DetailRow label="Reported At" value={formatDate(query.data.reportedAt)} />
-                  <DetailRow label="Collected At" value={formatDate(query.data.collectedAt)} />
-                  <DetailRow label="Interpretation" value={query.data.interpretation} />
-                  <DetailRow label="Conclusion" value={query.data.conclusion} />
-                  <DetailRow label="Notes" value={query.data.notes} />
+                  {query.data.category ? <DetailRow label="Category" value={query.data.category} /> : null}
+                  {query.data.laboratoryName ? (
+                    <DetailRow label="Laboratory" value={query.data.laboratoryName} />
+                  ) : null}
+                  {query.data.orderingDoctorName ? (
+                    <DetailRow label="Ordering Doctor" value={query.data.orderingDoctorName} />
+                  ) : null}
+                  {query.data.reportedAt ? (
+                    <DetailRow label="Reported At" value={formatDate(query.data.reportedAt)} />
+                  ) : null}
+                  {query.data.collectedAt ? (
+                    <DetailRow label="Collected At" value={formatDate(query.data.collectedAt)} />
+                  ) : null}
+                  {query.data.interpretation ? (
+                    <DetailRow label="Interpretation" value={query.data.interpretation} />
+                  ) : null}
+                  {query.data.conclusion ? (
+                    <DetailRow label="Conclusion" value={query.data.conclusion} />
+                  ) : null}
+                  {query.data.notes ? <DetailRow label="Notes" value={query.data.notes} /> : null}
                 </div>
 
                 <div className="rounded-lg border">
@@ -521,9 +546,9 @@ const PatientLabResultDetails = () => {
                                 ) : null}
                               </TableCell>
                               <TableCell>
-                                [measurement.value, unit === "Not provided" ? null : unit]
+                                {[measurement.value, unit === "Not provided" ? null : unit]
                                   .filter(Boolean)
-                                  .join(" ")
+                                  .join(" ")}
                               </TableCell>
                               <TableCell>{referenceRange}</TableCell>
                               <TableCell className={getStatusTone(derivedStatus)}>
@@ -608,8 +633,12 @@ const PatientLabResultDetails = () => {
               </CardHeader>
               <CardContent className="space-y-3">
                 <DetailRow label="Result ID" value={query.data.id} />
-                <DetailRow label="Reference" value={query.data.resultNumber} />
-                <DetailRow label="Ordered At" value={formatDate(query.data.orderedAt)} />
+                {query.data.resultNumber ? (
+                  <DetailRow label="Reference" value={query.data.resultNumber} />
+                ) : null}
+                {query.data.orderedAt ? (
+                  <DetailRow label="Ordered At" value={formatDate(query.data.orderedAt)} />
+                ) : null}
                 {query.data.reportUrl ? (
                   <Button asChild className="w-full" variant="outline">
                     <a href={query.data.reportUrl} target="_blank" rel="noreferrer">
@@ -639,21 +668,72 @@ const PatientLabResultDetails = () => {
                   )
                 ) : null}
                 {hasPrediction && isHighRisk ? (
-                  <Button
-                    className="w-full"
-                    onClick={() =>
-                      navigate("/patient/doctors", {
-                        state: {
-                          source: "ai_prediction",
-                          requestId,
-                          resultId,
-                          riskLevel: "High",
-                        },
-                      })
-                    }
-                  >
-                    Book an appointment
-                  </Button>
+                  <div className="rounded-lg border bg-green-50 p-4">
+                    {hasDoctorFollowUp ? (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle className="h-5 w-5 text-green-600" />
+                          <p className="text-sm font-medium text-green-800">
+                            {hasFollowUpAppointment ? "Appointment scheduled" : "Doctor follow-up started"}
+                          </p>
+                        </div>
+                        {hasFollowUpAppointment ? (
+                          <div className="space-y-1 text-sm text-muted-foreground">
+                            {doctorFollowUp?.doctorName ? (
+                              <p>Doctor: {doctorFollowUp.doctorName}</p>
+                            ) : null}
+                            {doctorFollowUp?.appointmentScheduledAt ? (
+                              <p>Appointment: {formatDate(doctorFollowUp.appointmentScheduledAt)}</p>
+                            ) : null}
+                            {doctorFollowUp?.appointmentStatus ? (
+                              <p>Status: {doctorFollowUp.appointmentStatus}</p>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <div className="space-y-1 text-sm text-muted-foreground">
+                            {doctorFollowUp?.doctorName ? (
+                              <p>Doctor: {doctorFollowUp.doctorName}</p>
+                            ) : null}
+                            {doctorFollowUp?.requestStatus ? (
+                              <p>Request status: {doctorFollowUp.requestStatus}</p>
+                            ) : null}
+                          </div>
+                        )}
+                        <div className="flex flex-wrap gap-2">
+                          {hasFollowUpAppointment && doctorFollowUp?.appointmentId ? (
+                            <Button asChild className="w-full" variant="outline">
+                              <Link to={`/patient/appointments/${doctorFollowUp.appointmentId}`}>
+                                View appointment
+                              </Link>
+                            </Button>
+                          ) : doctorFollowUp?.requestId ? (
+                            <Button asChild className="w-full" variant="outline">
+                              <Link to={`/patient/requests/doctor/${doctorFollowUp.requestId}`}>
+                                View request
+                              </Link>
+                            </Button>
+                          ) : null}
+                        </div>
+                      </div>
+                    ) : (
+                      <Button
+                        className="w-full"
+                        onClick={() =>
+                          navigate("/patient/doctors", {
+                            state: {
+                              source: "ai_prediction",
+                              requestId,
+                              resultId,
+                              riskLevel: "High",
+                              sourceTestRequestId: requestId,
+                            },
+                          })
+                        }
+                      >
+                        Book an appointment
+                      </Button>
+                    )}
+                  </div>
                 ) : null}
               </CardContent>
             </Card>

@@ -11,6 +11,7 @@ import { usePatientAppointmentDetailsQuery } from "@/hooks/usePatientProfile";
 import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName } from "@/lib/auth";
 import { formatDisplayDateTime } from "@/lib/date-time";
+import { JourneyTimeline } from "@/components/patient/BookingFlowSection";
 
 const formatDateTime = (value?: string | null) => formatDisplayDateTime(value);
 
@@ -29,6 +30,48 @@ const statusClassName = (status?: string | null) => {
   }
 };
 
+const getOutcomeExpectation = (status?: string | null) => {
+  const normalized = (status ?? "").trim().toLowerCase();
+  if (["cancelled", "canceled"].includes(normalized)) {
+    return {
+      kind: "cancelled",
+      label: "Visit cancelled",
+      message: "This appointment was cancelled, so outcomes are not expected.",
+      emptyMessage: "Outcomes are not expected for a cancelled visit.",
+    };
+  }
+  if (["no_show", "no-show", "no show"].includes(normalized)) {
+    return {
+      kind: "no_show",
+      label: "Visit not attended",
+      message: "This appointment was marked as no-show, so outcomes are not expected.",
+      emptyMessage: "Outcomes are not expected when a visit is marked as no-show.",
+    };
+  }
+  if (["scheduled", "pending", "confirmed", "booked", "upcoming"].includes(normalized)) {
+    return {
+      kind: "upcoming",
+      label: "Upcoming visit",
+      message: "This visit has not happened yet. Outcomes will appear after the appointment is completed.",
+      emptyMessage: "Outcomes will appear after this appointment is completed.",
+    };
+  }
+  if (["completed", "finished", "done"].includes(normalized)) {
+    return {
+      kind: "completed",
+      label: "Visit completed",
+      message: "Outcomes from this visit appear below once posted by the provider.",
+      emptyMessage: "No outcomes have been posted for this visit yet.",
+    };
+  }
+  return {
+    kind: "unknown",
+    label: "Visit status",
+    message: "Outcomes appear after the appointment is completed.",
+    emptyMessage: "Outcomes will appear here once available.",
+  };
+};
+
 const DetailRow = ({ label, value }: { label: string; value?: string | null }) => (
   <div className="rounded-lg border p-4">
     <p className="mb-1 text-sm font-medium">{label}</p>
@@ -41,6 +84,59 @@ const PatientAppointmentDetails = () => {
   const { user } = useAuth();
   const query = usePatientAppointmentDetailsQuery(appointmentId, Boolean(user));
   const userName = getDisplayName(user ?? {});
+  const requestInfo = query.data
+    ? {
+        id: query.data.requestId,
+        reference: query.data.requestReference,
+        status: query.data.requestStatus,
+        reason: query.data.requestReason,
+      }
+    : null;
+  const prescriptions = query.data?.prescriptions ?? [];
+  const prescriptionSummary = query.data?.prescription ?? null;
+  const labOrders = query.data?.labOrders ?? [];
+  const labResults = query.data?.labResults ?? [];
+  const hasOutcomePrescriptions = prescriptions.length > 0 || prescriptionSummary?.exists === true;
+  const hasOutcomes = hasOutcomePrescriptions;
+  const outcomeExpectation = getOutcomeExpectation(query.data?.status);
+  const requestApproved =
+    Boolean(query.data?.id) ||
+    (requestInfo?.status ?? "").toLowerCase() === "approved" ||
+    (requestInfo?.status ?? "").toLowerCase() === "completed";
+  const appointmentStatus = (query.data?.status ?? "").toLowerCase();
+  const appointmentState =
+    appointmentStatus === "completed"
+      ? "complete"
+      : ["cancelled", "canceled", "no_show", "no-show", "no show"].includes(appointmentStatus)
+        ? "blocked"
+        : "current";
+  const journeySteps = [
+    {
+      label: "Request",
+      state: requestInfo?.reference || requestInfo?.id ? ("complete" as const) : ("upcoming" as const),
+      helper: requestInfo?.reference ? `Ref ${requestInfo.reference}` : "Not linked",
+    },
+    {
+      label: "Approval",
+      state: requestApproved ? ("complete" as const) : ("upcoming" as const),
+      helper: requestApproved ? "Accepted" : "Pending",
+    },
+    {
+      label: "Appointment",
+      state: appointmentState as "complete" | "current" | "upcoming" | "blocked",
+      helper:
+        appointmentState === "blocked"
+          ? "Not completed"
+          : appointmentStatus === "completed"
+            ? "Visit completed"
+            : "In progress",
+    },
+    {
+      label: "Outcomes",
+      state: hasOutcomes ? ("current" as const) : ("upcoming" as const),
+      helper: hasOutcomes ? "Available" : "Pending",
+    },
+  ];
 
   return (
     <DashboardLayout
@@ -87,6 +183,7 @@ const PatientAppointmentDetails = () => {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
+              <JourneyTimeline title="Journey" steps={journeySteps} />
               <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1.5">
                   <Calendar className="h-4 w-4" />
@@ -125,9 +222,114 @@ const PatientAppointmentDetails = () => {
               </CardHeader>
               <CardContent className="space-y-3">
                 <DetailRow label="Appointment ID" value={query.data.id} />
-                <DetailRow label="Reference" value={query.data.appointmentNumber} />
+                <DetailRow label="Reference" value={query.data.reference ?? query.data.appointmentNumber} />
                 <DetailRow label="Created At" value={formatDateTime(query.data.createdAt)} />
                 <DetailRow label="Updated At" value={formatDateTime(query.data.updatedAt)} />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Consultation Outcomes</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm text-muted-foreground">
+                <div className="rounded-lg border border-border/60 bg-muted/30 p-3">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {outcomeExpectation.label}
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">{outcomeExpectation.message}</p>
+                </div>
+                {hasOutcomes ? (
+                  <div className="space-y-4">
+                    {prescriptions.length ? (
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                          Prescriptions
+                        </p>
+                        <div className="mt-2 space-y-2">
+                          {prescriptions.map((prescription) => (
+                            <div
+                              key={prescription.id}
+                              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2"
+                            >
+                              <div>
+                                <p className="text-sm font-medium text-foreground">
+                                  {prescription.medicationName}
+                                </p>
+                                <p className="text-xs text-muted-foreground">{prescription.status}</p>
+                              </div>
+                              <Button asChild variant="outline" size="sm">
+                                <Link to={`/patient/prescriptions/${prescription.id}`}>View</Link>
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : prescriptionSummary?.exists ? (
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                          Prescriptions
+                        </p>
+                        <div className="mt-2 space-y-2">
+                          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2">
+                            <div>
+                              <p className="text-sm font-medium text-foreground">Prescription recorded</p>
+                              <p className="text-xs text-muted-foreground">
+                                This appointment has a linked prescription.
+                              </p>
+                            </div>
+                            {prescriptionSummary.latestId ? (
+                              <Button asChild variant="outline" size="sm">
+                                <Link to={`/patient/prescriptions/${prescriptionSummary.latestId}`}>View</Link>
+                              </Button>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
+                    {labResults.length ? (
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Lab results</p>
+                        <div className="mt-2 space-y-2">
+                          {labResults.map((result) => (
+                            <div
+                              key={result.id}
+                              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2"
+                            >
+                              <div>
+                                <p className="text-sm font-medium text-foreground">{result.testName}</p>
+                                <p className="text-xs text-muted-foreground">{result.status}</p>
+                              </div>
+                              <Button asChild variant="outline" size="sm">
+                                <Link to={`/patient/lab-results/${result.id}`}>View</Link>
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                    {labOrders.length ? (
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Lab orders</p>
+                        <div className="mt-2 space-y-2">
+                          {labOrders.map((order) => (
+                            <div key={order.id} className="rounded-lg border px-3 py-2">
+                              <p className="text-sm font-medium text-foreground">{order.testName}</p>
+                              <p className="text-xs text-muted-foreground">{order.status}</p>
+                            </div>
+                          ))}
+                          {!labResults.length ? (
+                            <p className="text-xs text-muted-foreground">
+                              Results will appear here once the lab completes the order.
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">{outcomeExpectation.emptyMessage}</p>
+                )}
               </CardContent>
             </Card>
           </div>

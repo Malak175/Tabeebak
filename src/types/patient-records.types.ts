@@ -48,6 +48,7 @@ export interface LabResultFilterParams extends BaseListFilterParams {
 export interface Appointment {
   id: string;
   appointmentNumber?: string | null;
+  reference?: string | null;
   doctorId?: string | null;
   doctorName: string;
   doctorSpecialty?: string | null;
@@ -64,6 +65,17 @@ export interface Appointment {
   canJoinOnline?: boolean;
   createdAt?: string | null;
   updatedAt?: string | null;
+  requestId?: string | null;
+  requestReference?: string | null;
+  requestStatus?: string | null;
+  requestReason?: string | null;
+  prescription?: {
+    exists: boolean;
+    latestId?: string | null;
+  } | null;
+  prescriptions?: Prescription[];
+  labOrders?: LabOrder[];
+  labResults?: LabResult[];
 }
 
 export interface Prescription {
@@ -75,13 +87,16 @@ export interface Prescription {
   duration?: string | null;
   quantity?: string | null;
   instructions?: string | null;
-  status: string;
   prescribedAt?: string | null;
   expiresAt?: string | null;
   refillsRemaining?: number | null;
   prescriberName?: string | null;
   diagnosis?: string | null;
   notes?: string | null;
+  appointmentId?: string | null;
+  appointmentNumber?: string | null;
+  appointmentStatus?: string | null;
+  appointmentScheduledAt?: string | null;
 }
 
 export interface LabOrder {
@@ -105,6 +120,17 @@ export interface LabResultMeasurement {
   status?: string | null;
 }
 
+export interface LabResultDoctorFollowUp {
+  exists?: boolean | null;
+  requestId?: string | null;
+  requestStatus?: string | null;
+  doctorId?: string | null;
+  doctorName?: string | null;
+  appointmentId?: string | null;
+  appointmentStatus?: string | null;
+  appointmentScheduledAt?: string | null;
+}
+
 export interface LabResult {
   id: string;
   requestId?: string | null;
@@ -122,6 +148,7 @@ export interface LabResult {
   notes?: string | null;
   reportUrl?: string | null;
   isAbnormal?: boolean;
+  doctorFollowUp?: LabResultDoctorFollowUp | null;
   measurements: LabResultMeasurement[];
   attachments: string[];
 }

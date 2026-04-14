@@ -4,11 +4,9 @@ import { Link } from "react-router-dom";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { patientNavItems } from "@/components/settings/AccountSettingsContent";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePatientPrescriptionsQuery } from "@/hooks/usePatientProfile";
 import { useAuth } from "@/hooks/useAuth";
@@ -16,19 +14,6 @@ import { getDisplayName } from "@/lib/auth";
 import { formatDisplayDate } from "@/lib/date-time";
 
 const formatDate = (value?: string | null) => formatDisplayDate(value);
-
-const getStatusClassName = (status?: string | null) => {
-  switch ((status ?? "").toLowerCase()) {
-    case "active":
-      return "bg-green-100 text-green-700 border-green-200";
-    case "expired":
-      return "bg-red-100 text-red-700 border-red-200";
-    case "completed":
-      return "bg-blue-100 text-blue-700 border-blue-200";
-    default:
-      return "bg-muted text-muted-foreground border-border";
-  }
-};
 
 const PrescriptionCardSkeleton = () => (
   <Card>
@@ -44,23 +29,66 @@ const PatientPrescriptions = () => {
   const { user } = useAuth();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("all");
-  const [detailsWarning, setDetailsWarning] = useState<string | null>(null);
 
   const filters = useMemo(
     () => ({
       page,
       limit: 8,
       search,
-      status: status === "all" ? undefined : status,
       sortBy: "prescribedAt",
       sortOrder: "desc" as const,
     }),
-    [page, search, status],
+    [page, search],
   );
 
   const query = usePatientPrescriptionsQuery(filters, Boolean(user));
   const userName = getDisplayName(user ?? {});
+  const groupedPrescriptions = useMemo(() => {
+    const items = query.data?.data ?? [];
+    const groups = new Map<
+      string,
+      {
+        key: string;
+        title: string;
+        subtitle?: string;
+        appointmentId?: string | null;
+        items: typeof items;
+      }
+    >();
+
+    items.forEach((prescription) => {
+      const groupKey =
+        prescription.appointmentId ||
+        prescription.appointmentNumber ||
+        prescription.appointmentScheduledAt ||
+        "unlinked";
+      if (!groups.has(groupKey)) {
+        const title = prescription.appointmentScheduledAt
+          ? `Appointment ${formatDate(prescription.appointmentScheduledAt)}`
+          : prescription.appointmentNumber
+            ? `Appointment ${prescription.appointmentNumber}`
+            : prescription.appointmentId
+              ? `Appointment ${prescription.appointmentId}`
+              : "Unlinked prescriptions";
+        const subtitle =
+          groupKey === "unlinked"
+            ? "Appointment context not available"
+            : prescription.appointmentStatus
+              ? `Status: ${prescription.appointmentStatus}`
+              : undefined;
+        groups.set(groupKey, {
+          key: groupKey,
+          title,
+          subtitle,
+          appointmentId: prescription.appointmentId ?? null,
+          items: [],
+        });
+      }
+      groups.get(groupKey)?.items.push(prescription);
+    });
+
+    return Array.from(groups.values());
+  }, [query.data?.data]);
 
   return (
     <DashboardLayout
@@ -71,53 +99,19 @@ const PatientPrescriptions = () => {
     >
       <div className="mb-6">
         <h1 className="mb-2 text-2xl font-bold md:text-3xl">Prescriptions</h1>
-        <p className="text-muted-foreground">
-          Browse your medication history with filters and pagination.
-        </p>
+        <p className="text-muted-foreground">Prescriptions are grouped by appointment when possible.</p>
       </div>
 
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="text-lg">Filters</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-3">
-          <Input
-            value={search}
-            onChange={(event) => {
-              setPage(1);
-              setSearch(event.target.value);
-            }}
-            placeholder="Search medication"
-          />
-          <Select
-            value={status}
-            onValueChange={(value) => {
-              setPage(1);
-              setStatus(value);
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="expired">Expired</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button
-            variant="outline"
-            onClick={() => {
-              setPage(1);
-              setSearch("");
-              setStatus("all");
-            }}
-          >
-            Clear Filters
-          </Button>
-        </CardContent>
-      </Card>
+      <div className="mb-6">
+        <Input
+          value={search}
+          onChange={(event) => {
+            setPage(1);
+            setSearch(event.target.value);
+          }}
+          placeholder="Search medication"
+        />
+      </div>
 
       {query.isLoading ? (
         <div className="space-y-4">
@@ -132,64 +126,85 @@ const PatientPrescriptions = () => {
         </Alert>
       ) : query.data?.data.length ? (
         <div className="space-y-6">
-          <div className="grid gap-4">
-            {query.data.data.map((prescription, index) => {
-              const resolvedId = prescription.id?.trim();
-              const detailsRoute = resolvedId ? `/patient/prescriptions/${resolvedId}` : "";
-              const cardKey =
-                resolvedId ||
-                prescription.prescriptionNumber ||
-                `${prescription.medicationName}-${index}`;
+          <div className="space-y-6">
+            {groupedPrescriptions.map((group) => (
+              <div key={group.key} className="space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-semibold">{group.title}</p>
+                    {group.subtitle ? (
+                      <p className="text-xs text-muted-foreground">{group.subtitle}</p>
+                    ) : null}
+                  </div>
+                  {group.appointmentId ? (
+                    <Button asChild variant="outline" size="sm">
+                      <Link to={`/patient/appointments/${group.appointmentId}`}>View appointment</Link>
+                    </Button>
+                  ) : null}
+                </div>
+                <div className="grid gap-4">
+                  {group.items.map((prescription, index) => {
+                    const resolvedId = prescription.id?.trim();
+                    const detailsRoute = resolvedId ? `/patient/prescriptions/${resolvedId}` : "";
+                    const cardKey =
+                      resolvedId ||
+                      prescription.prescriptionNumber ||
+                      `${prescription.medicationName}-${index}`;
 
-              console.warn("[Prescriptions][Details]", {
-                prescription,
-                resolvedId,
-                detailsRoute,
-              });
-
-              return (
-              <Card key={cardKey}>
-                <CardContent className="flex flex-col gap-4 p-6 md:flex-row md:items-center">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-                    <Pill className="h-5 w-5" />
-                  </div>
-                  <div className="flex-1 space-y-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-lg font-semibold">{prescription.medicationName}</h3>
-                      <Badge className={getStatusClassName(prescription.status)}>
-                        {prescription.status}
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {prescription.dosage || "Dosage not provided"} •{" "}
-                      {prescription.frequency || "Frequency not provided"}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Prescribed by {prescription.prescriberName || "Unknown clinician"} on{" "}
-                      {formatDate(prescription.prescribedAt)}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {resolvedId ? (
-                      <Button asChild variant="outline">
-                        <Link to={detailsRoute}>View details</Link>
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        onClick={() =>
-                          setDetailsWarning(
-                            "Unable to open prescription details right now. Please refresh or contact support.",
-                          )
-                        }
-                      >
-                        View details
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            )})}
+                    return (
+                      <Card key={cardKey}>
+                        <CardContent className="flex flex-col gap-4 p-6 md:flex-row md:items-center">
+                          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                            <Pill className="h-5 w-5" />
+                          </div>
+                          <div className="flex-1 space-y-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h3 className="text-lg font-semibold">{prescription.medicationName}</h3>
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {[prescription.dosage, prescription.frequency].filter(Boolean).join(" - ") ||
+                                "Dosage details not provided"}
+                            </p>
+                            {prescription.prescriberName || prescription.prescribedAt ? (
+                              <p className="text-sm text-muted-foreground">
+                                {prescription.prescriberName
+                                  ? `Prescribed by ${prescription.prescriberName}`
+                                  : "Prescriber not listed"}{" "}
+                                {prescription.prescribedAt ? `on ${formatDate(prescription.prescribedAt)}` : ""}
+                              </p>
+                            ) : null}
+                            {prescription.appointmentId ||
+                            prescription.appointmentNumber ||
+                            prescription.appointmentScheduledAt ? (
+                              <p className="text-sm text-muted-foreground">
+                                From appointment{" "}
+                                {prescription.appointmentScheduledAt
+                                  ? formatDate(prescription.appointmentScheduledAt)
+                                  : prescription.appointmentNumber || "reference pending"}
+                              </p>
+                            ) : null}
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {resolvedId ? (
+                              <Button asChild variant="outline">
+                                <Link to={detailsRoute}>View details</Link>
+                              </Button>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">Details unavailable</span>
+                            )}
+                            {prescription.appointmentId ? (
+                              <Button asChild variant="outline">
+                                <Link to={`/patient/appointments/${prescription.appointmentId}`}>View appointment</Link>
+                              </Button>
+                            ) : null}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
 
           <div className="flex flex-col gap-3 rounded-lg border bg-card p-4 md:flex-row md:items-center md:justify-between">
@@ -218,18 +233,14 @@ const PatientPrescriptions = () => {
         <Card>
           <CardContent className="flex flex-col items-center gap-3 p-8 text-center text-muted-foreground">
             <ClipboardList className="h-10 w-10" />
-            <p>No prescriptions matched your current filters.</p>
+            <p>No prescriptions yet. They appear after appointments when your doctor issues them.</p>
           </CardContent>
         </Card>
       )}
-      {detailsWarning ? (
-        <Alert className="mt-6" variant="destructive">
-          <AlertTitle>Prescription details unavailable</AlertTitle>
-          <AlertDescription>{detailsWarning}</AlertDescription>
-        </Alert>
-      ) : null}
     </DashboardLayout>
   );
 };
 
 export default PatientPrescriptions;
+
+
