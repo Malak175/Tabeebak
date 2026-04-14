@@ -17,6 +17,25 @@ export interface LabDashboardSummary {
   profileCompletionPercentage?: number | null;
   rating?: number | null;
   addressSummary?: string | null;
+  homeCollectionAvailable?: boolean | null;
+  accreditationLabel?: string | null;
+  recentOrdersPreview?: LabRecentOrdersPreview | null;
+}
+
+export interface LabRecentOrdersPreview {
+  items: LabRecentOrderPreviewItem[];
+  total?: number | null;
+}
+
+export interface LabRecentOrderPreviewItem {
+  id?: string | null;
+  orderDisplayId?: string | null;
+  requestId?: string | null;
+  patientName?: string | null;
+  testName?: string | null;
+  status?: string | null;
+  requestedAt?: string | null;
+  referenceNumber?: string | null;
 }
 
 export interface LabProfile {
@@ -49,7 +68,13 @@ export interface UpdateLabProfileRequest {
   phone?: string | null;
   alternatePhone?: string | null;
   description?: string | null;
-  accreditation?: string | null;
+  accreditation?:
+    | {
+        name?: string | null;
+        number?: string | null;
+        status?: string | null;
+      }
+    | null;
   licenseNumber?: string | null;
   taxNumber?: string | null;
   website?: string | null;

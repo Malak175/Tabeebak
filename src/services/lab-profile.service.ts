@@ -5,6 +5,8 @@ import {
   LabBranch,
   LabDashboardSummary,
   LabProfile,
+  LabRecentOrderPreviewItem,
+  LabRecentOrdersPreview,
   LabService,
   UpdateLabBranchRequest,
   UpdateLabProfileRequest,
@@ -132,60 +134,188 @@ const joinAddress = (record: Record<string, unknown>) => {
   return parts.length ? parts.join(", ") : null;
 };
 
+const normalizeRecentOrderPreviewItem = (payload: unknown): LabRecentOrderPreviewItem => {
+  const raw = asRecord(payload);
+
+  return {
+    id: pickNullableString(raw, ["id", "_id", "orderId", "requestId", "request_id"]),
+    orderDisplayId: pickNullableString(raw, [
+      "orderDisplayId",
+      "order_display_id",
+      "displayId",
+      "display_id",
+      "orderNumber",
+      "order_number",
+    ]),
+    requestId: pickNullableString(raw, ["requestId", "request_id", "labRequestId", "lab_request_id"]),
+    patientName: pickNullableString(raw, [
+      "patientName",
+      "patient_name",
+      "patientFullName",
+      "patient_full_name",
+      "patient",
+    ]),
+    testName: pickNullableString(raw, [
+      "testName",
+      "test_name",
+      "serviceName",
+      "service_name",
+      "labTestName",
+      "lab_test_name",
+      "name",
+    ]),
+    status: pickNullableString(raw, ["status", "state"]),
+    requestedAt: pickNullableString(raw, ["requestedAt", "requested_at", "createdAt", "created_at", "orderDate"]),
+    referenceNumber: pickNullableString(raw, [
+      "referenceNumber",
+      "reference_number",
+      "orderNumber",
+      "order_number",
+    ]),
+  };
+};
+
+const normalizeRecentOrdersPreview = (payload: unknown): LabRecentOrdersPreview | null => {
+  if (!payload) return null;
+  const record = asRecord(payload);
+  const itemsSource = unwrapListPayload(record, ["items", "orders", "recentOrders", "recent_orders"]);
+  const items = itemsSource.map(normalizeRecentOrderPreviewItem);
+  const total = pickNullableNumber(record, ["total", "totalCount", "total_count", "count"]);
+
+  return { items, total };
+};
+
 const normalizeLabDashboardSummary = (payload: unknown): LabDashboardSummary => {
   const raw = unwrapPayload(payload);
+  const quickStats = asRecord(
+    raw.quickStats ??
+      raw.quick_stats ??
+      raw.stats ??
+      raw.summary ??
+      raw.dashboardSummary ??
+      raw.dashboard_summary ??
+      raw.dashboard ??
+      raw.overview ??
+      raw.totals ??
+      raw.counts,
+  );
+  const profileRecord = asRecord(
+    raw.profile ?? raw.labProfile ?? raw.lab_profile ?? raw.lab ?? raw.account ?? raw.owner,
+  );
+  const addressRecord = asRecord(
+    raw.address ??
+      raw.location ??
+      raw.contactAddress ??
+      raw.contact_address ??
+      profileRecord.address ??
+      profileRecord.location ??
+      profileRecord.contactAddress ??
+      profileRecord.contact_address,
+  );
+  const recentOrdersPreview =
+    normalizeRecentOrdersPreview(raw.recentOrdersPreview ?? raw.recent_orders_preview) ??
+    normalizeRecentOrdersPreview(quickStats.recentOrdersPreview ?? quickStats.recent_orders_preview) ??
+    normalizeRecentOrdersPreview(raw.recentOrders ?? raw.recent_orders);
+  const addressSummary =
+    pickNullableString(raw, ["addressSummary", "address_summary"]) ??
+    pickNullableString(profileRecord, ["addressSummary", "address_summary"]) ??
+    joinAddress(addressRecord) ??
+    joinAddress(raw);
+  const accreditationLabel =
+    pickNullableString(raw, ["accreditationLabel", "accreditation_label", "accreditationName"]) ??
+    pickNullableString(profileRecord, ["accreditationLabel", "accreditation_label", "accreditationName"]) ??
+    pickNullableString(raw, ["accreditation", "certification", "certificate"]) ??
+    pickNullableString(profileRecord, ["accreditation", "certification", "certificate"]);
 
   return {
     labId: pickString(raw, ["labId", "id", "_id", "userId"]),
-    displayName: pickString(raw, ["displayName", "display_name", "name"]),
-    legalName: pickNullableString(raw, ["legalName", "legal_name", "registeredName"]),
-    email: pickString(raw, ["email"]),
-    phone: pickNullableString(raw, ["phone", "phoneNumber", "mobile"]),
-    accreditation: pickNullableString(raw, ["accreditation", "certification", "certificate"]),
-    licenseNumber: pickNullableString(raw, ["licenseNumber", "license_number"]),
-    totalBranchesCount: pickNullableNumber(raw, [
-      "totalBranchesCount",
-      "total_branches_count",
-      "branchesCount",
-    ]),
-    activeBranchesCount: pickNullableNumber(raw, [
-      "activeBranchesCount",
-      "active_branches_count",
-    ]),
-    totalServicesCount: pickNullableNumber(raw, [
-      "totalServicesCount",
-      "total_services_count",
-      "servicesCount",
-    ]),
-    activeServicesCount: pickNullableNumber(raw, [
-      "activeServicesCount",
-      "active_services_count",
-    ]),
-    pendingTestsCount: pickNullableNumber(raw, [
-      "pendingTestsCount",
-      "pending_tests_count",
-      "pendingCount",
-    ]),
-    completedTestsToday: pickNullableNumber(raw, [
-      "completedTestsToday",
-      "completed_tests_today",
-    ]),
-    totalTestsThisMonth: pickNullableNumber(raw, [
-      "totalTestsThisMonth",
-      "total_tests_this_month",
-      "testsThisMonth",
-    ]),
-    urgentTestsCount: pickNullableNumber(raw, [
-      "urgentTestsCount",
-      "urgent_tests_count",
-      "urgentCount",
-    ]),
-    profileCompletionPercentage: pickNullableNumber(raw, [
-      "profileCompletionPercentage",
-      "profile_completion_percentage",
-    ]),
+    displayName:
+      pickString(raw, ["displayName", "display_name", "name"]) ??
+      pickString(profileRecord, ["displayName", "display_name", "name"]),
+    legalName:
+      pickNullableString(raw, ["legalName", "legal_name", "registeredName"]) ??
+      pickNullableString(profileRecord, ["legalName", "legal_name", "registeredName"]),
+    email: pickString(raw, ["email"]) ?? pickString(profileRecord, ["email"]),
+    phone:
+      pickNullableString(raw, ["phone", "phoneNumber", "mobile"]) ??
+      pickNullableString(profileRecord, ["phone", "phoneNumber", "mobile"]),
+    accreditation:
+      pickNullableString(raw, ["accreditation", "certification", "certificate"]) ??
+      pickNullableString(profileRecord, ["accreditation", "certification", "certificate"]),
+    licenseNumber:
+      pickNullableString(raw, ["licenseNumber", "license_number"]) ??
+      pickNullableString(profileRecord, ["licenseNumber", "license_number"]),
+    totalBranchesCount:
+      pickNullableNumber(raw, ["totalBranchesCount", "total_branches_count", "branchesCount"]) ??
+      pickNullableNumber(quickStats, ["totalBranchesCount", "total_branches_count", "branchesCount", "totalBranches"]),
+    activeBranchesCount:
+      pickNullableNumber(raw, ["activeBranchesCount", "active_branches_count"]) ??
+      pickNullableNumber(quickStats, ["activeBranchesCount", "active_branches_count", "activeBranches"]),
+    totalServicesCount:
+      pickNullableNumber(raw, ["totalServicesCount", "total_services_count", "servicesCount"]) ??
+      pickNullableNumber(quickStats, ["totalServicesCount", "total_services_count", "servicesCount", "totalServices"]),
+    activeServicesCount:
+      pickNullableNumber(raw, ["activeServicesCount", "active_services_count"]) ??
+      pickNullableNumber(quickStats, ["activeServicesCount", "active_services_count", "activeServices"]),
+    pendingTestsCount:
+      pickNullableNumber(raw, ["pendingTestsCount", "pending_tests_count", "pendingCount"]) ??
+      pickNullableNumber(quickStats, [
+        "pendingTestsCount",
+        "pending_tests_count",
+        "pendingCount",
+        "pendingOrders",
+        "pending_orders",
+        "pendingTests",
+        "pending_tests",
+      ]),
+    completedTestsToday:
+      pickNullableNumber(raw, ["completedTestsToday", "completed_tests_today"]) ??
+      pickNullableNumber(quickStats, ["completedTestsToday", "completed_tests_today", "completedToday"]),
+    totalTestsThisMonth:
+      pickNullableNumber(raw, ["totalTestsThisMonth", "total_tests_this_month", "testsThisMonth"]) ??
+      pickNullableNumber(quickStats, ["totalTestsThisMonth", "total_tests_this_month", "testsThisMonth", "monthlyTotal"]),
+    urgentTestsCount:
+      pickNullableNumber(raw, ["urgentTestsCount", "urgent_tests_count", "urgentCount"]) ??
+      pickNullableNumber(quickStats, [
+        "urgentTestsCount",
+        "urgent_tests_count",
+        "urgentCount",
+        "urgentTests",
+        "urgent_tests",
+      ]),
+    profileCompletionPercentage:
+      pickNullableNumber(raw, ["profileCompletionPercentage", "profile_completion_percentage"]) ??
+      pickNullableNumber(quickStats, [
+        "profileCompletionPercentage",
+        "profile_completion_percentage",
+        "completionPercentage",
+      ]) ??
+      pickNullableNumber(profileRecord, [
+        "profileCompletionPercentage",
+        "profile_completion_percentage",
+        "completionPercentage",
+      ]),
     rating: pickNullableNumber(raw, ["rating", "averageRating", "average_rating"]),
-    addressSummary: joinAddress(raw),
+    addressSummary,
+    homeCollectionAvailable:
+      pickBoolean(raw, [
+        "homeCollectionAvailable",
+        "home_collection_available",
+        "supportsHomeCollection",
+      ]) ??
+      pickBoolean(profileRecord, [
+        "homeCollectionAvailable",
+        "home_collection_available",
+        "supportsHomeCollection",
+      ]) ??
+      pickBoolean(quickStats, [
+        "homeCollectionAvailable",
+        "home_collection_available",
+        "supportsHomeCollection",
+      ]) ??
+      null,
+    accreditationLabel,
+    recentOrdersPreview,
   };
 };
 

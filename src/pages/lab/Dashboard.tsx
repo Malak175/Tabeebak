@@ -1,12 +1,13 @@
 import { Link } from "react-router-dom";
 import {
   Activity,
+  AlertTriangle,
+  BadgeCheck,
   Building2,
   CheckCircle,
-  ChevronRight,
   Clock,
   FlaskConical,
-  Microscope,
+  MapPin,
 } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { labNavItems } from "@/components/settings/AccountSettingsContent";
@@ -14,57 +15,130 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  useLabBranchesQuery,
   useLabDashboardSummaryQuery,
   useLabProfileQuery,
-  useLabServicesQuery,
 } from "@/hooks/useLabProfile";
 import { getDisplayName } from "@/lib/auth";
 
-const statCards = (summary: ReturnType<typeof useLabDashboardSummaryQuery>["data"]) => [
-  {
-    label: "Pending Tests",
-    value: summary?.pendingTestsCount ?? 0,
-    icon: Clock,
-    description: "Items still waiting on processing",
-  },
-  {
-    label: "Completed Today",
-    value: summary?.completedTestsToday ?? 0,
-    icon: CheckCircle,
-    description: "Results completed today",
-  },
-  {
-    label: "Services",
-    value: summary?.totalServicesCount ?? 0,
-    icon: FlaskConical,
-    description: "Catalog entries returned by the API",
-  },
-  {
-    label: "Branches",
-    value: summary?.totalBranchesCount ?? 0,
-    icon: Building2,
-    description: "Locations currently attached to the lab",
-  },
-];
+const formatDateLabel = (value?: string | null) => {
+  if (!value) return "—";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleDateString();
+};
+
+const formatStatusLabel = (value?: string | null) => {
+  if (!value) return "Not specified";
+  return value
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/^\w/, (char) => char.toUpperCase());
+};
 
 const LabDashboard = () => {
   const summaryQuery = useLabDashboardSummaryQuery();
   const profileQuery = useLabProfileQuery();
-  const branchesQuery = useLabBranchesQuery();
-  const servicesQuery = useLabServicesQuery();
   const summary = summaryQuery.data;
   const profile = profileQuery.data;
+  const profileAddress = [
+    profile?.addressLine1,
+    profile?.addressLine2,
+    profile?.city,
+    profile?.state,
+    profile?.country,
+  ]
+    .filter(Boolean)
+    .join(", ");
+  const fallbackAddress = profileAddress.trim() ? profileAddress : null;
   const labName = getDisplayName({
-    displayName: profile?.displayName ?? summary?.displayName,
+    displayName: summary?.displayName ?? profile?.displayName,
     name: summary?.legalName ?? profile?.legalName ?? summary?.displayName,
-    email: profile?.email ?? summary?.email,
+    email: summary?.email ?? profile?.email,
   });
   const subtitle = summary?.accreditation ?? profile?.accreditation ?? "Laboratory account";
-  const activeServicesCount = servicesQuery.data?.filter((service) => service.isActive !== false).length ?? 0;
-  const activeBranchesCount = branchesQuery.data?.filter((branch) => branch.isActive !== false).length ?? 0;
+  const activeServicesCount = summary?.activeServicesCount ?? 0;
+  const activeBranchesCount = summary?.activeBranchesCount ?? 0;
+  const totalServicesCount = summary?.totalServicesCount ?? 0;
+  const totalBranchesCount = summary?.totalBranchesCount ?? 0;
+  const pendingTestsCount = summary?.pendingTestsCount ?? 0;
+  const completedTestsToday = summary?.completedTestsToday ?? 0;
+  const urgentTestsCount = summary?.urgentTestsCount ?? 0;
+  const totalTestsThisMonth = summary?.totalTestsThisMonth ?? 0;
+  const homeCollectionAvailable = summary?.homeCollectionAvailable ?? profile?.homeCollectionAvailable;
+  const completionPercent =
+    summary?.profileCompletionPercentage != null
+      ? Math.round(summary.profileCompletionPercentage)
+      : null;
+  const accreditationLabel =
+    summary?.accreditationLabel ??
+    summary?.accreditation ??
+    profile?.accreditation ??
+    "No accreditation added yet";
+  const recentOrders = summary?.recentOrdersPreview?.items ?? [];
+  const hasRecentOrders = recentOrders.length > 0;
+  const profileHealthFlags = [
+    !summary?.phone && "Phone number missing",
+    !summary?.addressSummary && "Address missing",
+    !summary?.accreditation && "Accreditation missing",
+    totalServicesCount === 0 && "No services listed",
+    totalBranchesCount === 0 && "No branches listed",
+  ].filter(Boolean) as string[];
+  const primaryKpis = [
+    {
+      label: "Pending Tests",
+      value: pendingTestsCount,
+      icon: Clock,
+      helper: "Awaiting lab action",
+    },
+    {
+      label: "Completed Today",
+      value: completedTestsToday,
+      icon: CheckCircle,
+      helper: "Results completed today",
+    },
+    {
+      label: "Urgent Queue",
+      value: urgentTestsCount,
+      icon: AlertTriangle,
+      helper: "Urgent tests in queue",
+    },
+    {
+      label: "Monthly Throughput",
+      value: totalTestsThisMonth,
+      icon: Activity,
+      helper: "Total tests this month",
+    },
+  ];
+  const secondaryKpis = [
+    {
+      label: "Total Services",
+      value: totalServicesCount,
+      icon: FlaskConical,
+      helper: "Catalog entries",
+    },
+    {
+      label: "Active Catalog",
+      value: activeServicesCount,
+      icon: BadgeCheck,
+      helper: "Active services",
+    },
+    {
+      label: "Total Branches",
+      value: totalBranchesCount,
+      icon: Building2,
+      helper: "Branch locations",
+    },
+    {
+      label: "Active Branches",
+      value: activeBranchesCount,
+      icon: MapPin,
+      helper: "Currently active",
+    },
+  ];
 
   return (
     <DashboardLayout
@@ -74,41 +148,33 @@ const LabDashboard = () => {
       navItems={labNavItems}
       userIcon={FlaskConical}
     >
-      <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="mb-2 text-2xl font-bold md:text-3xl">Laboratory Dashboard</h1>
-          <p className="text-muted-foreground">
-            Live lab profile, branch, and services metrics are now coming from the laboratory APIs.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          {subtitle && (
-            <Badge variant="secondary" className="gap-1">
-              <Microscope className="h-3 w-3" />
-              {subtitle}
-            </Badge>
-          )}
-          {summary?.profileCompletionPercentage != null && (
-            <Badge variant="outline">
-              Profile completion {summary.profileCompletionPercentage}%
-            </Badge>
-          )}
-          {summary?.rating != null && (
-            <Badge variant="outline">Rating {summary.rating.toFixed(1)}</Badge>
-          )}
-          {profile?.homeCollectionAvailable && (
-            <Badge variant="outline" className="text-green-700">
-              Home collection active
-            </Badge>
-          )}
-        </div>
-      </div>
-
       {summaryQuery.isLoading ? (
         <div className="space-y-6">
+          <Card className="border-primary/20">
+            <CardContent className="space-y-4 p-6">
+              <Skeleton className="h-6 w-48" />
+              <Skeleton className="h-4 w-80" />
+              <div className="flex flex-wrap gap-2">
+                <Skeleton className="h-6 w-24" />
+                <Skeleton className="h-6 w-32" />
+                <Skeleton className="h-6 w-28" />
+              </div>
+            </CardContent>
+          </Card>
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             {Array.from({ length: 4 }).map((_, index) => (
-              <Card key={index}>
+              <Card key={`primary-${index}`}>
+                <CardContent className="space-y-3 p-4">
+                  <Skeleton className="h-10 w-10 rounded-xl" />
+                  <Skeleton className="h-8 w-16" />
+                  <Skeleton className="h-4 w-28" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <Card key={`secondary-${index}`}>
                 <CardContent className="space-y-3 p-4">
                   <Skeleton className="h-10 w-10 rounded-xl" />
                   <Skeleton className="h-8 w-16" />
@@ -118,8 +184,8 @@ const LabDashboard = () => {
             ))}
           </div>
           <div className="grid gap-6 lg:grid-cols-3">
-            <Skeleton className="h-64 w-full lg:col-span-2" />
-            <Skeleton className="h-64 w-full" />
+            <Skeleton className="h-72 w-full lg:col-span-2" />
+            <Skeleton className="h-72 w-full" />
           </div>
         </div>
       ) : summaryQuery.isError ? (
@@ -139,74 +205,127 @@ const LabDashboard = () => {
         </Alert>
       ) : (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            {statCards(summary).map((stat) => (
-              <Card key={stat.label}>
-                <CardContent className="p-4">
-                  <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-                    <stat.icon className="h-5 w-5 text-primary" />
-                  </div>
-                  <div className="text-2xl font-bold">{stat.value}</div>
-                  <div className="text-sm font-medium">{stat.label}</div>
-                  <div className="text-xs text-muted-foreground">{stat.description}</div>
-                </CardContent>
-              </Card>
-            ))}
+          <Card className="border-primary/20 bg-gradient-to-br from-primary/5 via-transparent to-background">
+            <CardHeader className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div>
+                <CardTitle className="text-2xl md:text-3xl">Welcome back, {labName}</CardTitle>
+                <CardDescription className="mt-2">
+                  A focused snapshot of your laboratory operations today.
+                </CardDescription>
+              </div>
+              <Button asChild variant="outline">
+                <Link to="/lab/settings">Manage Lab</Link>
+              </Button>
+            </CardHeader>
+            <CardContent className="flex flex-wrap items-center gap-2">
+              {subtitle && <Badge variant="secondary">{subtitle}</Badge>}
+              {completionPercent != null && (
+                <Badge variant={completionPercent === 100 ? "secondary" : "outline"}>
+                  {completionPercent}% profile complete
+                </Badge>
+              )}
+              {homeCollectionAvailable && (
+                <Badge variant="outline" className="text-green-700">
+                  Home collection active
+                </Badge>
+              )}
+              {summary?.rating != null && (
+                <Badge variant="outline">Rating {summary.rating.toFixed(1)}</Badge>
+              )}
+            </CardContent>
+          </Card>
+
+          <div>
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Primary KPIs</h2>
+              <span className="text-sm text-muted-foreground">Operational highlights</span>
+            </div>
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+              {primaryKpis.map((stat) => (
+                <Card key={stat.label}>
+                  <CardContent className="p-4">
+                    <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+                      <stat.icon className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="text-2xl font-bold">{stat.value}</div>
+                    <div className="text-sm font-medium">{stat.label}</div>
+                    <div className="text-xs text-muted-foreground">{stat.helper}</div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Secondary KPIs</h2>
+              <span className="text-sm text-muted-foreground">Catalog & coverage</span>
+            </div>
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+              {secondaryKpis.map((stat) => (
+                <Card key={stat.label}>
+                  <CardContent className="p-4">
+                    <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-secondary/20">
+                      <stat.icon className="h-5 w-5 text-secondary" />
+                    </div>
+                    <div className="text-2xl font-bold">{stat.value}</div>
+                    <div className="text-sm font-medium">{stat.label}</div>
+                    <div className="text-xs text-muted-foreground">{stat.helper}</div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
 
           <div className="grid gap-6 lg:grid-cols-3">
             <Card className="lg:col-span-2">
               <CardHeader className="flex flex-row items-start justify-between gap-4">
                 <div>
-                  <CardTitle>Operational Snapshot</CardTitle>
-                  <CardDescription>
-                    Summary cards are backed by `/api/v1/labs/me/dashboard-summary`, while the counts
-                    below refresh from your lab branches and services.
-                  </CardDescription>
+                  <CardTitle>Recent Activity</CardTitle>
+                  <CardDescription>Latest lab orders and requests coming in.</CardDescription>
                 </div>
-                <Link to="/lab/settings" className="text-sm text-primary hover:underline">
-                  Manage lab
+                <Link to="/lab/requests" className="text-sm text-primary hover:underline">
+                  View all
                 </Link>
               </CardHeader>
-              <CardContent className="grid gap-4 md:grid-cols-2">
-                <div className="rounded-xl border p-4">
-                  <div className="mb-2 flex items-center gap-2 text-sm font-medium">
-                    <Building2 className="h-4 w-4" />
-                    Branch coverage
+              <CardContent className="space-y-3">
+                {!hasRecentOrders ? (
+                  <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                    No recent lab orders yet. New requests will appear here as they arrive.
                   </div>
-                  <div className="text-2xl font-bold">{activeBranchesCount}</div>
-                  <p className="text-sm text-muted-foreground">
-                    Active branches out of {branchesQuery.data?.length ?? 0} total.
-                  </p>
-                </div>
-                <div className="rounded-xl border p-4">
-                  <div className="mb-2 flex items-center gap-2 text-sm font-medium">
-                    <FlaskConical className="h-4 w-4" />
-                    Active catalog
+                ) : (
+                  <div className="space-y-2 text-sm">
+                    <div className="grid grid-cols-5 gap-2 text-xs font-semibold text-muted-foreground">
+                      <span>Order</span>
+                      <span>Patient</span>
+                      <span>Test</span>
+                      <span>Status</span>
+                      <span>Date</span>
+                    </div>
+                    {recentOrders.map((order, index) => {
+                      const orderLabel =
+                        order.orderDisplayId ??
+                        (order.requestId ? `#${order.requestId}` : null) ??
+                        "Not available";
+                      const testLabel = order.testName ?? "Not specified";
+                      const statusLabel = formatStatusLabel(order.status);
+                      const patientLabel = order.patientName ?? "Not available";
+
+                      return (
+                        <div
+                          key={order.id ?? order.referenceNumber ?? `${order.patientName}-${index}`}
+                          className="grid grid-cols-5 gap-2 rounded-lg border p-3"
+                        >
+                          <span className="font-medium">{orderLabel}</span>
+                          <span>{patientLabel}</span>
+                          <span>{testLabel}</span>
+                          <span>{statusLabel}</span>
+                          <span>{formatDateLabel(order.requestedAt)}</span>
+                        </div>
+                      );
+                    })}
                   </div>
-                  <div className="text-2xl font-bold">{activeServicesCount}</div>
-                  <p className="text-sm text-muted-foreground">
-                    Active services out of {servicesQuery.data?.length ?? 0} total.
-                  </p>
-                </div>
-                <div className="rounded-xl border p-4">
-                  <div className="mb-2 flex items-center gap-2 text-sm font-medium">
-                    <Activity className="h-4 w-4" />
-                    Monthly throughput
-                  </div>
-                  <div className="text-2xl font-bold">{summary?.totalTestsThisMonth ?? 0}</div>
-                  <p className="text-sm text-muted-foreground">Total tests recorded this month.</p>
-                </div>
-                <div className="rounded-xl border p-4">
-                  <div className="mb-2 flex items-center gap-2 text-sm font-medium">
-                    <Clock className="h-4 w-4" />
-                    Urgent queue
-                  </div>
-                  <div className="text-2xl font-bold">{summary?.urgentTestsCount ?? 0}</div>
-                  <p className="text-sm text-muted-foreground">
-                    Urgent tests currently reported for your lab.
-                  </p>
-                </div>
+                )}
               </CardContent>
             </Card>
 
@@ -214,7 +333,7 @@ const LabDashboard = () => {
               <Card className="bg-gradient-to-br from-secondary/10 to-primary/5">
                 <CardHeader>
                   <CardTitle>Lab Identity</CardTitle>
-                  <CardDescription>Snapshot from your lab profile.</CardDescription>
+                  <CardDescription>Profile and accreditation details.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm">
                   <div className="rounded-lg bg-background/70 p-3">
@@ -224,19 +343,25 @@ const LabDashboard = () => {
                   <div className="rounded-lg bg-background/70 p-3">
                     <div className="font-medium">Email</div>
                     <div className="text-muted-foreground">
-                      {profile?.email ?? summary?.email ?? "Not provided"}
+                      {summary?.email ?? profile?.email ?? "Not provided"}
                     </div>
                   </div>
                   <div className="rounded-lg bg-background/70 p-3">
                     <div className="font-medium">Phone</div>
                     <div className="text-muted-foreground">
-                      {profile?.phone ?? summary?.phone ?? "Not provided"}
+                      {summary?.phone ?? profile?.phone ?? "Not provided"}
                     </div>
                   </div>
                   <div className="rounded-lg bg-background/70 p-3">
                     <div className="font-medium">Address</div>
                     <div className="text-muted-foreground">
-                      {summary?.addressSummary ?? "No address details returned yet"}
+                      {summary?.addressSummary ?? fallbackAddress ?? "No address details returned yet"}
+                    </div>
+                  </div>
+                  <div className="rounded-lg bg-background/70 p-3">
+                    <div className="font-medium">Accreditation</div>
+                    <div className="text-muted-foreground">
+                      {accreditationLabel}
                     </div>
                   </div>
                 </CardContent>
@@ -244,40 +369,40 @@ const LabDashboard = () => {
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Quick Links</CardTitle>
-                  <CardDescription>
-                    Navigate directly to the integrated lab management areas.
-                  </CardDescription>
+                  <CardTitle>Profile Health</CardTitle>
+                  <CardDescription>Setup completeness and readiness.</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  <Link
-                    to="/lab/settings"
-                    className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/40"
-                  >
-                    <span className="font-medium">Profile & branches</span>
-                    <ChevronRight className="h-4 w-4" />
-                  </Link>
-                  <Link
-                    to="/lab/settings"
-                    className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/40"
-                  >
-                    <span className="font-medium">Services catalog</span>
-                    <ChevronRight className="h-4 w-4" />
-                  </Link>
-                  <Link
-                    to="/lab/pending"
-                    className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/40"
-                  >
-                    <span className="font-medium">Pending tests</span>
-                    <ChevronRight className="h-4 w-4" />
-                  </Link>
-                  <Link
-                    to="/lab/completed"
-                    className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/40"
-                  >
-                    <span className="font-medium">Completed tests</span>
-                    <ChevronRight className="h-4 w-4" />
-                  </Link>
+                <CardContent className="space-y-4">
+                  {completionPercent != null ? (
+                    <>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Completion</span>
+                        <span className="font-medium">{completionPercent}%</span>
+                      </div>
+                      <Progress value={completionPercent} />
+                    </>
+                  ) : (
+                    <div className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">
+                      Completion data is not available yet.
+                    </div>
+                  )}
+                  {profileHealthFlags.length === 0 ? (
+                    <div className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">
+                      Your lab profile is fully set up.
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="text-sm font-medium">Missing setup items</div>
+                      <ul className="space-y-1 text-sm text-muted-foreground">
+                        {profileHealthFlags.map((item) => (
+                          <li key={item}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  <Button asChild variant="outline" className="w-full">
+                    <Link to="/lab/settings">Review Profile</Link>
+                  </Button>
                 </CardContent>
               </Card>
             </div>
