@@ -52,6 +52,7 @@ import {
   PatientMedicalProfile,
   PatientProfile,
 } from "@/types/patient-profile.types";
+import { formatDisplayDateTime } from "@/lib/date-time";
 
 const toCommaSeparated = (values: string[]) => values.join(", ");
 
@@ -1330,9 +1331,9 @@ export const PatientProfileSettingsSections = () => {
                   <p className="mb-2 text-sm font-medium">Last Updated</p>
                   <p className="text-sm text-muted-foreground">
                     {medicalHistoryQuery.data?.highlights?.lastMedicalProfileUpdateAt
-                      ? new Date(
+                      ? formatDisplayDateTime(
                           medicalHistoryQuery.data.highlights.lastMedicalProfileUpdateAt,
-                        ).toLocaleString()
+                        )
                       : "Not available"}
                   </p>
                 </div>

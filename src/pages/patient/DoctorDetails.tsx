@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { addDays, format, isValid, parseISO } from "date-fns";
 import { ArrowLeft, User } from "lucide-react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { EmptyCard, ErrorCard, LoadingCard, SectionCard } from "@/components/patient/BookingFlowSection";
 import { patientBookingNavItems } from "@/components/patient/patientNavigation";
@@ -17,10 +17,12 @@ import {
   useDoctorBookingDetailQuery,
 } from "@/hooks/usePatientBooking";
 import { getDisplayName } from "@/lib/auth";
+import { formatDisplayDate, formatDisplayDateTime, formatDisplayTime } from "@/lib/date-time";
 import { buildStableKey } from "@/lib/reactKeys";
 
 const PatientDoctorDetailsPage = () => {
   const { doctorId } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
   const userName = getDisplayName(user ?? {});
@@ -109,7 +111,7 @@ const PatientDoctorDetailsPage = () => {
       if (parsed.getTime() <= now.getTime()) return;
 
       const dateKey = slot.date?.trim() || format(parsed, "yyyy-MM-dd");
-      const label = format(parsed, "PPP");
+      const label = formatDisplayDate(slot.startAt);
       const entry = bucket.get(dateKey) ?? { dateKey, label, slots: [] };
       entry.slots.push({ slot, start: parsed });
       bucket.set(dateKey, entry);
@@ -153,6 +155,8 @@ const PatientDoctorDetailsPage = () => {
       return;
     }
 
+    const sourceTestRequestId =
+      (location.state as { sourceTestRequestId?: string } | null)?.sourceTestRequestId ?? undefined;
     createRequestMutation.mutate(
       {
         doctorId: doctor.doctorId,
@@ -160,6 +164,7 @@ const PatientDoctorDetailsPage = () => {
         visitType,
         reason,
         note: note || undefined,
+        sourceTestRequestId,
       },
       {
         onSuccess: (request) => {
@@ -251,9 +256,11 @@ const PatientDoctorDetailsPage = () => {
                             <div className="flex flex-wrap gap-2">
                               {group.slots.map((slot) => {
                                 const parsed = parseISO(slot.startAt);
-                              const timeLabel =
-                                slot.time?.trim() ||
-                                (isValid(parsed) ? format(parsed, "p") : "Time");
+                              const timeLabel = slot.time?.trim()
+                                ? formatDisplayTime(slot.time)
+                                : isValid(parsed)
+                                  ? formatDisplayTime(slot.startAt)
+                                  : "Time";
                               const isSelected = selectedSlotStart === slot.startAt;
 
                               return (
@@ -280,9 +287,7 @@ const PatientDoctorDetailsPage = () => {
                   {selectedSlotStart ? (
                     <p className="mt-4 text-sm text-foreground">
                       Selected time:{" "}
-                      {isValid(parseISO(selectedSlotStart))
-                        ? format(parseISO(selectedSlotStart), "PPP p")
-                        : selectedSlotStart}
+                      {formatDisplayDateTime(selectedSlotStart)}
                     </p>
                   ) : null}
                 </div>

@@ -1,47 +1,24 @@
 import { useMemo, useState } from "react";
-import { format, isValid, parseISO } from "date-fns";
 import { ClipboardList, Pill, Stethoscope } from "lucide-react";
 import { Link } from "react-router-dom";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { doctorNavItems } from "@/components/settings/AccountSettingsContent";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDoctorPrescriptionsQuery } from "@/hooks/useDoctorWorkflow";
 import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName } from "@/lib/auth";
+import { formatDisplayDate } from "@/lib/date-time";
 
-const formatDateValue = (value?: string | null) => {
-  if (!value) return "Not available";
-
-  const parsed = parseISO(value);
-  if (!isValid(parsed)) return value;
-
-  return format(parsed, "PPP");
-};
-
-const getStatusClassName = (status?: string | null) => {
-  switch ((status ?? "").toLowerCase()) {
-    case "active":
-      return "bg-green-100 text-green-700 border-green-200";
-    case "completed":
-      return "bg-blue-100 text-blue-700 border-blue-200";
-    case "expired":
-      return "bg-red-100 text-red-700 border-red-200";
-    default:
-      return "bg-muted text-muted-foreground border-border";
-  }
-};
+const formatDateValue = (value?: string | null) => formatDisplayDate(value);
 
 const DoctorPrescriptions = () => {
   const { user } = useAuth();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("all");
   const userName = getDisplayName(user ?? {});
 
   const filters = useMemo(
@@ -49,11 +26,10 @@ const DoctorPrescriptions = () => {
       page,
       limit: 8,
       search,
-      status: status === "all" ? undefined : status,
       sortBy: "prescribedAt",
       sortOrder: "desc" as const,
     }),
-    [page, search, status],
+    [page, search],
   );
 
   const query = useDoctorPrescriptionsQuery(filters, Boolean(user));
@@ -77,7 +53,7 @@ const DoctorPrescriptions = () => {
         <CardHeader>
           <CardTitle className="text-lg">Filters</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-3">
+        <CardContent className="grid gap-4 md:grid-cols-2">
           <Input
             value={search}
             onChange={(event) => {
@@ -86,29 +62,11 @@ const DoctorPrescriptions = () => {
             }}
             placeholder="Search medication or patient"
           />
-          <Select
-            value={status}
-            onValueChange={(value) => {
-              setPage(1);
-              setStatus(value);
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="expired">Expired</SelectItem>
-            </SelectContent>
-          </Select>
           <Button
             variant="outline"
             onClick={() => {
               setPage(1);
               setSearch("");
-              setStatus("all");
             }}
           >
             Clear filters
@@ -139,9 +97,6 @@ const DoctorPrescriptions = () => {
                   <div className="flex-1 space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="text-lg font-semibold">{prescription.medicationName}</h3>
-                      <Badge className={getStatusClassName(prescription.status)}>
-                        {prescription.status}
-                      </Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">
                       Patient: {prescription.patientName || "Unknown patient"} -{" "}

@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { format, isValid, parseISO } from "date-fns";
 import { MessageSquareQuote, Star, Stethoscope, ThumbsUp } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { doctorNavItems } from "@/components/settings/AccountSettingsContent";
@@ -16,15 +15,9 @@ import {
 } from "@/hooks/useDoctorWorkflow";
 import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName } from "@/lib/auth";
+import { formatDisplayDate } from "@/lib/date-time";
 
-const formatDateValue = (value?: string | null) => {
-  if (!value) return "Not available";
-
-  const parsed = parseISO(value);
-  if (!isValid(parsed)) return value;
-
-  return format(parsed, "PPP");
-};
+const formatDateValue = (value?: string | null) => formatDisplayDate(value);
 
 const DoctorReviews = () => {
   const { user } = useAuth();

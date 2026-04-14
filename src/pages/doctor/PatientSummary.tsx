@@ -1,4 +1,3 @@
-import { format, isValid, parseISO } from "date-fns";
 import { Link, useParams } from "react-router-dom";
 import { Activity, Mail, Phone, Stethoscope } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
@@ -12,15 +11,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useDoctorPatientSummaryQuery } from "@/hooks/useDoctorWorkflow";
 import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName, getInitials } from "@/lib/auth";
+import { formatDisplayDate } from "@/lib/date-time";
 
-const formatDateValue = (value?: string | null) => {
-  if (!value) return "Not available";
-
-  const parsed = parseISO(value);
-  if (!isValid(parsed)) return value;
-
-  return format(parsed, "PPP");
-};
+const formatDateValue = (value?: string | null) => formatDisplayDate(value);
 
 const SummaryList = ({ title, items }: { title: string; items: string[] }) => (
   <Card>

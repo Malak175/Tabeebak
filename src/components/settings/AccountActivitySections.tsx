@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { format, formatDistanceToNowStrict, isValid, parseISO } from "date-fns";
+import { formatDistanceToNowStrict } from "date-fns";
 import { Bell, CheckCheck, Laptop, RefreshCcw, Shield, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -19,16 +19,17 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { formatDisplayDateTime } from "@/lib/date-time";
 
 const NOTIFICATION_PAGE_SIZE = 6;
 
 const formatTimestamp = (value?: string | null) => {
   if (!value) return "Not available";
 
-  const parsed = parseISO(value);
-  if (!isValid(parsed)) return value;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
 
-  return `${format(parsed, "PPP p")} (${formatDistanceToNowStrict(parsed, { addSuffix: true })})`;
+  return `${formatDisplayDateTime(value)} (${formatDistanceToNowStrict(parsed, { addSuffix: true })})`;
 };
 
 const getNotificationVariant = (notification: NotificationItem) => {
