@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import { CheckCircle, ClipboardList, Eye, FileText, FlaskConical, Search } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Archive, Eye, FileText, FlaskConical, Search } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { labNavItems } from "@/components/settings/AccountSettingsContent";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -11,33 +11,18 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useLabOrdersQuery, useLabResultsQuery } from "@/hooks/useLabWorkflow";
+import { useLabOrdersQuery } from "@/hooks/useLabWorkflow";
 import { useLabProfileQuery } from "@/hooks/useLabProfile";
 import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName } from "@/lib/auth";
-import { formatLabStatusLabel, isPatientResultVisibleStatus, isResultReadyStatus, normalizeLabOrderStatus } from "@/lib/labStatus";
+import {
+  formatLabStatusLabel,
+  getLabStatusBadgeClassName,
+  getLabStatusesForBucket,
+} from "@/lib/labStatus";
 import { formatDisplayDateTime } from "@/lib/date-time";
 
 const formatDateTime = (value?: string | null) => formatDisplayDateTime(value);
-
-const getStatusClassName = (status?: string | null) => {
-  switch (normalizeLabOrderStatus(status)) {
-    case "Completed":
-    case "Result_Uploaded":
-      return "bg-green-100 text-green-700 border-green-200";
-    case "In_Progress":
-      return "bg-blue-100 text-blue-700 border-blue-200";
-    case "Pending":
-    case "Sample_Collection_Requested":
-    case "Sample_Collected":
-      return "bg-yellow-100 text-yellow-700 border-yellow-200";
-    case "Cancelled":
-    case "Rejected":
-      return "bg-red-100 text-red-700 border-red-200";
-    default:
-      return "bg-muted text-muted-foreground border-border";
-  }
-};
 
 const RecordsSkeleton = () => (
   <div className="space-y-4">
@@ -54,43 +39,46 @@ const RecordsSkeleton = () => (
 );
 
 const LabCompleted = () => {
+  const location = useLocation();
   const { user } = useAuth();
   const profileQuery = useLabProfileQuery(Boolean(user));
-  const [activeTab, setActiveTab] = useState("results");
-  const [ordersPage, setOrdersPage] = useState(1);
-  const [resultsPage, setResultsPage] = useState(1);
+  const [activeTab, setActiveTab] = useState("resultsReady");
+  const [resultsReadyPage, setResultsReadyPage] = useState(1);
+  const [archivePage, setArchivePage] = useState(1);
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("all");
+  const [archiveStatus, setArchiveStatus] = useState("all");
 
   const enabled = Boolean(user);
   const userName = getDisplayName(profileQuery.data ?? user ?? {});
+  const resultsReadyStatuses = getLabStatusesForBucket("resultsReady");
+  const archiveStatuses = getLabStatusesForBucket("archive");
 
-  const ordersFilters = useMemo(
+  const resultsReadyFilters = useMemo(
     () => ({
-      page: ordersPage,
-      limit: 6,
+      page: resultsReadyPage,
+      limit: 8,
       search,
-      status: status === "all" ? undefined : status,
+      status: resultsReadyStatuses[0],
       sortBy: "orderedAt",
       sortOrder: "desc" as const,
     }),
-    [ordersPage, search, status],
+    [resultsReadyPage, resultsReadyStatuses, search],
   );
 
-  const resultsFilters = useMemo(
+  const archiveFilters = useMemo(
     () => ({
-      page: resultsPage,
-      limit: 6,
+      page: archivePage,
+      limit: 8,
       search,
-      status: status === "all" ? undefined : status,
-      sortBy: "reportedAt",
+      status: archiveStatus === "all" ? archiveStatuses : archiveStatus,
+      sortBy: "completedAt",
       sortOrder: "desc" as const,
     }),
-    [resultsPage, search, status],
+    [archivePage, archiveStatuses, archiveStatus, search],
   );
 
-  const ordersQuery = useLabOrdersQuery(ordersFilters, enabled);
-  const resultsQuery = useLabResultsQuery(resultsFilters, enabled);
+  const resultsReadyQuery = useLabOrdersQuery(resultsReadyFilters, enabled);
+  const archiveQuery = useLabOrdersQuery(archiveFilters, enabled);
 
   return (
     <DashboardLayout
@@ -102,14 +90,14 @@ const LabCompleted = () => {
     >
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="mb-2 text-2xl font-bold md:text-3xl">Orders & Results History</h1>
+          <h1 className="mb-2 text-2xl font-bold md:text-3xl">Results Ready & Archive</h1>
           <p className="text-muted-foreground">
-            Browse the live lab order ledger and previously uploaded results.
+            Finalized work stages: uploaded results and archived outcomes.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <Badge variant="outline">{ordersQuery.data?.total ?? 0} total orders</Badge>
-          <Badge variant="outline">{resultsQuery.data?.total ?? 0} results</Badge>
+          <Badge variant="outline">{resultsReadyQuery.data?.total ?? 0} results ready</Badge>
+          <Badge variant="outline">{archiveQuery.data?.total ?? 0} archived</Badge>
         </div>
       </div>
 
@@ -124,39 +112,37 @@ const LabCompleted = () => {
               className="pl-9"
               value={search}
               onChange={(event) => {
-                setOrdersPage(1);
-                setResultsPage(1);
+                setResultsReadyPage(1);
+                setArchivePage(1);
                 setSearch(event.target.value);
               }}
-              placeholder="Search patient, result, order"
+              placeholder="Search patient, order, or test"
             />
           </div>
           <Select
-            value={status}
+            value={archiveStatus}
             onValueChange={(value) => {
-              setOrdersPage(1);
-              setResultsPage(1);
-              setStatus(value);
+              setArchivePage(1);
+              setArchiveStatus(value);
             }}
           >
             <SelectTrigger>
-              <SelectValue placeholder="Status" />
+              <SelectValue placeholder="Archive status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
+              <SelectItem value="all">All archive statuses</SelectItem>
               <SelectItem value="Completed">Completed</SelectItem>
-              <SelectItem value="Result_Uploaded">Results Ready</SelectItem>
-              <SelectItem value="Cancelled">Cancelled</SelectItem>
               <SelectItem value="Rejected">Rejected</SelectItem>
+              <SelectItem value="Cancelled">Cancelled</SelectItem>
             </SelectContent>
           </Select>
           <Button
             variant="outline"
             onClick={() => {
-              setOrdersPage(1);
-              setResultsPage(1);
+              setResultsReadyPage(1);
+              setArchivePage(1);
               setSearch("");
-              setStatus("all");
+              setArchiveStatus("all");
             }}
           >
             Clear filters
@@ -166,23 +152,23 @@ const LabCompleted = () => {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList>
-          <TabsTrigger value="results">Results History</TabsTrigger>
-          <TabsTrigger value="orders">All Orders</TabsTrigger>
+          <TabsTrigger value="resultsReady">Results Ready</TabsTrigger>
+          <TabsTrigger value="archive">Archive</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="results" className="space-y-6">
-          {resultsQuery.isLoading ? (
+        <TabsContent value="resultsReady" className="space-y-6">
+          {resultsReadyQuery.isLoading ? (
             <RecordsSkeleton />
-          ) : resultsQuery.isError ? (
+          ) : resultsReadyQuery.isError ? (
             <Alert variant="destructive">
-              <AlertTitle>Unable to load lab results</AlertTitle>
-              <AlertDescription>{(resultsQuery.error as Error).message}</AlertDescription>
+              <AlertTitle>Unable to load results-ready orders</AlertTitle>
+              <AlertDescription>{(resultsReadyQuery.error as Error).message}</AlertDescription>
             </Alert>
-          ) : resultsQuery.data?.data.length ? (
-            <>
+          ) : resultsReadyQuery.data?.data.length ? (
+            <div className="space-y-6">
               <div className="space-y-4">
-                {resultsQuery.data.data.map((result) => (
-                  <Card key={result.id}>
+                {resultsReadyQuery.data.data.map((order) => (
+                  <Card key={order.id}>
                     <CardContent className="flex flex-col gap-4 p-6 lg:flex-row lg:items-center">
                       <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-green-700">
                         <FileText className="h-5 w-5" />
@@ -190,134 +176,32 @@ const LabCompleted = () => {
 
                       <div className="flex-1 space-y-2">
                         <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="text-lg font-semibold">{result.patientName}</h3>
-                          <Badge className={getStatusClassName(result.status)}>
-                            {formatLabStatusLabel(result.status)}
-                          </Badge>
-                          {isResultReadyStatus(result.status) ? (
-                            <Badge variant="secondary">Result Uploaded</Badge>
-                          ) : null}
-                          {result.priority ? <Badge variant="outline">{result.priority}</Badge> : null}
-                        </div>
-                        <p className="font-medium text-primary">{result.testName}</p>
-                        <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                          <span>Result: {result.resultNumber || result.id}</span>
-                          <span>Order: {result.orderNumber || result.orderId || "Not available"}</span>
-                          <span>Doctor: {result.orderingDoctorName || "Not available"}</span>
-                        </div>
-                        <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                          <span>Collected {formatDateTime(result.collectedAt)}</span>
-                          <span>Result date {formatDateTime(result.reportedAt)}</span>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-wrap gap-2">
-                        {result.reportUrl ? (
-                          <Button asChild variant="outline">
-                            <a href={result.reportUrl} target="_blank" rel="noreferrer">
-                              Open report
-                            </a>
-                          </Button>
-                        ) : null}
-                        {result.orderId ? (
-                          <Button asChild variant="outline">
-                            <Link to={`/lab/orders/${result.orderId}`}>
-                              <Eye className="mr-2 h-4 w-4" />
-                              Order
-                            </Link>
-                          </Button>
-                        ) : null}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-
-              <div className="flex flex-col gap-3 rounded-lg border bg-card p-4 md:flex-row md:items-center md:justify-between">
-                <p className="text-sm text-muted-foreground">
-                  Page {resultsQuery.data.page} of {resultsQuery.data.totalPages} with{" "}
-                  {resultsQuery.data.total} results
-                </p>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    disabled={!resultsQuery.data.hasPreviousPage}
-                    onClick={() => setResultsPage((current) => Math.max(1, current - 1))}
-                  >
-                    Previous
-                  </Button>
-                  <Button
-                    variant="outline"
-                    disabled={!resultsQuery.data.hasNextPage}
-                    onClick={() => setResultsPage((current) => current + 1)}
-                  >
-                    Next
-                  </Button>
-                </div>
-              </div>
-            </>
-          ) : (
-            <Card>
-              <CardContent className="p-8 text-center text-muted-foreground">
-                No uploaded lab results matched the current filters.
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-
-        <TabsContent value="orders" className="space-y-6">
-          {ordersQuery.isLoading ? (
-            <RecordsSkeleton />
-          ) : ordersQuery.isError ? (
-            <Alert variant="destructive">
-              <AlertTitle>Unable to load lab orders</AlertTitle>
-              <AlertDescription>{(ordersQuery.error as Error).message}</AlertDescription>
-            </Alert>
-          ) : ordersQuery.data?.data.length ? (
-            <>
-              <div className="space-y-4">
-                {ordersQuery.data.data.map((order) => (
-                  <Card key={order.id}>
-                    <CardContent className="flex flex-col gap-4 p-6 lg:flex-row lg:items-center">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-                        {isPatientResultVisibleStatus(order.status) ? (
-                          <CheckCircle className="h-5 w-5" />
-                        ) : (
-                          <ClipboardList className="h-5 w-5" />
-                        )}
-                      </div>
-
-                      <div className="flex-1 space-y-2">
-                        <div className="flex flex-wrap items-center gap-2">
                           <h3 className="text-lg font-semibold">{order.patientName}</h3>
-                          <Badge className={getStatusClassName(order.status)}>
+                          <Badge className={getLabStatusBadgeClassName(order.status)}>
                             {formatLabStatusLabel(order.status)}
                           </Badge>
-                          {isResultReadyStatus(order.status) ? (
-                            <Badge variant="secondary">Result Uploaded</Badge>
-                          ) : null}
                           {order.priority ? <Badge variant="outline">{order.priority}</Badge> : null}
                         </div>
                         <p className="font-medium text-primary">{order.testName}</p>
                         <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                           <span>Order: {order.orderNumber || order.id}</span>
-                          <span>Sample: {order.sampleId || "Pending assignment"}</span>
                           <span>Doctor: {order.orderingDoctorName || "Not available"}</span>
                         </div>
                         <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                           <span>Ordered {formatDateTime(order.orderedAt)}</span>
-                          <span>Completed {formatDateTime(order.completedAt)}</span>
+                          <span>Uploaded {formatDateTime(order.completedAt)}</span>
                         </div>
                       </div>
 
-                      <div className="flex flex-wrap gap-2">
-                        <Button asChild variant="outline">
-                          <Link to={`/lab/orders/${order.id}`}>
-                            <Eye className="mr-2 h-4 w-4" />
-                            Details
-                          </Link>
-                        </Button>
-                      </div>
+                      <Button asChild variant="outline">
+                        <Link
+                          to={`/lab/orders/${order.id}`}
+                          state={{ fromPath: `${location.pathname}${location.search}`, fromLabel: "Results Ready" }}
+                        >
+                          <Eye className="mr-2 h-4 w-4" />
+                          Open
+                        </Link>
+                      </Button>
                     </CardContent>
                   </Card>
                 ))}
@@ -325,31 +209,112 @@ const LabCompleted = () => {
 
               <div className="flex flex-col gap-3 rounded-lg border bg-card p-4 md:flex-row md:items-center md:justify-between">
                 <p className="text-sm text-muted-foreground">
-                  Page {ordersQuery.data.page} of {ordersQuery.data.totalPages} with{" "}
-                  {ordersQuery.data.total} total orders
+                  Page {resultsReadyQuery.data.page} of {resultsReadyQuery.data.totalPages} with {resultsReadyQuery.data.total} results-ready orders
                 </p>
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
-                    disabled={!ordersQuery.data.hasPreviousPage}
-                    onClick={() => setOrdersPage((current) => Math.max(1, current - 1))}
+                    disabled={!resultsReadyQuery.data.hasPreviousPage}
+                    onClick={() => setResultsReadyPage((current) => Math.max(1, current - 1))}
                   >
                     Previous
                   </Button>
                   <Button
                     variant="outline"
-                    disabled={!ordersQuery.data.hasNextPage}
-                    onClick={() => setOrdersPage((current) => current + 1)}
+                    disabled={!resultsReadyQuery.data.hasNextPage}
+                    onClick={() => setResultsReadyPage((current) => current + 1)}
                   >
                     Next
                   </Button>
                 </div>
               </div>
-            </>
+            </div>
           ) : (
             <Card>
               <CardContent className="p-8 text-center text-muted-foreground">
-                No lab orders matched the current filters.
+                No orders are currently waiting in Results Ready.
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="archive" className="space-y-6">
+          {archiveQuery.isLoading ? (
+            <RecordsSkeleton />
+          ) : archiveQuery.isError ? (
+            <Alert variant="destructive">
+              <AlertTitle>Unable to load archived orders</AlertTitle>
+              <AlertDescription>{(archiveQuery.error as Error).message}</AlertDescription>
+            </Alert>
+          ) : archiveQuery.data?.data.length ? (
+            <div className="space-y-6">
+              <div className="space-y-4">
+                {archiveQuery.data.data.map((order) => (
+                  <Card key={order.id}>
+                    <CardContent className="flex flex-col gap-4 p-6 lg:flex-row lg:items-center">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted/40 text-muted-foreground">
+                        <Archive className="h-5 w-5" />
+                      </div>
+
+                      <div className="flex-1 space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="text-lg font-semibold">{order.patientName}</h3>
+                          <Badge className={getLabStatusBadgeClassName(order.status)}>
+                            {formatLabStatusLabel(order.status)}
+                          </Badge>
+                          {order.priority ? <Badge variant="outline">{order.priority}</Badge> : null}
+                        </div>
+                        <p className="font-medium text-primary">{order.testName}</p>
+                        <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                          <span>Order: {order.orderNumber || order.id}</span>
+                          <span>Doctor: {order.orderingDoctorName || "Not available"}</span>
+                        </div>
+                        <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                          <span>Ordered {formatDateTime(order.orderedAt)}</span>
+                          <span>Closed {formatDateTime(order.completedAt)}</span>
+                        </div>
+                      </div>
+
+                      <Button asChild variant="outline">
+                        <Link
+                          to={`/lab/orders/${order.id}`}
+                          state={{ fromPath: `${location.pathname}${location.search}`, fromLabel: "Archive" }}
+                        >
+                          <Eye className="mr-2 h-4 w-4" />
+                          Details
+                        </Link>
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              <div className="flex flex-col gap-3 rounded-lg border bg-card p-4 md:flex-row md:items-center md:justify-between">
+                <p className="text-sm text-muted-foreground">
+                  Page {archiveQuery.data.page} of {archiveQuery.data.totalPages} with {archiveQuery.data.total} archived orders
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    disabled={!archiveQuery.data.hasPreviousPage}
+                    onClick={() => setArchivePage((current) => Math.max(1, current - 1))}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    disabled={!archiveQuery.data.hasNextPage}
+                    onClick={() => setArchivePage((current) => current + 1)}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="p-8 text-center text-muted-foreground">
+                No archived orders matched the current filters.
               </CardContent>
             </Card>
           )}

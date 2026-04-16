@@ -70,7 +70,7 @@ const DashboardLayout = ({
       userRole === "doctor"
         ? { title: "Requests", url: "/doctor/requests", icon: Bell }
         : userRole === "laboratory"
-        ? { title: "Requests", url: "/lab/requests", icon: ClipboardList }
+        ? { title: "Inbox", url: "/lab/requests", icon: ClipboardList }
         : null;
 
     if (!requestItem || navItems.some((item) => item.url === requestItem.url)) {
