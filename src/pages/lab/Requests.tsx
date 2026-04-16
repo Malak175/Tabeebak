@@ -24,7 +24,6 @@ const getStatusClassName = (status?: string | null) => {
   switch (normalizeLabOrderStatus(status)) {
     case "Completed":
     case "Result_Uploaded":
-    case "Assigned_To_Doctor":
       return "bg-green-100 text-green-700 border-green-200";
     case "In_Progress":
       return "bg-blue-100 text-blue-700 border-blue-200";
@@ -44,7 +43,7 @@ const STATUS_GROUPS = {
   needsReview: ["Pending"],
   collection: ["Sample_Collection_Requested", "Sample_Collected"],
   inProgress: ["In_Progress"],
-  resultsReady: ["Result_Uploaded", "Assigned_To_Doctor"],
+  resultsReady: ["Result_Uploaded"],
   completed: ["Completed"],
 };
 
@@ -171,7 +170,6 @@ const LabRequestsPage = () => {
               <SelectItem value="Sample_Collected">Sample Collected</SelectItem>
               <SelectItem value="In_Progress">In Progress</SelectItem>
               <SelectItem value="Result_Uploaded">Results Ready</SelectItem>
-              <SelectItem value="Assigned_To_Doctor">Sent to Doctor</SelectItem>
               <SelectItem value="Completed">Completed</SelectItem>
               <SelectItem value="Cancelled">Cancelled</SelectItem>
               <SelectItem value="Rejected">Rejected</SelectItem>
@@ -256,7 +254,7 @@ const LabRequestsPage = () => {
                             {formatLabStatusLabel(order.status)}
                           </Badge>
                           {isResultReadyStatus(order.status) ? (
-                            <Badge variant="secondary">Results Ready for Analysis</Badge>
+                            <Badge variant="secondary">Result Uploaded</Badge>
                           ) : null}
                           {order.priority ? <Badge variant="outline">{order.priority}</Badge> : null}
                         </div>
@@ -339,7 +337,7 @@ const LabRequestsPage = () => {
                             {formatLabStatusLabel(order.status)}
                           </Badge>
                           {isResultReadyStatus(order.status) ? (
-                            <Badge variant="secondary">Results Ready for Analysis</Badge>
+                            <Badge variant="secondary">Result Uploaded</Badge>
                           ) : null}
                           {order.priority ? <Badge variant="outline">{order.priority}</Badge> : null}
                         </div>
@@ -421,7 +419,7 @@ const LabRequestsPage = () => {
                             {formatLabStatusLabel(order.status)}
                           </Badge>
                           {isResultReadyStatus(order.status) ? (
-                            <Badge variant="secondary">Results Ready for Analysis</Badge>
+                            <Badge variant="secondary">Result Uploaded</Badge>
                           ) : null}
                           {order.priority ? <Badge variant="outline">{order.priority}</Badge> : null}
                         </div>
@@ -504,7 +502,7 @@ const LabRequestsPage = () => {
                             {formatLabStatusLabel(order.status)}
                           </Badge>
                           {isResultReadyStatus(order.status) ? (
-                            <Badge variant="secondary">Results Ready for Analysis</Badge>
+                            <Badge variant="secondary">Result Uploaded</Badge>
                           ) : null}
                           {order.priority ? <Badge variant="outline">{order.priority}</Badge> : null}
                         </div>
@@ -587,7 +585,7 @@ const LabRequestsPage = () => {
                             {formatLabStatusLabel(order.status)}
                           </Badge>
                           {isResultReadyStatus(order.status) ? (
-                            <Badge variant="secondary">Results Ready for Analysis</Badge>
+                            <Badge variant="secondary">Result Uploaded</Badge>
                           ) : null}
                           {order.priority ? <Badge variant="outline">{order.priority}</Badge> : null}
                         </div>
@@ -670,7 +668,7 @@ const LabRequestsPage = () => {
                             {formatLabStatusLabel(order.status)}
                           </Badge>
                           {isResultReadyStatus(order.status) ? (
-                            <Badge variant="secondary">Results Ready for Analysis</Badge>
+                            <Badge variant="secondary">Result Uploaded</Badge>
                           ) : null}
                           {order.priority ? <Badge variant="outline">{order.priority}</Badge> : null}
                         </div>
@@ -733,3 +731,4 @@ const LabRequestsPage = () => {
 };
 
 export default LabRequestsPage;
+

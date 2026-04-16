@@ -15,7 +15,7 @@ import { useLabOrdersQuery, useLabResultsQuery } from "@/hooks/useLabWorkflow";
 import { useLabProfileQuery } from "@/hooks/useLabProfile";
 import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName } from "@/lib/auth";
-import { formatLabStatusLabel, isResultReadyStatus, normalizeLabOrderStatus } from "@/lib/labStatus";
+import { formatLabStatusLabel, isPatientResultVisibleStatus, isResultReadyStatus, normalizeLabOrderStatus } from "@/lib/labStatus";
 import { formatDisplayDateTime } from "@/lib/date-time";
 
 const formatDateTime = (value?: string | null) => formatDisplayDateTime(value);
@@ -24,7 +24,6 @@ const getStatusClassName = (status?: string | null) => {
   switch (normalizeLabOrderStatus(status)) {
     case "Completed":
     case "Result_Uploaded":
-    case "Assigned_To_Doctor":
       return "bg-green-100 text-green-700 border-green-200";
     case "In_Progress":
       return "bg-blue-100 text-blue-700 border-blue-200";
@@ -147,7 +146,6 @@ const LabCompleted = () => {
               <SelectItem value="all">All statuses</SelectItem>
               <SelectItem value="Completed">Completed</SelectItem>
               <SelectItem value="Result_Uploaded">Results Ready</SelectItem>
-              <SelectItem value="Assigned_To_Doctor">Sent to Doctor</SelectItem>
               <SelectItem value="Cancelled">Cancelled</SelectItem>
               <SelectItem value="Rejected">Rejected</SelectItem>
             </SelectContent>
@@ -197,7 +195,7 @@ const LabCompleted = () => {
                             {formatLabStatusLabel(result.status)}
                           </Badge>
                           {isResultReadyStatus(result.status) ? (
-                            <Badge variant="secondary">Results Ready for Analysis</Badge>
+                            <Badge variant="secondary">Result Uploaded</Badge>
                           ) : null}
                           {result.priority ? <Badge variant="outline">{result.priority}</Badge> : null}
                         </div>
@@ -282,7 +280,7 @@ const LabCompleted = () => {
                   <Card key={order.id}>
                     <CardContent className="flex flex-col gap-4 p-6 lg:flex-row lg:items-center">
                       <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-                        {order.hasResult ? (
+                        {isPatientResultVisibleStatus(order.status) ? (
                           <CheckCircle className="h-5 w-5" />
                         ) : (
                           <ClipboardList className="h-5 w-5" />
@@ -296,7 +294,7 @@ const LabCompleted = () => {
                             {formatLabStatusLabel(order.status)}
                           </Badge>
                           {isResultReadyStatus(order.status) ? (
-                            <Badge variant="secondary">Results Ready for Analysis</Badge>
+                            <Badge variant="secondary">Result Uploaded</Badge>
                           ) : null}
                           {order.priority ? <Badge variant="outline">{order.priority}</Badge> : null}
                         </div>
@@ -362,3 +360,4 @@ const LabCompleted = () => {
 };
 
 export default LabCompleted;
+

@@ -47,7 +47,6 @@ const getStatusClassName = (status?: string | null) => {
   switch (normalizeLabOrderStatus(status)) {
     case "Completed":
     case "Result_Uploaded":
-    case "Assigned_To_Doctor":
       return "bg-green-100 text-green-700 border-green-200";
     case "In_Progress":
     case "Sample_Collected":
@@ -68,8 +67,7 @@ const STATUS_TRANSITION_MAP: Record<CanonicalLabOrderStatus, CanonicalLabOrderSt
   Sample_Collection_Requested: ["Sample_Collected", "Cancelled"],
   Sample_Collected: ["In_Progress", "Cancelled"],
   In_Progress: ["Result_Uploaded", "Cancelled"],
-  Result_Uploaded: ["Assigned_To_Doctor", "Completed"],
-  Assigned_To_Doctor: ["Completed"],
+  Result_Uploaded: ["Completed"],
   Completed: [],
   Rejected: [],
   Cancelled: [],
@@ -121,13 +119,6 @@ const getLabTimelineSteps = (
       setState(1, "complete");
       setState(2, "complete");
       setState(3, "current");
-      break;
-    case "Assigned_To_Doctor":
-      setState(0, "complete");
-      setState(1, "complete");
-      setState(2, "complete");
-      setState(3, "complete");
-      setState(4, "current");
       break;
     case "Completed":
       steps.forEach((_, index) => setState(index, "complete"));
@@ -272,46 +263,14 @@ const LabOrderDetailsPage = () => {
     "Sample_Collected",
     "In_Progress",
     "Result_Uploaded",
-    "Assigned_To_Doctor",
   ];
   const messagingDisabledStatuses = ["Cancelled", "Rejected", "Completed"];
   const canReplyToRequest =
     Boolean(detail?.requestId) &&
     messagingEnabledStatuses.includes(normalizedStatus) &&
     !messagingDisabledStatuses.includes(normalizedStatus);
-  useEffect(() => {
-    console.warn("[LabOrderDetails] Raw details response", detailsQuery.data);
-    console.warn("[LabOrderDetails] Normalized detail", detail);
-    console.warn("[LabOrderDetails] detail.id", detail?.id);
-    console.warn("[LabOrderDetails] detail.requestId", detail?.requestId);
-    console.warn("[LabOrderDetails] canReplyToRequest", canReplyToRequest);
-  }, [detailsQuery.data, detail, canReplyToRequest]);
   const statusOptions = getStatusOptions(detail?.status);
   const hasAvailableStatusTransition = statusOptions.length > 0;
-
-  useEffect(() => {
-    if (!detail) return;
-    const helperNoRequest = !detail.requestId;
-    const helperBlocked = Boolean(detail.requestId) && !canReplyToRequest;
-
-    console.debug("[LabOrderDetails] Thread Debug (raw)", {
-      status: detail.status,
-      canReply: detail.canReply,
-      sampleCollectionStatus: detail.sampleCollectionStatus,
-      sampleCollectionRequested: detail.sampleCollectionRequested,
-      resultStatus: detail.resultStatus,
-      requestId: detail.requestId,
-    });
-
-    console.debug("[LabOrderDetails] Thread Debug (derived)", {
-      normalizedStatus,
-      messagingEnabledStatuses,
-      messagingDisabledStatuses,
-      isMessagingAllowed: canReplyToRequest,
-      helperNoRequest,
-      helperBlocked,
-    });
-  }, [detail, normalizedStatus, canReplyToRequest, messagingEnabledStatuses, messagingDisabledStatuses]);
 
   useEffect(() => {
     if (!detail) return;
@@ -403,13 +362,6 @@ const LabOrderDetailsPage = () => {
 
     const numericThreadId = Number(detail.requestId);
     const isValidThreadId = Number.isInteger(numericThreadId) && numericThreadId > 0;
-    console.warn("[LabOrderDetails] Send message threadId (raw)", detail.requestId);
-    console.warn("[LabOrderDetails] Send message threadId (numeric)", numericThreadId);
-    console.warn(
-      "[LabOrderDetails] Send message url",
-      `/api/v1/chat/patient_lab/${numericThreadId}/messages`,
-    );
-    console.warn("[LabOrderDetails] Send message payload", { message: reply.trim() });
 
     if (!isValidThreadId) {
       const message = "Unable to send message: invalid thread id.";
@@ -549,7 +501,7 @@ const LabOrderDetailsPage = () => {
                     {formatLabStatusLabel(detail.status)}
                   </Badge>
                   {isResultReadyStatus(detail.status) ? (
-                    <Badge variant="secondary">Results Ready for Analysis</Badge>
+                    <Badge variant="secondary">Result Uploaded</Badge>
                   ) : null}
                   {detail.service?.sampleType ? <Badge variant="outline">{detail.service.sampleType}</Badge> : null}
                   {detail.service?.category ? <Badge variant="outline">{detail.service.category}</Badge> : null}
@@ -1028,3 +980,4 @@ const LabOrderDetailsPage = () => {
 };
 
 export default LabOrderDetailsPage;
+

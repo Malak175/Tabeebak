@@ -24,7 +24,6 @@ const getStatusClassName = (status?: string | null) => {
   switch (normalizeLabOrderStatus(status)) {
     case "Completed":
     case "Result_Uploaded":
-    case "Assigned_To_Doctor":
       return "bg-green-100 text-green-700 border-green-200";
     case "In_Progress":
       return "bg-blue-100 text-blue-700 border-blue-200";
@@ -157,7 +156,6 @@ const LabPending = () => {
               <SelectItem value="Sample_Collected">Sample Collected</SelectItem>
               <SelectItem value="In_Progress">In Progress</SelectItem>
               <SelectItem value="Result_Uploaded">Results Ready</SelectItem>
-              <SelectItem value="Assigned_To_Doctor">Sent to Doctor</SelectItem>
             </SelectContent>
           </Select>
           <Select
@@ -232,7 +230,7 @@ const LabPending = () => {
                             {formatLabStatusLabel(order.status)}
                           </Badge>
                           {isResultReadyStatus(order.status) ? (
-                            <Badge variant="secondary">Results Ready for Analysis</Badge>
+                            <Badge variant="secondary">Result Uploaded</Badge>
                           ) : null}
                           {order.priority ? <Badge variant="outline">{order.priority}</Badge> : null}
                         </div>
@@ -320,7 +318,7 @@ const LabPending = () => {
                             {formatLabStatusLabel(order.status)}
                           </Badge>
                           {isResultReadyStatus(order.status) ? (
-                            <Badge variant="secondary">Results Ready for Analysis</Badge>
+                            <Badge variant="secondary">Result Uploaded</Badge>
                           ) : null}
                           {order.priority ? <Badge variant="outline">{order.priority}</Badge> : null}
                         </div>
@@ -386,3 +384,4 @@ const LabPending = () => {
 };
 
 export default LabPending;
+
