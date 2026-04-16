@@ -1,4 +1,4 @@
-import { API_BASE_URL, apiRequest } from "@/services/api";
+import { apiRequest } from "@/services/api";
 import {
   CreateRequestMessagePayload,
   RequestMessage,
@@ -427,9 +427,6 @@ const normalizeLabOrder = (payload: unknown): LabOrder => {
       pickNullableString(raw, ["notes", "internalNotes", "internal_notes"]) ??
       pickNullableString(request, ["notes", "internalNotes", "internal_notes", "message"]) ??
       pickNullableString(order, ["notes", "internalNotes", "internal_notes"]),
-    hasResult:
-      pickBoolean(raw, ["hasResult", "has_result"]) ??
-      Boolean(pickString(raw, ["resultId", "result_id"])),
   };
 };
 
@@ -453,7 +450,6 @@ const normalizeLabOrderRequestedService = (payload: unknown): LabOrderRequestedS
 };
 
 const normalizeLabOrderDetails = (payload: unknown): LabOrderDetails => {
-  const payloadRecord = asRecord(payload);
   const raw = unwrapPayload(payload);
   const base = normalizeLabOrder(raw);
   const request = mergeRecords(pickRecord(raw, ["request", "testRequest", "test_request"]));
@@ -737,22 +733,6 @@ const buildResultPayload = (payload: UploadLabResultRequest) => {
   return formData;
 };
 
-const snapshotFormData = (formData: FormData) =>
-  Array.from(formData.entries()).map(([key, value]) => {
-    if (value instanceof File) {
-      return {
-        key,
-        value: {
-          name: value.name,
-          size: value.size,
-          type: value.type,
-        },
-      };
-    }
-
-    return { key, value };
-  });
-
 export const labWorkflowService = {
   getLabOrders: async (
     params?: LabOrdersFilterParams,
@@ -783,11 +763,6 @@ export const labWorkflowService = {
       method: "GET",
       auth: true,
     });
-    const responseRecord = asRecord(response);
-    const responseData = asRecord(responseRecord.data);
-    const responseOrder = asRecord(responseData.order);
-    console.warn("[labWorkflowService] raw requestId", responseRecord.requestId);
-    console.warn("[labWorkflowService] raw data.order.id", responseOrder.id);
 
     return normalizeLabOrderDetails(response);
   },
@@ -836,9 +811,6 @@ export const labWorkflowService = {
     requestId: string,
     payload: SendLabOrderMessageRequest | CreateRequestMessagePayload,
   ): Promise<RequestMessage> => {
-    console.warn("[labWorkflowService] sendLabOrderMessage threadId", requestId);
-    console.warn("[labWorkflowService] sendLabOrderMessage payload", payload);
-    console.warn("[labWorkflowService] sendLabOrderMessage url", `/api/v1/chat/patient_lab/${requestId}/messages`);
     const response = await apiRequest<unknown>(
       `/api/v1/chat/patient_lab/${requestId}/messages`,
       {
@@ -856,14 +828,7 @@ export const labWorkflowService = {
     payload: UploadLabResultRequest,
   ): Promise<LabResult> => {
     const endpoint = `/api/v1/labs/me/orders/${orderId}/results`;
-    const requestUrl = `${API_BASE_URL}${endpoint}`;
     const requestBody = buildResultPayload(payload);
-    console.log("[labWorkflowService] uploadLabOrderResult request", {
-      method: "POST",
-      endpoint,
-      requestUrl,
-      formData: snapshotFormData(requestBody),
-    });
     const response = await apiRequest<unknown>(endpoint, {
       method: "POST",
       body: requestBody,
@@ -897,3 +862,4 @@ export const labWorkflowService = {
     return normalizePaginatedResponse(response, normalizeSampleCollectionRequest);
   },
 };
+
