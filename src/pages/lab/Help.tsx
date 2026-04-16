@@ -19,8 +19,8 @@ import {
 
 const navItems = [
   { title: "Dashboard", url: "/lab/dashboard", icon: Home },
-  { title: "Pending Tests", url: "/lab/pending", icon: Clock },
-  { title: "Completed", url: "/lab/completed", icon: CheckCircle },
+  { title: "Active Work", url: "/lab/pending", icon: Clock },
+  { title: "Results & Archive", url: "/lab/completed", icon: CheckCircle },
   { title: "Settings", url: "/lab/settings", icon: Settings },
   { title: "Help", url: "/lab/help", icon: HelpCircle },
 ];
@@ -28,7 +28,7 @@ const navItems = [
 const faqs = [
   {
     question: "How do I upload test results?",
-    answer: "Go to 'Pending Tests', find the test you want to complete, and click 'Upload Result'. You can upload the results file and it will be automatically sent to the doctor and patient."
+    answer: "Go to 'Active Work', open the order that is in progress, and use 'Upload result'. The result is then available in Results Ready and for downstream completion."
   },
   {
     question: "How do I track a sample?",
