@@ -21,7 +21,7 @@ import {
 import { usePatientLabResultDetailsQuery, usePatientProfileQuery } from "@/hooks/usePatientProfile";
 import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName } from "@/lib/auth";
-import { apiRequest } from "@/services/api";
+import { patientService } from "@/services/patient.service";
 import { ApiError } from "@/types/api.types";
 import { formatDisplayDateTime } from "@/lib/date-time";
 import { resolveHeartMeasurementDefaults } from "@/lib/heartMeasurementSchema";
@@ -156,6 +156,9 @@ const PatientLabResultDetails = () => {
   const [predictionError, setPredictionError] = useState<string | null>(null);
   const analysisRef = useRef<HTMLDivElement | null>(null);
 
+  const aiResultId = query.data?.id ?? resultId ?? null;
+  const canRunAiAnalysis =
+    Boolean(aiResultId) && isPatientResultVisibleStatus(query.data?.status ?? null);
   const requestId = query.data?.requestId ?? null;
   const hasPrediction = Boolean(prediction);
   const isHighRisk = (prediction?.riskLevel ?? "").trim().toLowerCase() === "high";
@@ -174,12 +177,17 @@ const PatientLabResultDetails = () => {
     Boolean(doctorFollowUp?.appointmentStatus);
 
   useEffect(() => {
-    if (!requestId) return;
+    if (!canRunAiAnalysis || !aiResultId) {
+      setPrediction(null);
+      setPredictionLoading(false);
+      return;
+    }
     let isActive = true;
 
     setPredictionLoading(true);
     setPredictionError(null);
-    apiRequest<unknown>(`/api/v1/test-requests/${requestId}/predictions`, { method: "GET", auth: true })
+    patientService
+      .getPatientLabResultPrediction(aiResultId)
       .then((response) => {
         if (!isActive) return;
         setPrediction(normalizePrediction(response));
@@ -202,10 +210,10 @@ const PatientLabResultDetails = () => {
     return () => {
       isActive = false;
     };
-  }, [requestId]);
+  }, [aiResultId, canRunAiAnalysis]);
 
   const handleRunAnalysis = async () => {
-    if (!requestId) return;
+    if (!canRunAiAnalysis || !aiResultId) return;
     const profile = profileQuery.data;
     const age = computeAge(profile?.dateOfBirth ?? null);
     const gender = profile?.gender ?? null;
@@ -218,15 +226,8 @@ const PatientLabResultDetails = () => {
     setPredicting(true);
     setPredictionError(null);
     try {
-      await apiRequest(`/api/v1/test-requests/${requestId}/predict`, {
-        method: "POST",
-        auth: true,
-        body: { age, gender },
-      });
-      const response = await apiRequest<unknown>(`/api/v1/test-requests/${requestId}/predictions`, {
-        method: "GET",
-        auth: true,
-      });
+      await patientService.runPatientLabResultPrediction(aiResultId, { age, gender });
+      const response = await patientService.getPatientLabResultPrediction(aiResultId);
       const normalized = normalizePrediction(response);
       if (!normalized) {
         const message = "Prediction completed, but no analysis was returned.";
@@ -236,7 +237,13 @@ const PatientLabResultDetails = () => {
       setPrediction(normalized);
       analysisRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Unable to run AI analysis.";
+      const apiError = error instanceof ApiError ? error : null;
+      const message =
+        apiError?.statusCode === 404
+          ? "AI analysis is temporarily unavailable for this completed result."
+          : error instanceof Error
+            ? error.message
+            : "Unable to run AI analysis.";
       setPredictionError(message);
       toast.error(message);
     } finally {
@@ -577,7 +584,7 @@ const PatientLabResultDetails = () => {
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <p className="text-sm font-medium">AI Analysis</p>
-                      <p className="text-xs text-muted-foreground">Generated from this lab request.</p>
+                      <p className="text-xs text-muted-foreground">Generated from this completed lab result.</p>
                     </div>
                     {predictionLoading || predicting ? (
                       <Badge variant="outline">Analyzing...</Badge>
@@ -619,7 +626,7 @@ const PatientLabResultDetails = () => {
                     <p className="mt-3 text-sm text-muted-foreground">
                       {predictionLoading || predicting
                         ? "Generating analysis for this lab result."
-                        : "No AI analysis is available for this request yet."}
+                        : "No AI analysis is available for this result yet."}
                     </p>
                   )}
                   {predictionError ? (
@@ -651,26 +658,30 @@ const PatientLabResultDetails = () => {
                     </a>
                   </Button>
                 ) : null}
-                {requestId ? (
+                {canRunAiAnalysis ? (
                   hasPrediction ? (
                     <>
                   <Button className="w-full" variant="outline" onClick={handleViewAnalysis}>
-                    View Analysis
+                    View AI Analysis
                   </Button>
                   <Button className="w-full" variant="outline" onClick={handleDownloadAiReport}>
                     Print / Save AI Report
                   </Button>
                 </>
               ) : (
-                <Button
-                  className="w-full"
-                  onClick={handleRunAnalysis}
+                  <Button
+                    className="w-full"
+                    onClick={handleRunAnalysis}
                       disabled={predicting || predictionLoading}
                     >
-                      {predicting ? "Running Analysis..." : "Run AI Analysis"}
+                      {predicting ? "Running Analysis..." : "Analyze with AI"}
                     </Button>
                   )
-                ) : null}
+                ) : (
+                  <p className="rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                    AI analysis is available after this result is fully published.
+                  </p>
+                )}
                 {hasPrediction && isHighRisk ? (
                   <div className="rounded-lg border bg-green-50 p-4">
                     {hasDoctorFollowUp ? (

@@ -79,40 +79,6 @@ const PatientLabResults = () => {
   );
   const hiddenResultsCount = (resultsQuery.data?.data.length ?? 0) - visibleResults.length;
 
-  const resolveResultId = (result: Record<string, unknown>) => {
-    const topLevel =
-      (result.id as string | undefined) ||
-      (result.resultId as string | undefined) ||
-      (result.laboratoryResultId as string | undefined) ||
-      (result.laboratory_result_id as string | undefined) ||
-      (result.labResultId as string | undefined) ||
-      (result.lab_result_id as string | undefined);
-    if (topLevel) return topLevel;
-
-    const nestedCandidates = [
-      result.laboratory_result,
-      result.laboratoryResult,
-      result.result,
-      result.lab_result,
-      result.labResult,
-    ];
-
-    for (const candidate of nestedCandidates) {
-      if (!candidate || typeof candidate !== "object") continue;
-      const record = candidate as Record<string, unknown>;
-      const nestedId =
-        (record.id as string | undefined) ||
-        (record.resultId as string | undefined) ||
-        (record.laboratoryResultId as string | undefined) ||
-        (record.laboratory_result_id as string | undefined) ||
-        (record.labResultId as string | undefined) ||
-        (record.lab_result_id as string | undefined);
-      if (nestedId) return nestedId;
-    }
-
-    return "";
-  };
-
   return (
     <DashboardLayout
       userRole="patient"
@@ -215,7 +181,7 @@ const PatientLabResults = () => {
               ) : null}
               <div className="grid gap-4">
                 {visibleResults.map((result) => {
-                  const resolvedId = resolveResultId(result as unknown as Record<string, unknown>);
+                  const resolvedId = result.id?.trim() ?? "";
                   const route = `/patient/lab-results/${resolvedId}`;
 
                   return (
