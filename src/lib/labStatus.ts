@@ -4,7 +4,6 @@ export type CanonicalLabOrderStatus =
   | "Sample_Collected"
   | "In_Progress"
   | "Result_Uploaded"
-  | "Assigned_To_Doctor"
   | "Completed"
   | "Cancelled"
   | "Rejected";
@@ -15,7 +14,6 @@ const STATUS_LABELS: Record<CanonicalLabOrderStatus, string> = {
   Sample_Collected: "Sample Collected",
   In_Progress: "In Progress",
   Result_Uploaded: "Results Ready",
-  Assigned_To_Doctor: "Sent to Doctor",
   Completed: "Completed",
   Cancelled: "Cancelled",
   Rejected: "Rejected",
@@ -27,7 +25,6 @@ const CANONICAL_STATUS_BY_KEY: Record<string, CanonicalLabOrderStatus> = {
   SAMPLE_COLLECTED: "Sample_Collected",
   IN_PROGRESS: "In_Progress",
   RESULT_UPLOADED: "Result_Uploaded",
-  ASSIGNED_TO_DOCTOR: "Assigned_To_Doctor",
   COMPLETED: "Completed",
   CANCELLED: "Cancelled",
   REJECTED: "Rejected",
@@ -38,6 +35,8 @@ const LEGACY_STATUS_ALIASES: Record<string, CanonicalLabOrderStatus> = {
   ACCEPTED: "In_Progress",
   PROCESSING: "In_Progress",
   REQUESTED: "Sample_Collection_Requested",
+  // Legacy intermediary value removed from the official workflow.
+  ASSIGNED_TO_DOCTOR: "Result_Uploaded",
 };
 
 export const normalizeLabStatusKey = (value?: string | null) =>
@@ -62,5 +61,8 @@ export const formatLabStatusLabel = (status?: string | null) => {
 
 export const isResultReadyStatus = (status?: string | null) => {
   const canonical = normalizeLabOrderStatus(status);
-  return canonical === "Result_Uploaded" || canonical === "Assigned_To_Doctor";
+  return canonical === "Result_Uploaded";
 };
+
+export const isPatientResultVisibleStatus = (status?: string | null) =>
+  normalizeLabOrderStatus(status) === "Completed";

@@ -1,4 +1,11 @@
 import type { CreateRequestMessagePayload, RequestMessage } from "@/types/patient-booking.types";
+import type { CanonicalLabOrderStatus } from "@/lib/labStatus";
+
+export type OfficialLabOrderStatus = CanonicalLabOrderStatus;
+
+export type LegacyLabOrderStatus = "Assigned_To_Doctor";
+
+export type LabOrderStatusInput = OfficialLabOrderStatus | LegacyLabOrderStatus;
 
 export interface PaginatedResponse<T> {
   data: T[];
@@ -86,7 +93,7 @@ export interface LabOrder {
   patientName: string;
   testName: string;
   category?: string | null;
-  status: string;
+  status: OfficialLabOrderStatus;
   priority?: string | null;
   sampleId?: string | null;
   orderedAt?: string | null;
@@ -99,7 +106,6 @@ export interface LabOrder {
   progress?: number | null;
   instructions?: string | null;
   notes?: string | null;
-  hasResult?: boolean;
 }
 
 export interface LabOrderDetails extends LabOrder {
@@ -125,7 +131,7 @@ export interface LabOrderDetails extends LabOrder {
 }
 
 export interface UpdateLabOrderStatusRequest {
-  status: string;
+  status: OfficialLabOrderStatus;
   notes?: string | null;
 }
 
@@ -171,7 +177,7 @@ export interface LabResult {
   patientName: string;
   testName: string;
   category?: string | null;
-  status: string;
+  status: OfficialLabOrderStatus;
   priority?: string | null;
   reportedAt?: string | null;
   collectedAt?: string | null;
@@ -192,7 +198,7 @@ export interface SampleCollectionRequest {
   patientName: string;
   patientPhone?: string | null;
   testName: string;
-  status: string;
+  status: OfficialLabOrderStatus;
   priority?: string | null;
   requestedAt?: string | null;
   scheduledAt?: string | null;
