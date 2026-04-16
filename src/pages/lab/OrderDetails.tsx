@@ -1,5 +1,5 @@
-import { ChangeEvent, useEffect, useState } from "react";
-import { ArrowLeft, CalendarClock, CheckCircle2, FileUp, FlaskConical, Save, User, XCircle } from "lucide-react";
+import { ChangeEvent, useEffect, useMemo, useState } from "react";
+import { ArrowLeft, CalendarClock, CheckCircle2, FileUp, FlaskConical, XCircle } from "lucide-react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
@@ -34,44 +34,19 @@ import { formatDisplayDateTime } from "@/lib/date-time";
 import { HEART_MEASUREMENT_SCHEMA, resolveHeartMeasurementDefaults } from "@/lib/heartMeasurementSchema";
 import { computeMeasurementStatus } from "@/lib/measurementStatus";
 import {
+  canReplyOnLabOrder,
+  canReviewLabOrder,
+  canUploadLabResult,
   formatLabStatusLabel,
+  getLabStatusBadgeClassName,
+  getLabWorkflowBucket,
+  getNextLabOrderStatuses,
   isResultReadyStatus,
   normalizeLabOrderStatus,
-  type CanonicalLabOrderStatus,
 } from "@/lib/labStatus";
 import { UploadLabResultValue } from "@/types/lab-workflow.types";
 
 const formatDateTime = (value?: string | null) => formatDisplayDateTime(value);
-
-const getStatusClassName = (status?: string | null) => {
-  switch (normalizeLabOrderStatus(status)) {
-    case "Completed":
-    case "Result_Uploaded":
-      return "bg-green-100 text-green-700 border-green-200";
-    case "In_Progress":
-    case "Sample_Collected":
-    case "Sample_Collection_Requested":
-      return "bg-blue-100 text-blue-700 border-blue-200";
-    case "Pending":
-      return "bg-yellow-100 text-yellow-700 border-yellow-200";
-    case "Cancelled":
-    case "Rejected":
-      return "bg-red-100 text-red-700 border-red-200";
-    default:
-      return "bg-muted text-muted-foreground border-border";
-  }
-};
-
-const STATUS_TRANSITION_MAP: Record<CanonicalLabOrderStatus, CanonicalLabOrderStatus[]> = {
-  Pending: ["Sample_Collection_Requested", "In_Progress", "Rejected", "Cancelled"],
-  Sample_Collection_Requested: ["Sample_Collected", "Cancelled"],
-  Sample_Collected: ["In_Progress", "Cancelled"],
-  In_Progress: ["Result_Uploaded", "Cancelled"],
-  Result_Uploaded: ["Completed"],
-  Completed: [],
-  Rejected: [],
-  Cancelled: [],
-};
 
 const toCanonicalStatus = (status?: string | null) => {
   return normalizeLabOrderStatus(status);
@@ -187,12 +162,6 @@ const resolveReviewedOrderStatus = (
   return sampleCollectionRequired !== false ? "Sample_Collection_Requested" : "In_Progress";
 };
 
-const getStatusOptions = (status?: string | null) => {
-  const currentStatus = toCanonicalStatus(status) as CanonicalLabOrderStatus | "";
-  if (!currentStatus) return [];
-  return STATUS_TRANSITION_MAP[currentStatus] ?? [];
-};
-
 const DetailRow = ({ label, value }: { label: string; value?: string | null }) => (
   <div className="rounded-lg border bg-muted/20 p-4">
     <p className="text-sm text-muted-foreground">{label}</p>
@@ -219,6 +188,19 @@ const createDefaultValues = (): UploadLabResultValue[] =>
       status: "",
     };
   });
+
+type LabOrderDetailLocationState = {
+  fromPath?: string;
+  fromLabel?: string;
+};
+
+const getFallbackBackLink = (status?: string | null) => {
+  const bucket = getLabWorkflowBucket(status);
+  if (bucket === "inbox") return "/lab/requests";
+  if (bucket === "activeWork") return "/lab/pending";
+  if (bucket === "resultsReady" || bucket === "archive") return "/lab/completed";
+  return "/lab/dashboard";
+};
 
 const LabOrderDetailsPage = () => {
   const { orderId } = useParams();
@@ -257,31 +239,52 @@ const LabOrderDetailsPage = () => {
   const resultStatusLabel = detail?.resultStatus ? formatLabStatusLabel(detail.resultStatus) : null;
   const isReviewed = Boolean(reviewPresentation);
   const timelineSteps = getLabTimelineSteps(detail?.status, detail?.sampleCollectionRequired);
-  const messagingEnabledStatuses = [
-    "Pending",
-    "Sample_Collection_Requested",
-    "Sample_Collected",
-    "In_Progress",
-    "Result_Uploaded",
-  ];
-  const messagingDisabledStatuses = ["Cancelled", "Rejected", "Completed"];
+  const canReviewOrder = canReviewLabOrder(detail?.status);
+  const canUploadResultNow = canUploadLabResult(detail?.status);
+  const statusOptions = getNextLabOrderStatuses(detail?.status);
+  const hasAvailableStatusTransition = statusOptions.length > 0 && !canReviewOrder;
   const canReplyToRequest =
     Boolean(detail?.requestId) &&
-    messagingEnabledStatuses.includes(normalizedStatus) &&
-    !messagingDisabledStatuses.includes(normalizedStatus);
-  const statusOptions = getStatusOptions(detail?.status);
-  const hasAvailableStatusTransition = statusOptions.length > 0;
+    Boolean(detail?.canReply) &&
+    canReplyOnLabOrder(detail?.status);
+
+  const locationState = (location.state as LabOrderDetailLocationState | null) ?? null;
+  const backLink =
+    locationState?.fromPath && locationState.fromPath.startsWith("/lab/")
+      ? locationState.fromPath
+      : getFallbackBackLink(detail?.status);
+  const backLabel = locationState?.fromLabel ? `Back to ${locationState.fromLabel}` : "Back to lab workflow";
+
+  const timelineAuditRows = useMemo(
+    () => [
+      { label: "Requested", value: formatDateTime(detail?.orderedAt) },
+      { label: "Preferred schedule", value: formatDateTime(detail?.scheduledAt) },
+      { label: "Collected", value: formatDateTime(detail?.collectedAt) },
+      { label: "Completed", value: formatDateTime(detail?.completedAt) },
+      { label: "Sample collection", value: sampleCollectionLabel },
+      { label: "Result status", value: resultStatusLabel },
+      { label: "Latest internal note", value: detail?.internalNotes ?? detail?.notes ?? null },
+    ],
+    [
+      detail?.completedAt,
+      detail?.collectedAt,
+      detail?.internalNotes,
+      detail?.notes,
+      detail?.orderedAt,
+      detail?.scheduledAt,
+      resultStatusLabel,
+      sampleCollectionLabel,
+    ],
+  );
 
   useEffect(() => {
     if (!detail) return;
-
-    const nextStatuses = getStatusOptions(detail.status);
-    setStatus(nextStatuses[0] ?? "");
+    setStatus(statusOptions[0] ?? "");
     setStatusNotes(detail.internalNotes ?? detail.notes ?? "");
     setReviewMessage(detail.notes ?? "");
     setReferenceNumber(detail.resultId ?? detail.orderNumber ?? "");
     setResultNotes(detail.internalNotes ?? "");
-  }, [detail]);
+  }, [detail, statusOptions]);
 
   const handleValueChange = (
     index: number,
@@ -440,17 +443,13 @@ const LabOrderDetailsPage = () => {
           setResultNotes("");
           setResultFile(null);
           setValues(createDefaultValues());
+          void detailsQuery.refetch();
         },
         onError: (error: Error) => toast.error(error.message),
       },
     );
   };
   const isUploading = uploadResultMutation.isPending;
-
-  const backLink = location.pathname.startsWith("/lab/requests") ? "/lab/requests" : "/lab/pending";
-  const backLabel = location.pathname.startsWith("/lab/requests")
-    ? "Back to requests"
-    : "Back to lab workflow";
 
   return (
     <DashboardLayout
@@ -497,7 +496,7 @@ const LabOrderDetailsPage = () => {
               <div className="space-y-3">
                 <div className="flex flex-wrap items-center gap-3">
                   <h2 className="text-2xl font-semibold">{detail.patientName}</h2>
-                  <Badge className={getStatusClassName(detail.status)}>
+                  <Badge className={getLabStatusBadgeClassName(detail.status)}>
                     {formatLabStatusLabel(detail.status)}
                   </Badge>
                   {isResultReadyStatus(detail.status) ? (
@@ -539,20 +538,20 @@ const LabOrderDetailsPage = () => {
                 <p className="text-sm text-muted-foreground">
                   {detail.testName}
                   {detail.orderingDoctor?.fullName || detail.orderingDoctorName
-                    ? ` • Ordered by ${detail.orderingDoctor?.fullName || detail.orderingDoctorName}`
+                    ? ` - Ordered by ${detail.orderingDoctor?.fullName || detail.orderingDoctorName}`
                     : ""}
                 </p>
               </div>
             </CardContent>
           </Card>
 
-          <JourneyTimeline title="Journey" steps={timelineSteps} />
+          <JourneyTimeline title="Workflow Progress" steps={timelineSteps} />
 
           <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
             <div className="space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Request Snapshot</CardTitle>
+                  <CardTitle>Order Summary</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid gap-4 md:grid-cols-2">
@@ -621,11 +620,42 @@ const LabOrderDetailsPage = () => {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <CalendarClock className="h-5 w-5" />
-                    Step 1: Review Request
+                    Decision
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {isReviewed && reviewPresentation ? (
+                  {canReviewOrder ? (
+                    <>
+                      <p className="text-sm text-muted-foreground">
+                        This order is in Inbox and requires an approve or reject decision.
+                      </p>
+                      <div className="space-y-2">
+                        <Label htmlFor="reviewMessage">Message to patient</Label>
+                        <Textarea
+                          id="reviewMessage"
+                          value={reviewMessage}
+                          onChange={(event) => setReviewMessage(event.target.value)}
+                          placeholder="Optional approval or rejection note"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          This note is sent with the decision.
+                        </p>
+                      </div>
+
+                      <div className="flex flex-col gap-2">
+                        <Button onClick={() => submitReview("approve")} disabled={reviewMutation.isPending}>
+                          {reviewMutation.isPending ? "Saving..." : "Approve request"}
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          onClick={() => submitReview("reject")}
+                          disabled={reviewMutation.isPending}
+                        >
+                          {reviewMutation.isPending ? "Saving..." : "Reject request"}
+                        </Button>
+                      </div>
+                    </>
+                  ) : reviewPresentation ? (
                     <div
                       className={`flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 text-sm ${
                         reviewPresentation.tone === "success"
@@ -650,56 +680,15 @@ const LabOrderDetailsPage = () => {
                       <span>{reviewPresentation.description}</span>
                     </div>
                   ) : (
-                    <>
-                      <div className="space-y-2">
-                        <Label htmlFor="reviewMessage">Message to patient</Label>
-                        <Textarea
-                          id="reviewMessage"
-                          value={reviewMessage}
-                          onChange={(event) => setReviewMessage(event.target.value)}
-                          placeholder="Optional approval or rejection note"
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          This message is sent with the review decision. The shared thread stays separate below.
-                        </p>
-                      </div>
-
-                      <div className="flex flex-col gap-2">
-                        <Button onClick={() => submitReview("approve")} disabled={reviewMutation.isPending}>
-                          {reviewMutation.isPending ? "Saving..." : "Approve request"}
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          onClick={() => submitReview("reject")}
-                          disabled={reviewMutation.isPending}
-                        >
-                          {reviewMutation.isPending ? "Saving..." : "Reject request"}
-                        </Button>
-                      </div>
-                    </>
+                    <p className="text-sm text-muted-foreground">
+                      Decision state is already set to {formatLabStatusLabel(detail.status)}.
+                    </p>
                   )}
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <User className="h-5 w-5" />
-                    Follow-up
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <Button asChild className="w-full" variant="outline">
-                    <Link to="/lab/completed">View results history</Link>
-                  </Button>
-                  <Button asChild className="w-full" variant="outline">
-                    <Link to="/lab/requests">Back to request inbox</Link>
-                  </Button>
-                </CardContent>
-              </Card>
-
               <SectionCard
-                title="Messages"
+                title="Communication"
                 description="Shared messages with the patient for this request."
               >
                 <div className="space-y-4">
@@ -745,7 +734,7 @@ const LabOrderDetailsPage = () => {
             {hasAvailableStatusTransition ? (
               <Card>
                 <CardHeader>
-                  <CardTitle>Step 2: Update Status</CardTitle>
+                  <CardTitle>Workflow Progress</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
@@ -778,16 +767,16 @@ const LabOrderDetailsPage = () => {
                   </div>
 
                   <Button onClick={submitStatusUpdate} disabled={updateStatusMutation.isPending || !status}>
-                    <Save className="mr-2 h-4 w-4" />
-                    {updateStatusMutation.isPending ? "Saving..." : "Update status"}
+                    {updateStatusMutation.isPending ? "Saving..." : "Update workflow step"}
                   </Button>
                 </CardContent>
               </Card>
             ) : null}
 
-            <Card>
+            {canUploadResultNow ? (
+              <Card>
               <CardHeader>
-                <CardTitle>Step 3: Upload Results</CardTitle>
+                <CardTitle>Result Upload</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid gap-4 md:grid-cols-2">
@@ -851,7 +840,7 @@ const LabOrderDetailsPage = () => {
                           />
                           {resolveHeartMeasurementDefaults(item.name) ? (
                             <p className="text-xs text-muted-foreground">
-                              {resolveHeartMeasurementDefaults(item.name)?.schema.label} —{" "}
+                              {resolveHeartMeasurementDefaults(item.name)?.schema.label} -{" "}
                               {resolveHeartMeasurementDefaults(item.name)?.schema.description}
                             </p>
                           ) : null}
@@ -965,8 +954,29 @@ const LabOrderDetailsPage = () => {
                   </Alert>
                 ) : null}
               </CardContent>
-            </Card>
+              </Card>
+            ) : normalizedStatus === "Result_Uploaded" || normalizedStatus === "Completed" ? (
+              <Alert>
+                <AlertTitle>Result upload complete</AlertTitle>
+                <AlertDescription>
+                  This order already has an uploaded result and is currently {formatLabStatusLabel(detail.status)}.
+                </AlertDescription>
+              </Alert>
+            ) : null}
           </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Timeline / Audit</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-2">
+                {timelineAuditRows.map((row) => (
+                  <DetailRow key={row.label} label={row.label} value={row.value} />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       ) : (
         <Card>
@@ -980,4 +990,6 @@ const LabOrderDetailsPage = () => {
 };
 
 export default LabOrderDetailsPage;
+
+
 
