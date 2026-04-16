@@ -4,7 +4,6 @@ import {
   LabOrdersFilterParams,
   LabResultsFilterParams,
   ReviewLabOrderRequest,
-  SampleCollectionRequestFilterParams,
   SendLabOrderMessageRequest,
   UpdateLabOrderStatusRequest,
   UploadLabResultRequest,
@@ -23,31 +22,16 @@ export const labWorkflowQueryKeys = {
   all: ["lab-workflow"] as const,
   orders: (params?: LabOrdersFilterParams) =>
     ["lab-workflow", "orders", normalizeListParams(params)] as const,
-  pendingOrders: (params?: LabOrdersFilterParams) =>
-    ["lab-workflow", "orders", "pending", normalizeListParams(params)] as const,
   orderDetails: (orderId: string) =>
     ["lab-workflow", "orders", "detail", orderId] as const,
   results: (params?: LabResultsFilterParams) =>
     ["lab-workflow", "results", normalizeListParams(params)] as const,
-  sampleCollectionRequests: (params?: SampleCollectionRequestFilterParams) =>
-    ["lab-workflow", "sample-collection-requests", normalizeListParams(params)] as const,
 };
 
 export const useLabOrdersQuery = (params?: LabOrdersFilterParams, enabled = true) =>
   useQuery({
     queryKey: labWorkflowQueryKeys.orders(params),
     queryFn: () => labWorkflowService.getLabOrders(params),
-    enabled,
-    placeholderData: (previousData) => previousData,
-  });
-
-export const usePendingLabOrdersQuery = (
-  params?: LabOrdersFilterParams,
-  enabled = true,
-) =>
-  useQuery({
-    queryKey: labWorkflowQueryKeys.pendingOrders(params),
-    queryFn: () => labWorkflowService.getPendingLabOrders(params),
     enabled,
     placeholderData: (previousData) => previousData,
   });
@@ -107,7 +91,6 @@ export const useLabOrderMessageMutation = (requestId: string) => {
       labWorkflowService.sendLabOrderMessage(requestId, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: labWorkflowQueryKeys.orders() });
-      queryClient.invalidateQueries({ queryKey: labWorkflowQueryKeys.pendingOrders() });
       queryClient.invalidateQueries({ queryKey: ["lab-workflow", "orders", "detail"] });
     },
   });
@@ -139,17 +122,6 @@ export const useLabResultsQuery = (params?: LabResultsFilterParams, enabled = tr
   useQuery({
     queryKey: labWorkflowQueryKeys.results(params),
     queryFn: () => labWorkflowService.getLabResults(params),
-    enabled,
-    placeholderData: (previousData) => previousData,
-  });
-
-export const useSampleCollectionRequestsQuery = (
-  params?: SampleCollectionRequestFilterParams,
-  enabled = true,
-) =>
-  useQuery({
-    queryKey: labWorkflowQueryKeys.sampleCollectionRequests(params),
-    queryFn: () => labWorkflowService.getSampleCollectionRequests(params),
     enabled,
     placeholderData: (previousData) => previousData,
   });

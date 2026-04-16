@@ -3,10 +3,6 @@ import type { CanonicalLabOrderStatus } from "@/lib/labStatus";
 
 export type OfficialLabOrderStatus = CanonicalLabOrderStatus;
 
-export type LegacyLabOrderStatus = "Assigned_To_Doctor";
-
-export type LabOrderStatusInput = OfficialLabOrderStatus | LegacyLabOrderStatus;
-
 export interface PaginatedResponse<T> {
   data: T[];
   page: number;
@@ -26,7 +22,7 @@ export interface BaseLabWorkflowFilterParams {
 }
 
 export interface LabOrdersFilterParams extends BaseLabWorkflowFilterParams {
-  status?: string | string[];
+  status?: OfficialLabOrderStatus | OfficialLabOrderStatus[];
   category?: string;
   priority?: string;
   orderedFrom?: string;
@@ -34,18 +30,11 @@ export interface LabOrdersFilterParams extends BaseLabWorkflowFilterParams {
 }
 
 export interface LabResultsFilterParams extends BaseLabWorkflowFilterParams {
-  status?: string;
+  status?: OfficialLabOrderStatus;
   category?: string;
   resultFrom?: string;
   resultTo?: string;
   orderId?: string;
-}
-
-export interface SampleCollectionRequestFilterParams extends BaseLabWorkflowFilterParams {
-  status?: string;
-  priority?: string;
-  requestedFrom?: string;
-  requestedTo?: string;
 }
 
 export interface LabOrderPatientSummary {
@@ -116,14 +105,14 @@ export interface LabOrderDetails extends LabOrder {
   service?: LabOrderServiceSummary | null;
   services?: LabOrderRequestedService[];
   resultId?: string | null;
-  resultStatus?: string | null;
+  resultStatus?: OfficialLabOrderStatus | null;
   diagnosis?: string | null;
   specimenType?: string | null;
   specimenNotes?: string | null;
   internalNotes?: string | null;
   sampleCollectionRequired?: boolean;
   sampleCollectionRequested?: boolean;
-  sampleCollectionStatus?: string | null;
+  sampleCollectionStatus?: OfficialLabOrderStatus | null;
   sampleCollectionAddress?: string | null;
   canReply: boolean;
   messages: RequestMessage[];
@@ -191,17 +180,3 @@ export interface LabResult {
   values: LabResultValue[];
 }
 
-export interface SampleCollectionRequest {
-  id: string;
-  orderId?: string | null;
-  orderNumber?: string | null;
-  patientName: string;
-  patientPhone?: string | null;
-  testName: string;
-  status: OfficialLabOrderStatus;
-  priority?: string | null;
-  requestedAt?: string | null;
-  scheduledAt?: string | null;
-  address?: string | null;
-  notes?: string | null;
-}
