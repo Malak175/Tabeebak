@@ -202,6 +202,35 @@ const getFallbackBackLink = (status?: string | null) => {
   return "/lab/dashboard";
 };
 
+const getWorkflowActionHint = (status?: string | null, sampleCollectionRequired?: boolean) => {
+  const canonical = toCanonicalStatus(status);
+  if (canonical === "Pending") {
+    return "This order is in Inbox. Approve to start Active Work, or reject if it cannot be processed.";
+  }
+  if (canonical === "Sample_Collection_Requested") {
+    return "Collection is pending. Move to Sample Collected once the specimen is received.";
+  }
+  if (canonical === "Sample_Collected") {
+    return "Collection is complete. Move to In Progress when processing starts.";
+  }
+  if (canonical === "In_Progress") {
+    return "Processing is active. Upload the result to move this order into Results Ready.";
+  }
+  if (canonical === "Result_Uploaded") {
+    return "Result upload is complete. Move this order to Completed when hand-off is confirmed.";
+  }
+  if (canonical === "Completed") {
+    return "Workflow complete. This order is now in Archive.";
+  }
+  if (canonical === "Cancelled" || canonical === "Rejected") {
+    return "Workflow closed. No further workflow actions are available.";
+  }
+  if (sampleCollectionRequired === false) {
+    return "No sample collection is required for this order.";
+  }
+  return "Review and continue this order through the official workflow.";
+};
+
 const LabOrderDetailsPage = () => {
   const { orderId } = useParams();
   const location = useLocation();
@@ -209,7 +238,7 @@ const LabOrderDetailsPage = () => {
   const profileQuery = useLabProfileQuery(Boolean(user));
   const detailsQuery = useLabOrderDetailsQuery(orderId, Boolean(user));
   const reviewMutation = useReviewLabOrderMutation();
-  const messageMutation = useLabOrderMessageMutation(detailsQuery.data?.requestId ?? "");
+  const messageMutation = useLabOrderMessageMutation(detailsQuery.data?.requestId ?? "", orderId);
   const updateStatusMutation = useUpdateLabOrderStatusMutation();
   const uploadResultMutation = useUploadLabOrderResultMutation();
   const userName = getDisplayName(profileQuery.data ?? user ?? {});
@@ -219,7 +248,6 @@ const LabOrderDetailsPage = () => {
   const [reviewMessage, setReviewMessage] = useState("");
   const [reply, setReply] = useState("");
   const [replyError, setReplyError] = useState<string | null>(null);
-  const [referenceNumber, setReferenceNumber] = useState("");
   const [summary, setSummary] = useState("");
   const [conclusion, setConclusion] = useState("");
   const [resultNotes, setResultNotes] = useState("");
@@ -237,12 +265,11 @@ const LabOrderDetailsPage = () => {
     ? formatLabStatusLabel(detail.sampleCollectionStatus)
     : null;
   const resultStatusLabel = detail?.resultStatus ? formatLabStatusLabel(detail.resultStatus) : null;
-  const isReviewed = Boolean(reviewPresentation);
   const timelineSteps = getLabTimelineSteps(detail?.status, detail?.sampleCollectionRequired);
   const canReviewOrder = canReviewLabOrder(detail?.status);
   const canUploadResultNow = canUploadLabResult(detail?.status);
   const statusOptions = getNextLabOrderStatuses(detail?.status);
-  const hasAvailableStatusTransition = statusOptions.length > 0 && !canReviewOrder;
+  const hasAvailableStatusTransition = statusOptions.length > 0 && !canReviewOrder && !canUploadResultNow;
   const canReplyToRequest =
     Boolean(detail?.requestId) &&
     Boolean(detail?.canReply) &&
@@ -254,14 +281,15 @@ const LabOrderDetailsPage = () => {
       ? locationState.fromPath
       : getFallbackBackLink(detail?.status);
   const backLabel = locationState?.fromLabel ? `Back to ${locationState.fromLabel}` : "Back to lab workflow";
+  const workflowActionHint = getWorkflowActionHint(detail?.status, detail?.sampleCollectionRequired);
 
   const timelineAuditRows = useMemo(
     () => [
-      { label: "Requested", value: formatDateTime(detail?.orderedAt) },
+      { label: "Order received", value: formatDateTime(detail?.orderedAt) },
       { label: "Preferred schedule", value: formatDateTime(detail?.scheduledAt) },
-      { label: "Collected", value: formatDateTime(detail?.collectedAt) },
-      { label: "Completed", value: formatDateTime(detail?.completedAt) },
-      { label: "Sample collection", value: sampleCollectionLabel },
+      { label: "Sample collected", value: formatDateTime(detail?.collectedAt) },
+      { label: "Workflow closed", value: formatDateTime(detail?.completedAt) },
+      { label: "Sample collection status", value: sampleCollectionLabel },
       { label: "Result status", value: resultStatusLabel },
       { label: "Latest internal note", value: detail?.internalNotes ?? detail?.notes ?? null },
     ],
@@ -282,7 +310,6 @@ const LabOrderDetailsPage = () => {
     setStatus(statusOptions[0] ?? "");
     setStatusNotes(detail.internalNotes ?? detail.notes ?? "");
     setReviewMessage(detail.notes ?? "");
-    setReferenceNumber(detail.resultId ?? detail.orderNumber ?? "");
     setResultNotes(detail.internalNotes ?? "");
   }, [detail, statusOptions]);
 
@@ -354,7 +381,10 @@ const LabOrderDetailsPage = () => {
         },
       },
       {
-        onSuccess: () => toast.success("Order status updated successfully."),
+        onSuccess: () => {
+          toast.success("Workflow step updated.");
+          void detailsQuery.refetch();
+        },
         onError: (error: Error) => toast.error(error.message),
       },
     );
@@ -469,7 +499,7 @@ const LabOrderDetailsPage = () => {
           </Button>
           <h1 className="text-2xl font-bold md:text-3xl">Lab Request Details</h1>
           <p className="text-muted-foreground">
-            Review the full patient request, manage the shared thread, and continue the lab workflow.
+            Continue this order through Inbox, Active Work, Results Ready, and Archive.
           </p>
         </div>
       </div>
@@ -505,31 +535,6 @@ const LabOrderDetailsPage = () => {
                   {detail.service?.sampleType ? <Badge variant="outline">{detail.service.sampleType}</Badge> : null}
                   {detail.service?.category ? <Badge variant="outline">{detail.service.category}</Badge> : null}
                 </div>
-                {reviewPresentation ? (
-                  <div
-                    className={`flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 text-sm ${
-                      reviewPresentation.tone === "success"
-                        ? "border-green-200 bg-green-50/80 text-green-800"
-                        : "border-red-200 bg-red-50/80 text-red-700"
-                    }`}
-                  >
-                    {reviewPresentation.tone === "success" ? (
-                      <CheckCircle2 className="h-4 w-4" />
-                    ) : (
-                      <XCircle className="h-4 w-4" />
-                    )}
-                    <Badge
-                      className={`border-transparent ${
-                        reviewPresentation.tone === "success"
-                          ? "bg-green-600 text-white"
-                          : "bg-red-600 text-white"
-                      }`}
-                    >
-                      {reviewPresentation.label}
-                    </Badge>
-                    <span>{reviewPresentation.description}</span>
-                  </div>
-                ) : null}
                 <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                   <span>Requested: {formatDateTime(detail.orderedAt)}</span>
                   <span>Preferred: {formatDateTime(detail.scheduledAt)}</span>
@@ -546,6 +551,15 @@ const LabOrderDetailsPage = () => {
           </Card>
 
           <JourneyTimeline title="Workflow Progress" steps={timelineSteps} />
+
+          <Card className="border-primary/25">
+            <CardHeader>
+              <CardTitle>Next Workflow Action</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">{workflowActionHint}</p>
+            </CardContent>
+          </Card>
 
           <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
             <div className="space-y-6">
@@ -644,7 +658,7 @@ const LabOrderDetailsPage = () => {
 
                       <div className="flex flex-col gap-2">
                         <Button onClick={() => submitReview("approve")} disabled={reviewMutation.isPending}>
-                          {reviewMutation.isPending ? "Saving..." : "Approve request"}
+                          {reviewMutation.isPending ? "Saving..." : "Approve and start workflow"}
                         </Button>
                         <Button
                           variant="destructive"
@@ -767,7 +781,9 @@ const LabOrderDetailsPage = () => {
                   </div>
 
                   <Button onClick={submitStatusUpdate} disabled={updateStatusMutation.isPending || !status}>
-                    {updateStatusMutation.isPending ? "Saving..." : "Update workflow step"}
+                    {updateStatusMutation.isPending
+                      ? "Saving..."
+                      : `Move to ${status ? formatLabStatusLabel(status) : "next step"}`}
                   </Button>
                 </CardContent>
               </Card>
@@ -779,19 +795,6 @@ const LabOrderDetailsPage = () => {
                 <CardTitle>Result Upload</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="referenceNumber">Result reference</Label>
-                    <Input
-                      id="referenceNumber"
-                      value={referenceNumber}
-                      onChange={(event) => setReferenceNumber(event.target.value)}
-                      placeholder="Optional result number"
-                      disabled={isUploading}
-                    />
-                  </div>
-                </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="summary">Summary</Label>
                   <Textarea
@@ -949,7 +952,7 @@ const LabOrderDetailsPage = () => {
                   <Alert>
                     <AlertTitle>Result uploaded</AlertTitle>
                     <AlertDescription>
-                      The result is now available in history and ready for downstream analysis.
+                      This order is now in Results Ready. Move it to Completed after final hand-off.
                     </AlertDescription>
                   </Alert>
                 ) : null}
@@ -980,8 +983,11 @@ const LabOrderDetailsPage = () => {
         </div>
       ) : (
         <Card>
-          <CardContent className="p-8 text-center text-muted-foreground">
-            No order details were returned for this record.
+          <CardContent className="space-y-3 p-8 text-center text-muted-foreground">
+            <p>No order details were returned for this record.</p>
+            <Button variant="outline" size="sm" onClick={() => void detailsQuery.refetch()}>
+              Retry
+            </Button>
           </CardContent>
         </Card>
       )}
