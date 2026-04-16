@@ -1090,4 +1090,20 @@ export const patientService = {
 
     return normalizeLabResult(response);
   },
+
+  getPatientLabResultPrediction: async (resultId: string): Promise<unknown> =>
+    apiRequest<unknown>(`/api/v1/patients/me/lab-results/${resultId}/predictions`, {
+      method: "GET",
+      auth: true,
+    }),
+
+  runPatientLabResultPrediction: async (
+    resultId: string,
+    payload: { age: number; gender: string },
+  ): Promise<unknown> =>
+    apiRequest<unknown>(`/api/v1/patients/me/lab-results/${resultId}/predict`, {
+      method: "POST",
+      auth: true,
+      body: payload,
+    }),
 };
