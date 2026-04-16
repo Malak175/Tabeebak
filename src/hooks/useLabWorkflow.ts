@@ -22,8 +22,10 @@ export const labWorkflowQueryKeys = {
   all: ["lab-workflow"] as const,
   orders: (params?: LabOrdersFilterParams) =>
     ["lab-workflow", "orders", normalizeListParams(params)] as const,
+  ordersRoot: () => ["lab-workflow", "orders"] as const,
   orderDetails: (orderId: string) =>
     ["lab-workflow", "orders", "detail", orderId] as const,
+  orderDetailsRoot: () => ["lab-workflow", "orders", "detail"] as const,
   results: (params?: LabResultsFilterParams) =>
     ["lab-workflow", "results", normalizeListParams(params)] as const,
 };
@@ -83,15 +85,20 @@ export const useReviewLabOrderMutation = () => {
   });
 };
 
-export const useLabOrderMessageMutation = (requestId: string) => {
+export const useLabOrderMessageMutation = (requestId: string, orderId?: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (payload: SendLabOrderMessageRequest) =>
       labWorkflowService.sendLabOrderMessage(requestId, payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: labWorkflowQueryKeys.orders() });
-      queryClient.invalidateQueries({ queryKey: ["lab-workflow", "orders", "detail"] });
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: labWorkflowQueryKeys.ordersRoot() }),
+        queryClient.invalidateQueries({ queryKey: labWorkflowQueryKeys.orderDetailsRoot() }),
+        ...(orderId
+          ? [queryClient.invalidateQueries({ queryKey: labWorkflowQueryKeys.orderDetails(orderId) })]
+          : []),
+      ]);
     },
   });
 };
