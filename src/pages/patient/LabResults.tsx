@@ -18,25 +18,13 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName } from "@/lib/auth";
 import { formatDisplayDate } from "@/lib/date-time";
+import {
+  formatLabStatusLabel,
+  getLabStatusBadgeClassName,
+  isPatientResultVisibleStatus,
+} from "@/lib/labStatus";
 
 const formatDate = (value?: string | null) => formatDisplayDate(value);
-
-const getStatusClassName = (status?: string | null) => {
-  switch ((status ?? "").toLowerCase()) {
-    case "completed":
-    case "final":
-    case "ready":
-      return "bg-green-100 text-green-700 border-green-200";
-    case "pending":
-    case "processing":
-      return "bg-yellow-100 text-yellow-700 border-yellow-200";
-    case "cancelled":
-    case "canceled":
-      return "bg-red-100 text-red-700 border-red-200";
-    default:
-      return "bg-muted text-muted-foreground border-border";
-  }
-};
 
 const RecordCardSkeleton = () => (
   <Card>
@@ -85,6 +73,12 @@ const PatientLabResults = () => {
   const resultsQuery = usePatientLabResultsQuery(resultsFilters, enabled);
   const ordersQuery = usePatientLabOrdersQuery(ordersFilters, enabled);
   const userName = getDisplayName(user ?? {});
+  const visibleResults = useMemo(
+    () => (resultsQuery.data?.data ?? []).filter((result) => isPatientResultVisibleStatus(result.status)),
+    [resultsQuery.data?.data],
+  );
+  const hiddenResultsCount = (resultsQuery.data?.data.length ?? 0) - visibleResults.length;
+
   const resolveResultId = (result: Record<string, unknown>) => {
     const topLevel =
       (result.id as string | undefined) ||
@@ -118,15 +112,6 @@ const PatientLabResults = () => {
 
     return "";
   };
-
-  if (resultsQuery.data?.data?.length) {
-    const first = resultsQuery.data.data[0] as unknown as Record<string, unknown>;
-    const resolvedId = resolveResultId(first);
-    const route = `/patient/lab-results/${resolvedId}`;
-    console.warn("[LabResults][First Rendered Item]", first);
-    console.warn("[LabResults][First Resolved Id]", resolvedId);
-    console.warn("[LabResults][First Route]", route);
-  }
 
   return (
     <DashboardLayout
@@ -169,9 +154,16 @@ const PatientLabResults = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All statuses</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="processing">Processing</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="Pending">{formatLabStatusLabel("Pending")}</SelectItem>
+              <SelectItem value="Sample_Collection_Requested">
+                {formatLabStatusLabel("Sample_Collection_Requested")}
+              </SelectItem>
+              <SelectItem value="Sample_Collected">{formatLabStatusLabel("Sample_Collected")}</SelectItem>
+              <SelectItem value="In_Progress">{formatLabStatusLabel("In_Progress")}</SelectItem>
+              <SelectItem value="Result_Uploaded">{formatLabStatusLabel("Result_Uploaded")}</SelectItem>
+              <SelectItem value="Completed">{formatLabStatusLabel("Completed")}</SelectItem>
+              <SelectItem value="Rejected">{formatLabStatusLabel("Rejected")}</SelectItem>
+              <SelectItem value="Cancelled">{formatLabStatusLabel("Cancelled")}</SelectItem>
             </SelectContent>
           </Select>
           <Button
@@ -204,17 +196,27 @@ const PatientLabResults = () => {
           ) : resultsQuery.isError ? (
             <Alert variant="destructive">
               <AlertTitle>Unable to load lab results</AlertTitle>
-              <AlertDescription>{(resultsQuery.error as Error).message}</AlertDescription>
+              <AlertDescription>
+                {(resultsQuery.error as Error).message}
+                <Button variant="outline" size="sm" className="mt-3" onClick={() => void resultsQuery.refetch()}>
+                  Retry
+                </Button>
+              </AlertDescription>
             </Alert>
-          ) : resultsQuery.data?.data.length ? (
+          ) : visibleResults.length ? (
             <>
+              {hiddenResultsCount > 0 ? (
+                <Alert>
+                  <AlertTitle>Some results are not visible yet</AlertTitle>
+                  <AlertDescription>
+                    {hiddenResultsCount} result record(s) are hidden until the related order reaches Completed.
+                  </AlertDescription>
+                </Alert>
+              ) : null}
               <div className="grid gap-4">
-                {resultsQuery.data.data.map((result) => {
+                {visibleResults.map((result) => {
                   const resolvedId = resolveResultId(result as unknown as Record<string, unknown>);
                   const route = `/patient/lab-results/${resolvedId}`;
-                  console.warn("[LabResults][Rendered Item]", result);
-                  console.warn("[LabResults][Resolved Id]", resolvedId);
-                  console.warn("[LabResults][Route]", route);
 
                   return (
                   <Card key={result.id}>
@@ -225,7 +227,9 @@ const PatientLabResults = () => {
                       <div className="flex-1 space-y-2">
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className="text-lg font-semibold">{result.testName}</h3>
-                          <Badge className={getStatusClassName(result.status)}>{result.status}</Badge>
+                          <Badge className={getLabStatusBadgeClassName(result.status)}>
+                            {formatLabStatusLabel(result.status)}
+                          </Badge>
                           {result.isAbnormal ? <Badge variant="destructive">Abnormal</Badge> : null}
                         </div>
                         <p className="text-sm text-muted-foreground">
@@ -239,13 +243,9 @@ const PatientLabResults = () => {
                       <div className="flex flex-wrap gap-2">
                         <Button
                           variant="outline"
+                          disabled={!resolvedId}
                           onClick={() => {
-                            console.warn("[LabResults][Details Click] Result:", result);
-                            console.warn("[LabResults][Details Click] Resolved Id:", resolvedId);
-                            if (!resolvedId) {
-                              console.warn("[LabResults][Details Click] Missing result id; not navigating.");
-                              return;
-                            }
+                            if (!resolvedId) return;
                             navigate(route);
                           }}
                         >
@@ -269,7 +269,7 @@ const PatientLabResults = () => {
               <div className="flex flex-col gap-3 rounded-lg border bg-card p-4 md:flex-row md:items-center md:justify-between">
                 <p className="text-sm text-muted-foreground">
                   Page {resultsQuery.data.page} of {resultsQuery.data.totalPages} with{" "}
-                  {resultsQuery.data.total} total results
+                  {visibleResults.length} visible completed result(s)
                 </p>
                 <div className="flex gap-2">
                   <Button
@@ -292,7 +292,7 @@ const PatientLabResults = () => {
           ) : (
             <Card>
               <CardContent className="p-8 text-center text-muted-foreground">
-                No lab results matched your current filters.
+                No completed lab results matched your current filters.
               </CardContent>
             </Card>
           )}
@@ -308,7 +308,12 @@ const PatientLabResults = () => {
           ) : ordersQuery.isError ? (
             <Alert variant="destructive">
               <AlertTitle>Unable to load lab orders</AlertTitle>
-              <AlertDescription>{(ordersQuery.error as Error).message}</AlertDescription>
+              <AlertDescription>
+                {(ordersQuery.error as Error).message}
+                <Button variant="outline" size="sm" className="mt-3" onClick={() => void ordersQuery.refetch()}>
+                  Retry
+                </Button>
+              </AlertDescription>
             </Alert>
           ) : ordersQuery.data?.data.length ? (
             <>
@@ -322,7 +327,9 @@ const PatientLabResults = () => {
                       <div className="flex-1 space-y-2">
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className="text-lg font-semibold">{order.testName}</h3>
-                          <Badge className={getStatusClassName(order.status)}>{order.status}</Badge>
+                          <Badge className={getLabStatusBadgeClassName(order.status)}>
+                            {formatLabStatusLabel(order.status)}
+                          </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">
                           {order.category || "Uncategorized"} • Ordered on {formatDate(order.orderedAt)}

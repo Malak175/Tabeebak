@@ -804,14 +804,6 @@ const normalizeLabResult = (payload: unknown): LabResult => {
       "laboratory_result_id",
     ]);
 
-  if (idValue === undefined) {
-    console.warn("[Normalizer] Raw item:", raw);
-    console.warn("[Normalizer] Resolved id:", idValue);
-  } else {
-    console.warn("[Normalizer] Raw item:", raw);
-    console.warn("[Normalizer] Resolved id:", idValue);
-  }
-
   const doctorFollowUpSummary = {
     exists: pickBoolean(doctorFollowUpRecord, ["exists", "hasFollowUp", "has_follow_up"]) ?? null,
     requestId:
@@ -1087,10 +1079,7 @@ export const patientService = {
       auth: true,
     });
 
-    console.warn("[LabResults][Raw API Response]", response);
-    const normalized = normalizePaginatedResponse(response, normalizeLabResult);
-    console.warn("[LabResults][Normalized Response]", normalized);
-    return normalized;
+    return normalizePaginatedResponse(response, normalizeLabResult);
   },
 
   getPatientLabResultById: async (resultId: string): Promise<LabResult> => {

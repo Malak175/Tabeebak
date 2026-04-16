@@ -22,6 +22,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName } from "@/lib/auth";
 import { formatDisplayDateTime } from "@/lib/date-time";
+import { formatLabStatusLabel, getLabStatusBadgeClassName } from "@/lib/labStatus";
 import { cn } from "@/lib/utils";
 
 const formatNumber = (value: number | null | undefined, digits = 1) => {
@@ -542,8 +543,8 @@ const PatientDashboard = () => {
                           {result.laboratoryName || "Lab pending"} • {formatDate(result.reportedAt)}
                         </p>
                       </div>
-                      <Badge variant="outline" className="capitalize">
-                        {result.status}
+                      <Badge className={getLabStatusBadgeClassName(result.status)}>
+                        {formatLabStatusLabel(result.status)}
                       </Badge>
                     </div>
                   ))

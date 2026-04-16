@@ -26,6 +26,11 @@ import { ApiError } from "@/types/api.types";
 import { formatDisplayDateTime } from "@/lib/date-time";
 import { resolveHeartMeasurementDefaults } from "@/lib/heartMeasurementSchema";
 import { computeMeasurementStatus } from "@/lib/measurementStatus";
+import {
+  formatLabStatusLabel,
+  getLabStatusBadgeClassName,
+  isPatientResultVisibleStatus,
+} from "@/lib/labStatus";
 
 type LabPrediction = {
   riskLevel?: string | null;
@@ -35,20 +40,6 @@ type LabPrediction = {
 };
 
 const formatDate = (value?: string | null) => formatDisplayDateTime(value);
-
-const getStatusClassName = (status?: string | null) => {
-  switch ((status ?? "").toLowerCase()) {
-    case "completed":
-    case "final":
-    case "ready":
-      return "bg-green-100 text-green-700 border-green-200";
-    case "pending":
-    case "processing":
-      return "bg-yellow-100 text-yellow-700 border-yellow-200";
-    default:
-      return "bg-muted text-muted-foreground border-border";
-  }
-};
 
 const DetailRow = ({ label, value }: { label: string; value?: string | null }) => (
   <div className="rounded-lg border p-4">
@@ -110,8 +101,6 @@ const normalizePrediction = (payload: unknown): LabPrediction | null => {
     explanation,
     thresholdUsed: Number.isFinite(parsedThreshold) ? parsedThreshold : null,
   };
-  console.warn("[Prediction] Raw response:", payload);
-  console.warn("[Prediction] Normalized thresholdUsed:", normalized.thresholdUsed);
   return normalized;
 };
 
@@ -461,9 +450,22 @@ const PatientLabResultDetails = () => {
       ) : query.isError ? (
         <Alert variant="destructive">
           <AlertTitle>Unable to load lab result details</AlertTitle>
-          <AlertDescription>{(query.error as Error).message}</AlertDescription>
+          <AlertDescription>
+            {(query.error as Error).message}
+            <Button variant="outline" size="sm" className="mt-3" onClick={() => void query.refetch()}>
+              Retry
+            </Button>
+          </AlertDescription>
         </Alert>
       ) : query.data ? (
+        !isPatientResultVisibleStatus(query.data.status) ? (
+          <Alert>
+            <AlertTitle>Result not available yet</AlertTitle>
+            <AlertDescription>
+              This result will appear once the related lab order reaches Completed.
+            </AlertDescription>
+          </Alert>
+        ) : (
         <div className="grid gap-6 lg:grid-cols-[1.25fr_1fr]">
           <div className="space-y-6">
             <Card>
@@ -472,10 +474,12 @@ const PatientLabResultDetails = () => {
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
                     <FlaskConical className="h-5 w-5" />
                   </div>
-                  <CardTitle>{query.data.testName}</CardTitle>
-                  <Badge className={getStatusClassName(query.data.status)}>{query.data.status}</Badge>
-                  {query.data.isAbnormal ? <Badge variant="destructive">Abnormal</Badge> : null}
-                </div>
+                   <CardTitle>{query.data.testName}</CardTitle>
+                   <Badge className={getLabStatusBadgeClassName(query.data.status)}>
+                     {formatLabStatusLabel(query.data.status)}
+                   </Badge>
+                   {query.data.isAbnormal ? <Badge variant="destructive">Abnormal</Badge> : null}
+                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid gap-4 md:grid-cols-2">
@@ -739,6 +743,7 @@ const PatientLabResultDetails = () => {
             </Card>
           </div>
         </div>
+        )
       ) : (
         <Card>
           <CardContent className="p-6 text-center text-muted-foreground">
