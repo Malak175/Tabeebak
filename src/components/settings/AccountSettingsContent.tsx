@@ -205,8 +205,9 @@ export const doctorNavItems = [
 
 export const labNavItems = [
   { title: "Dashboard", url: "/lab/dashboard", icon: Home },
+  { title: "Inbox", url: "/lab/requests", icon: Bell },
   { title: "Active Work", url: "/lab/pending", icon: Clock },
-  { title: "Results & Archive", url: "/lab/completed", icon: CheckCircle },
+  { title: "Results Ready & Archive", url: "/lab/completed", icon: CheckCircle },
   { title: "Settings", url: "/lab/settings", icon: Settings },
   { title: "Help", url: "/lab/help", icon: HelpCircle },
 ];

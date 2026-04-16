@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatLabStatusLabel } from "@/lib/labStatus";
 import {
   useLabDashboardSummaryQuery,
   useLabProfileQuery,
@@ -24,19 +25,10 @@ import {
 import { getDisplayName } from "@/lib/auth";
 
 const formatDateLabel = (value?: string | null) => {
-  if (!value) return "—";
+  if (!value) return "--";
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return value;
   return parsed.toLocaleDateString();
-};
-
-const formatStatusLabel = (value?: string | null) => {
-  if (!value) return "Not specified";
-  return value
-    .replace(/[_-]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .replace(/^\w/, (char) => char.toUpperCase());
 };
 
 const LabDashboard = () => {
@@ -92,25 +84,25 @@ const LabDashboard = () => {
       label: "Pending Tests",
       value: pendingTestsCount,
       icon: Clock,
-      helper: "Awaiting lab action",
+      helper: "Awaiting Inbox decision",
     },
     {
       label: "Completed Today",
       value: completedTestsToday,
       icon: CheckCircle,
-      helper: "Results completed today",
+      helper: "Moved to Archive today",
     },
     {
       label: "Urgent Queue",
       value: urgentTestsCount,
       icon: AlertTriangle,
-      helper: "Urgent tests in queue",
+      helper: "Urgent items across workflow",
     },
     {
       label: "Monthly Throughput",
       value: totalTestsThisMonth,
       icon: Activity,
-      helper: "Total tests this month",
+      helper: "Orders closed this month",
     },
   ];
   const secondaryKpis = [
@@ -210,7 +202,7 @@ const LabDashboard = () => {
               <div>
                 <CardTitle className="text-2xl md:text-3xl">Welcome back, {labName}</CardTitle>
                 <CardDescription className="mt-2">
-                  A focused snapshot of your laboratory operations today.
+                  A focused snapshot of Inbox, Active Work, Results Ready, and Archive.
                 </CardDescription>
               </div>
               <Button asChild variant="outline">
@@ -281,11 +273,11 @@ const LabDashboard = () => {
             <Card className="lg:col-span-2">
               <CardHeader className="flex flex-row items-start justify-between gap-4">
                 <div>
-                  <CardTitle>Recent Activity</CardTitle>
-                  <CardDescription>Latest lab orders and requests coming in.</CardDescription>
+                  <CardTitle>Workflow Snapshot</CardTitle>
+                  <CardDescription>Latest orders across the official workflow.</CardDescription>
                 </div>
                 <Link to="/lab/requests" className="text-sm text-primary hover:underline">
-                  View all
+                  Open Inbox
                 </Link>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -308,7 +300,7 @@ const LabDashboard = () => {
                         (order.requestId ? `#${order.requestId}` : null) ??
                         "Not available";
                       const testLabel = order.testName ?? "Not specified";
-                      const statusLabel = formatStatusLabel(order.status);
+                      const statusLabel = formatLabStatusLabel(order.status);
                       const patientLabel = order.patientName ?? "Not available";
 
                       return (
@@ -414,3 +406,4 @@ const LabDashboard = () => {
 };
 
 export default LabDashboard;
+

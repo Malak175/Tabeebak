@@ -5,6 +5,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import {
   FlaskConical,
+  Bell,
   Clock,
   CheckCircle,
   Home,
@@ -19,32 +20,38 @@ import {
 
 const navItems = [
   { title: "Dashboard", url: "/lab/dashboard", icon: Home },
+  { title: "Inbox", url: "/lab/requests", icon: Bell },
   { title: "Active Work", url: "/lab/pending", icon: Clock },
-  { title: "Results & Archive", url: "/lab/completed", icon: CheckCircle },
+  { title: "Results Ready & Archive", url: "/lab/completed", icon: CheckCircle },
   { title: "Settings", url: "/lab/settings", icon: Settings },
   { title: "Help", url: "/lab/help", icon: HelpCircle },
 ];
 
 const faqs = [
   {
-    question: "How do I upload test results?",
-    answer: "Go to 'Active Work', open the order that is in progress, and use 'Upload result'. The result is then available in Results Ready and for downstream completion."
+    question: "How do I process a new order from Inbox?",
+    answer:
+      "Open the order from Inbox, review the request details, then approve to move it into Active Work. Reject only when the request cannot be processed."
   },
   {
-    question: "How do I track a sample?",
-    answer: "Navigate to 'Sample Tracking' and enter the sample ID. You'll see the complete tracking history including current location, status, and timestamps."
+    question: "How do I update workflow status in Active Work?",
+    answer:
+      "From the order details page, use the workflow status control to move between collection and processing steps. Keep internal notes updated for audit clarity."
   },
   {
-    question: "How do I manage inventory alerts?",
-    answer: "Visit 'Inventory' to see all items. Items with low stock are highlighted. You can set minimum stock levels for each item and receive automatic alerts when they run low."
+    question: "How do I upload a result?",
+    answer:
+      "When an order is In Progress, open it from Active Work and use Result Upload. After upload, the order moves to Results Ready."
   },
   {
-    question: "How do I handle urgent tests?",
-    answer: "Urgent tests are marked with a red 'Urgent' badge and appear at the top of your pending list. Prioritize these tests and upload results as soon as they're ready."
+    question: "When should I move an order to Completed?",
+    answer:
+      "Move an order from Results Ready to Completed once result hand-off is confirmed. Completed, Rejected, and Cancelled orders are listed in Archive."
   },
   {
-    question: "How do I generate reports?",
-    answer: "Go to 'Reports' section to view analytics and generate various reports. You can download monthly performance reports, test volume analysis, and inventory usage reports."
+    question: "Why are replies disabled on some orders?",
+    answer:
+      "Shared replies are disabled after a workflow reaches terminal states (Completed, Rejected, or Cancelled). Use active workflow stages for patient communication."
   },
 ];
 
