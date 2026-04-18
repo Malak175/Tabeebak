@@ -747,7 +747,8 @@ const normalizeMeasurementMap = (payload: unknown) => {
 };
 
 const normalizeLabResult = (payload: unknown): LabResult => {
-  const raw = unwrapPayload(payload);
+  const payloadRecord = unwrapPayload(payload);
+  const raw = mergeRecords(payloadRecord, pickRecord(payloadRecord, ["item"]));
   const resultRecord = mergeRecords(
     pickRecord(raw, ["laboratoryResult", "laboratory_result", "result", "labResult", "lab_result"]),
   );
@@ -852,7 +853,7 @@ const normalizeLabResult = (payload: unknown): LabResult => {
     }).length > 0;
 
   return {
-    id: idValue as unknown as string,
+    id: idValue != null ? String(idValue) : "",
     requestId:
       (pickIdValue(raw, ["requestId", "request_id", "testRequestId", "test_request_id"]) ??
         pickIdValue(raw, ["orderId", "order_id", "labOrderId", "lab_order_id"])) ??
@@ -865,6 +866,10 @@ const normalizeLabResult = (payload: unknown): LabResult => {
     category:
       pickNullableString(raw, ["category", "testCategory", "test_category"]) ??
       pickNullableString(test, ["category"]),
+    orderStatus:
+      pickNullableString(raw, ["orderStatus", "order_status"]) ??
+      pickNullableString(resultRecord, ["orderStatus", "order_status"]) ??
+      null,
     status: pickString(raw, ["status", "resultStatus", "result_status"]) ?? "completed",
     orderedAt: pickNullableString(raw, ["orderedAt", "createdAt", "dateOrdered"]),
     collectedAt: pickNullableString(raw, ["collectedAt", "sampleCollectedAt"]),

@@ -238,7 +238,8 @@ const LabOrderDetailsPage = () => {
   const profileQuery = useLabProfileQuery(Boolean(user));
   const detailsQuery = useLabOrderDetailsQuery(orderId, Boolean(user));
   const reviewMutation = useReviewLabOrderMutation();
-  const messageMutation = useLabOrderMessageMutation(detailsQuery.data?.requestId ?? "", orderId);
+  const messageThreadId = detailsQuery.data?.requestId?.trim() ?? "";
+  const messageMutation = useLabOrderMessageMutation(messageThreadId, orderId);
   const updateStatusMutation = useUpdateLabOrderStatusMutation();
   const uploadResultMutation = useUploadLabOrderResultMutation();
   const userName = getDisplayName(profileQuery.data ?? user ?? {});
@@ -271,7 +272,7 @@ const LabOrderDetailsPage = () => {
   const statusOptions = getNextLabOrderStatuses(detail?.status);
   const hasAvailableStatusTransition = statusOptions.length > 0 && !canReviewOrder && !canUploadResultNow;
   const canReplyToRequest =
-    Boolean(detail?.requestId) &&
+    Boolean(detail?.requestId?.trim()) &&
     Boolean(detail?.canReply) &&
     canReplyOnLabOrder(detail?.status);
 
@@ -391,17 +392,7 @@ const LabOrderDetailsPage = () => {
   };
 
   const handleSendReply = () => {
-    if (!detail?.requestId || !reply.trim() || !canReplyToRequest) return;
-
-    const numericThreadId = Number(detail.requestId);
-    const isValidThreadId = Number.isInteger(numericThreadId) && numericThreadId > 0;
-
-    if (!isValidThreadId) {
-      const message = "Unable to send message: invalid thread id.";
-      setReplyError(message);
-      toast.error(message);
-      return;
-    }
+    if (!messageThreadId || !reply.trim() || !canReplyToRequest) return;
 
     setReplyError(null);
     messageMutation.mutate(

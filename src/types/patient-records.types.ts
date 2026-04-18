@@ -137,6 +137,9 @@ export interface LabResult {
   resultNumber?: string | null;
   testName: string;
   category?: string | null;
+  // Workflow status of the related lab order (used for patient visibility rules).
+  orderStatus?: string | null;
+  // Processing/publication status of the lab result record itself.
   status: string;
   orderedAt?: string | null;
   collectedAt?: string | null;

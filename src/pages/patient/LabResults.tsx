@@ -74,7 +74,10 @@ const PatientLabResults = () => {
   const ordersQuery = usePatientLabOrdersQuery(ordersFilters, enabled);
   const userName = getDisplayName(user ?? {});
   const visibleResults = useMemo(
-    () => (resultsQuery.data?.data ?? []).filter((result) => isPatientResultVisibleStatus(result.status)),
+    () =>
+      (resultsQuery.data?.data ?? []).filter((result) =>
+        isPatientResultVisibleStatus(result.orderStatus),
+      ),
     [resultsQuery.data?.data],
   );
   const hiddenResultsCount = (resultsQuery.data?.data.length ?? 0) - visibleResults.length;
@@ -181,7 +184,7 @@ const PatientLabResults = () => {
               ) : null}
               <div className="grid gap-4">
                 {visibleResults.map((result) => {
-                  const resolvedId = result.id?.trim() ?? "";
+                  const resolvedId = String(result.id ?? "").trim();
                   const route = `/patient/lab-results/${resolvedId}`;
 
                   return (

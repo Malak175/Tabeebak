@@ -34,7 +34,15 @@ const unwrapPayload = (payload: unknown): Record<string, unknown> => {
   const record = asRecord(payload);
 
   if (record.data && typeof record.data === "object" && !Array.isArray(record.data)) {
-    return asRecord(record.data);
+    const dataRecord = asRecord(record.data);
+    if (dataRecord.item && typeof dataRecord.item === "object" && !Array.isArray(dataRecord.item)) {
+      return asRecord(dataRecord.item);
+    }
+    return dataRecord;
+  }
+
+  if (record.item && typeof record.item === "object" && !Array.isArray(record.item)) {
+    return asRecord(record.item);
   }
 
   return record;
@@ -490,14 +498,42 @@ const normalizeLabOrderDetails = (payload: unknown): LabOrderDetails => {
       : resolveMessageList(request).length
         ? resolveMessageList(request)
         : resolveMessageList(order);
-  const numericOrderRequestId =
-    pickNullableNumber(order, ["id", "_id"]) ??
-    pickNullableNumber(raw, ["orderId", "order_id", "labOrderId", "lab_order_id"]);
   const requestId =
-    (numericOrderRequestId != null ? String(numericOrderRequestId) : null) ??
-    pickNullableString(raw, ["requestId", "request_id", "testRequestId", "test_request_id"]) ??
-    pickNullableString(request, ["id", "_id", "requestId", "request_id", "testRequestId", "test_request_id"]) ??
-    pickNullableString(order, ["requestId", "request_id", "testRequestId", "test_request_id"]);
+    pickIdentifier(raw, [
+      "requestId",
+      "request_id",
+      "testRequestId",
+      "test_request_id",
+      "threadId",
+      "thread_id",
+      "conversationId",
+      "conversation_id",
+    ]) ??
+    pickIdentifier(request, [
+      "id",
+      "_id",
+      "requestId",
+      "request_id",
+      "testRequestId",
+      "test_request_id",
+      "threadId",
+      "thread_id",
+      "conversationId",
+      "conversation_id",
+    ]) ??
+    pickIdentifier(order, [
+      "requestId",
+      "request_id",
+      "testRequestId",
+      "test_request_id",
+      "threadId",
+      "thread_id",
+      "conversationId",
+      "conversation_id",
+    ]) ??
+    pickIdentifier(order, ["id", "_id"]) ??
+    pickIdentifier(raw, ["orderId", "order_id", "labOrderId", "lab_order_id"]) ??
+    null;
   const status =
     normalizeLabOrderStatus(
       pickString(raw, ["status", "orderStatus", "order_status"]) ??

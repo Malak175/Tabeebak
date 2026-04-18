@@ -158,7 +158,7 @@ const PatientLabResultDetails = () => {
 
   const aiResultId = query.data?.id ?? resultId ?? null;
   const canRunAiAnalysis =
-    Boolean(aiResultId) && isPatientResultVisibleStatus(query.data?.status ?? null);
+    Boolean(aiResultId) && isPatientResultVisibleStatus(query.data?.orderStatus ?? null);
   const requestId = query.data?.requestId ?? null;
   const hasPrediction = Boolean(prediction);
   const isHighRisk = (prediction?.riskLevel ?? "").trim().toLowerCase() === "high";
@@ -465,7 +465,7 @@ const PatientLabResultDetails = () => {
           </AlertDescription>
         </Alert>
       ) : query.data ? (
-        !isPatientResultVisibleStatus(query.data.status) ? (
+        !isPatientResultVisibleStatus(query.data.orderStatus) ? (
           <Alert>
             <AlertTitle>Result not available yet</AlertTitle>
             <AlertDescription>
