@@ -60,31 +60,25 @@ const PatientRequestDetailsPage = () => {
   const requestStatusKey = normalizeApiStatusKey(requestStatus);
   const isRequestRejected = ["REJECTED", "CANCELLED", "CANCELED"].includes(requestStatusKey);
   const isRequestApproved = ["APPROVED", "COMPLETED"].includes(requestStatusKey);
-  const journeySteps = isDoctorRequest
+  const requestTimelineSteps = isDoctorRequest
     ? [
-        { label: "Request", state: "complete" as const, helper: "Submitted" },
         {
-          label: "Approval",
-          state: isRequestRejected ? ("blocked" as const) : isRequestApproved ? ("complete" as const) : ("current" as const),
+          label: "Request Submitted",
+          state: "complete" as const,
+          helper: "Submitted",
+        },
+        {
+          label: "Approved",
+          state: isRequestRejected
+            ? ("blocked" as const)
+            : isRequestApproved
+              ? ("complete" as const)
+              : ("current" as const),
           helper: isRequestRejected
             ? "Not approved"
             : isRequestApproved
-              ? "Accepted"
+              ? "Approved"
               : "Under review",
-        },
-        {
-          label: "Appointment",
-          state: isRequestApproved ? ("current" as const) : ("upcoming" as const),
-          helper: isRequestApproved
-            ? appointmentScheduledAt
-              ? `Scheduled ${formatDateTime(appointmentScheduledAt)}`
-              : "Scheduling in progress"
-            : "Upcoming",
-        },
-        {
-          label: "Outcomes",
-          state: "upcoming" as const,
-          helper: "After the appointment",
         },
       ]
     : [];
@@ -220,12 +214,12 @@ const PatientRequestDetailsPage = () => {
             }
           />
 
-          {isDoctorRequest ? <JourneyTimeline title="Journey" steps={journeySteps} /> : null}
+          {isDoctorRequest ? <JourneyTimeline title="Request Progress" steps={requestTimelineSteps} /> : null}
 
-          {isDoctorRequest && normalizeApiStatusKey(activeRequest.status) === "APPROVED" ? (
+          {isDoctorRequest && isRequestApproved ? (
             <SectionCard
-              title="Next step: appointment"
-              description="Approval means your request was accepted and the appointment is now scheduled or being prepared."
+              title="Request approved"
+              description="Your request was approved."
               actions={
                 appointmentId ? (
                   <Button asChild>
@@ -244,11 +238,18 @@ const PatientRequestDetailsPage = () => {
                     ? `Scheduled for ${formatDateTime(appointmentScheduledAt)}.`
                     : "Your appointment details will appear in Appointments once scheduling is finalized."}
                 </p>
-                <p>
-                  Prescriptions, lab orders, and follow-up steps will appear after the appointment under
-                  Prescriptions and Lab Results.
-                </p>
               </div>
+            </SectionCard>
+          ) : null}
+
+          {isDoctorRequest && isRequestRejected ? (
+            <SectionCard
+              title={`Request ${requestStatusKey === "REJECTED" ? "rejected" : "cancelled"}`}
+              description="This request is closed."
+            >
+              <p className="text-sm text-muted-foreground">
+                You can start a new request anytime from the doctor browse page.
+              </p>
             </SectionCard>
           ) : null}
 
