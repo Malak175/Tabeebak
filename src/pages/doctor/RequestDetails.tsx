@@ -186,12 +186,8 @@ const DoctorRequestDetailsPage = () => {
   };
 
   const handlePendingApprove = () => {
-    const fallbackScheduledAt = toIsoDateTime(
-      toDateTimeLocalValue(query.data?.scheduledAt || query.data?.preferredTime || null),
-    );
     submitAction({
       status: "APPROVED",
-      scheduledAt: fallbackScheduledAt,
       successMessage: "Request approved successfully.",
       redirectPath: "/doctor/appointments",
     });
