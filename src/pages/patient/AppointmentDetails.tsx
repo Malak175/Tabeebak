@@ -1,6 +1,7 @@
 import { ArrowLeft, Calendar, Clock, MapPin, User, Video } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import AppointmentTimeline from "@/components/patient/AppointmentTimeline";
 import { patientNavItems } from "@/components/settings/AccountSettingsContent";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +12,6 @@ import { usePatientAppointmentDetailsQuery } from "@/hooks/usePatientProfile";
 import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName } from "@/lib/auth";
 import { formatDisplayDateTime } from "@/lib/date-time";
-import { JourneyTimeline } from "@/components/patient/BookingFlowSection";
 import { formatApiStatusLabel, normalizeApiStatusKey } from "@/lib/apiStatus";
 
 const formatDateTime = (value?: string | null) => formatDisplayDateTime(value);
@@ -85,14 +85,6 @@ const PatientAppointmentDetails = () => {
   const { user } = useAuth();
   const query = usePatientAppointmentDetailsQuery(appointmentId, Boolean(user));
   const userName = getDisplayName(user ?? {});
-  const requestInfo = query.data
-    ? {
-        id: query.data.requestId,
-        reference: query.data.requestReference,
-        status: query.data.requestStatus,
-        reason: query.data.requestReason,
-      }
-    : null;
   const prescriptions = query.data?.prescriptions ?? [];
   const prescriptionSummary = query.data?.prescription ?? null;
   const labOrders = query.data?.labOrders ?? [];
@@ -100,44 +92,6 @@ const PatientAppointmentDetails = () => {
   const hasOutcomePrescriptions = prescriptions.length > 0 || prescriptionSummary?.exists === true;
   const hasOutcomes = hasOutcomePrescriptions;
   const outcomeExpectation = getOutcomeExpectation(query.data?.status);
-  const requestApproved =
-    Boolean(query.data?.id) ||
-    normalizeApiStatusKey(requestInfo?.status) === "APPROVED" ||
-    normalizeApiStatusKey(requestInfo?.status) === "COMPLETED";
-  const appointmentStatus = normalizeApiStatusKey(query.data?.status);
-  const appointmentState =
-    appointmentStatus === "COMPLETED"
-      ? "complete"
-      : ["CANCELLED", "CANCELED", "NO_SHOW"].includes(appointmentStatus)
-        ? "blocked"
-        : "current";
-  const journeySteps = [
-    {
-      label: "Request",
-      state: requestInfo?.reference || requestInfo?.id ? ("complete" as const) : ("upcoming" as const),
-      helper: requestInfo?.reference ? `Ref ${requestInfo.reference}` : "Not linked",
-    },
-    {
-      label: "Approval",
-      state: requestApproved ? ("complete" as const) : ("upcoming" as const),
-      helper: requestApproved ? "Accepted" : "Pending",
-    },
-    {
-      label: "Appointment",
-      state: appointmentState as "complete" | "current" | "upcoming" | "blocked",
-      helper:
-        appointmentState === "blocked"
-          ? "Not completed"
-          : appointmentStatus === "COMPLETED"
-            ? "Visit completed"
-            : "In progress",
-    },
-    {
-      label: "Outcomes",
-      state: hasOutcomes ? ("current" as const) : ("upcoming" as const),
-      helper: hasOutcomes ? "Available" : "Pending",
-    },
-  ];
 
   return (
     <DashboardLayout
@@ -186,7 +140,10 @@ const PatientAppointmentDetails = () => {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <JourneyTimeline title="Journey" steps={journeySteps} />
+              <AppointmentTimeline
+                appointmentStatus={query.data.status}
+                requestStatus={query.data.requestStatus}
+              />
               <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1.5">
                   <Calendar className="h-4 w-4" />

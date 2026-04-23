@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Calendar, Clock, MapPin, Plus, User, Video } from "lucide-react";
 import { Link } from "react-router-dom";
+import AppointmentTimeline from "@/components/patient/AppointmentTimeline";
 import { patientBookingNavItems } from "@/components/patient/patientNavigation";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -45,6 +46,7 @@ const AppointmentCard = ({
   status,
   mode,
   type,
+  requestStatus,
   location,
   joinUrl,
 }: {
@@ -55,6 +57,7 @@ const AppointmentCard = ({
   status: string;
   mode?: string | null;
   type?: string | null;
+  requestStatus?: string | null;
   location?: string | null;
   joinUrl?: string | null;
 }) => {
@@ -88,6 +91,7 @@ const AppointmentCard = ({
               {location || mode || type || "Location pending"}
             </span>
           </div>
+          <AppointmentTimeline appointmentStatus={status} requestStatus={requestStatus} />
         </div>
         <div className="flex flex-wrap gap-2">
           {joinUrl ? (
