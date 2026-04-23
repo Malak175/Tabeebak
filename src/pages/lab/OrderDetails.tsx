@@ -259,6 +259,7 @@ const LabOrderDetailsPage = () => {
   const detail = detailsQuery.data;
   const reviewPresentation = getReviewPresentation(detail?.status);
   const normalizedStatus = toCanonicalStatus(detail?.status);
+  const actionStatus = normalizedStatus || toCanonicalStatus(detail?.resultStatus);
   const branchName = detail?.branch?.name ?? null;
   const requestedServices = detail?.services ?? [];
   const orderingDoctorName = detail?.orderingDoctor?.fullName || detail?.orderingDoctorName || null;
@@ -267,9 +268,9 @@ const LabOrderDetailsPage = () => {
     : null;
   const resultStatusLabel = detail?.resultStatus ? formatLabStatusLabel(detail.resultStatus) : null;
   const timelineSteps = getLabTimelineSteps(detail?.status, detail?.sampleCollectionRequired);
-  const canReviewOrder = canReviewLabOrder(detail?.status);
-  const canUploadResultNow = canUploadLabResult(detail?.status);
-  const statusOptions = getNextLabOrderStatuses(detail?.status);
+  const canReviewOrder = canReviewLabOrder(actionStatus);
+  const canUploadResultNow = canUploadLabResult(actionStatus);
+  const statusOptions = getNextLabOrderStatuses(actionStatus);
   const hasAvailableStatusTransition = statusOptions.length > 0 && !canReviewOrder && !canUploadResultNow;
   const canReplyToRequest =
     Boolean(detail?.requestId?.trim()) &&
@@ -282,7 +283,7 @@ const LabOrderDetailsPage = () => {
       ? locationState.fromPath
       : getFallbackBackLink(detail?.status);
   const backLabel = locationState?.fromLabel ? `Back to ${locationState.fromLabel}` : "Back to lab workflow";
-  const workflowActionHint = getWorkflowActionHint(detail?.status, detail?.sampleCollectionRequired);
+  const workflowActionHint = getWorkflowActionHint(actionStatus, detail?.sampleCollectionRequired);
 
   const timelineAuditRows = useMemo(
     () => [
@@ -949,7 +950,7 @@ const LabOrderDetailsPage = () => {
                 ) : null}
               </CardContent>
               </Card>
-            ) : normalizedStatus === "RESULT_UPLOADED" || normalizedStatus === "COMPLETED" ? (
+            ) : actionStatus === "RESULT_UPLOADED" || actionStatus === "COMPLETED" ? (
               <Alert>
                 <AlertTitle>Result upload complete</AlertTitle>
                 <AlertDescription>
