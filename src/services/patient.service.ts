@@ -1118,7 +1118,7 @@ export const patientService = {
 
   runPatientLabResultPrediction: async (
     resultId: string,
-    payload: { age: number; gender: string },
+    payload: { age: number; gender: string; measurements?: Record<string, number> },
   ): Promise<unknown> =>
     apiRequest<unknown>(`/api/v1/patients/me/lab-results/${resultId}/predict`, {
       method: "POST",

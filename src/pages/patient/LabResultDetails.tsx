@@ -26,6 +26,7 @@ import { ApiError } from "@/types/api.types";
 import { formatDisplayDateTime } from "@/lib/date-time";
 import { resolveHeartMeasurementDefaults } from "@/lib/heartMeasurementSchema";
 import { computeMeasurementStatus } from "@/lib/measurementStatus";
+import type { LabResultMeasurement } from "@/types/patient-records.types";
 import {
   formatLabStatusLabel,
   getLabStatusBadgeClassName,
@@ -143,6 +144,64 @@ const computeAge = (dateOfBirth?: string | null) => {
   return Number.isFinite(age) && age >= 0 ? age : null;
 };
 
+const sanitizeStructuredMeasurementValue = (raw: unknown): number | null => {
+  if (typeof raw === "number") {
+    return Number.isFinite(raw) ? raw : null;
+  }
+
+  if (typeof raw !== "string") return null;
+
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+
+  let normalized = trimmed.replace(/\s+/g, "").replace(/,/g, ".").replace(/\.{2,}/g, ".");
+
+  if (normalized.startsWith(".")) normalized = `0${normalized}`;
+  if (normalized.startsWith("-.")) normalized = normalized.replace("-.", "-0.");
+
+  const firstDotIndex = normalized.indexOf(".");
+  if (firstDotIndex >= 0) {
+    const beforeDot = normalized.slice(0, firstDotIndex + 1);
+    const afterDot = normalized.slice(firstDotIndex + 1).replace(/\./g, "");
+    normalized = `${beforeDot}${afterDot}`;
+  }
+
+  if (!/^-?\d+(?:\.\d+)?$/.test(normalized)) {
+    return null;
+  }
+
+  const parsed = Number.parseFloat(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const buildStructuredMeasurementsPayload = (measurements: LabResultMeasurement[]) => {
+  const structured: Record<string, number> = {};
+  const invalidKeys = new Set<string>();
+
+  measurements.forEach((measurement) => {
+    const schemaMatch = resolveHeartMeasurementDefaults(measurement.name ?? null);
+    if (!schemaMatch) return;
+
+    const key = schemaMatch.key;
+    const numericValue = sanitizeStructuredMeasurementValue(measurement.value ?? null);
+    if (numericValue == null) {
+      const hasRawValue =
+        measurement.value != null && String(measurement.value).trim().length > 0;
+      if (hasRawValue) {
+        invalidKeys.add(key);
+      }
+      return;
+    }
+
+    structured[key] = numericValue;
+  });
+
+  return {
+    structured,
+    invalidKeys: [...invalidKeys],
+  };
+};
+
 const PatientLabResultDetails = () => {
   const { resultId } = useParams();
   const navigate = useNavigate();
@@ -223,10 +282,25 @@ const PatientLabResultDetails = () => {
       toast.error(message);
       return;
     }
+    const { structured, invalidKeys } = buildStructuredMeasurementsPayload(
+      query.data?.measurements ?? [],
+    );
+    if (invalidKeys.length > 0) {
+      const message = `Invalid measurement value(s) for AI prediction: ${invalidKeys.join(
+        ", ",
+      )}.`;
+      setPredictionError(message);
+      toast.error(message);
+      return;
+    }
     setPredicting(true);
     setPredictionError(null);
     try {
-      await patientService.runPatientLabResultPrediction(aiResultId, { age, gender });
+      await patientService.runPatientLabResultPrediction(aiResultId, {
+        age,
+        gender,
+        measurements: structured,
+      });
       const response = await patientService.getPatientLabResultPrediction(aiResultId);
       const normalized = normalizePrediction(response);
       if (!normalized) {
