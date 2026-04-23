@@ -274,15 +274,6 @@ const normalizeLabDashboardSummary = (payload: unknown): LabDashboardSummary => 
     totalTestsThisMonth:
       pickNullableNumber(raw, ["totalTestsThisMonth", "total_tests_this_month", "testsThisMonth"]) ??
       pickNullableNumber(quickStats, ["totalTestsThisMonth", "total_tests_this_month", "testsThisMonth", "monthlyTotal"]),
-    urgentTestsCount:
-      pickNullableNumber(raw, ["urgentTestsCount", "urgent_tests_count", "urgentCount"]) ??
-      pickNullableNumber(quickStats, [
-        "urgentTestsCount",
-        "urgent_tests_count",
-        "urgentCount",
-        "urgentTests",
-        "urgent_tests",
-      ]),
     profileCompletionPercentage:
       pickNullableNumber(raw, ["profileCompletionPercentage", "profile_completion_percentage"]) ??
       pickNullableNumber(quickStats, [

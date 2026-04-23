@@ -24,7 +24,6 @@ export interface BaseLabWorkflowFilterParams {
 export interface LabOrdersFilterParams extends BaseLabWorkflowFilterParams {
   status?: OfficialLabOrderStatus | OfficialLabOrderStatus[];
   category?: string;
-  priority?: string;
   orderedFrom?: string;
   orderedTo?: string;
 }
@@ -83,7 +82,6 @@ export interface LabOrder {
   testName: string;
   category?: string | null;
   status: OfficialLabOrderStatus;
-  priority?: string | null;
   sampleId?: string | null;
   orderedAt?: string | null;
   scheduledAt?: string | null;
@@ -167,7 +165,6 @@ export interface LabResult {
   testName: string;
   category?: string | null;
   status: OfficialLabOrderStatus;
-  priority?: string | null;
   reportedAt?: string | null;
   collectedAt?: string | null;
   orderedAt?: string | null;

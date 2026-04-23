@@ -468,7 +468,6 @@ const LabOrderDetailsPage = () => {
                     <DetailRow label="Patient name" value={detail.patient.fullName} />
                     <DetailRow label="Phone" value={detail.patient.phone} />
                     <DetailRow label="Status" value={formatLabStatusLabel(detail.status)} />
-                    <DetailRow label="Priority" value={detail.priority} />
                     <DetailRow label="Created at" value={formatDateTime(detail.orderedAt)} />
                     {orderingDoctorName ? <DetailRow label="Ordering doctor" value={orderingDoctorName} /> : null}
                     {branchName ? <DetailRow label="Branch" value={branchName} /> : null}

@@ -13,7 +13,6 @@ export interface LabDashboardSummary {
   pendingTestsCount?: number | null;
   completedTestsToday?: number | null;
   totalTestsThisMonth?: number | null;
-  urgentTestsCount?: number | null;
   profileCompletionPercentage?: number | null;
   rating?: number | null;
   addressSummary?: string | null;

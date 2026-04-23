@@ -51,7 +51,6 @@ const LabPending = () => {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
-  const [priority, setPriority] = useState("all");
 
   const enabled = Boolean(user);
   const userName = getDisplayName(profileQuery.data ?? user ?? {});
@@ -63,11 +62,10 @@ const LabPending = () => {
       limit: 8,
       search,
       status: status === "all" ? activeStatuses : status,
-      priority: priority === "all" ? undefined : priority,
       sortBy: "orderedAt",
       sortOrder: "desc" as const,
     }),
-    [activeStatuses, page, priority, search, status],
+    [activeStatuses, page, search, status],
   );
 
   const activeWorkQuery = useLabOrdersQuery(filters, enabled);
@@ -94,7 +92,7 @@ const LabPending = () => {
         <CardHeader>
           <CardTitle className="text-lg">Active work filters</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-4">
+        <CardContent className="grid gap-4 md:grid-cols-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -125,31 +123,12 @@ const LabPending = () => {
               ))}
             </SelectContent>
           </Select>
-          <Select
-            value={priority}
-            onValueChange={(value) => {
-              setPage(1);
-              setPriority(value);
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Priority" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All priorities</SelectItem>
-              <SelectItem value="urgent">Urgent</SelectItem>
-              <SelectItem value="high">High</SelectItem>
-              <SelectItem value="normal">Normal</SelectItem>
-              <SelectItem value="routine">Routine</SelectItem>
-            </SelectContent>
-          </Select>
           <Button
             variant="outline"
             onClick={() => {
               setPage(1);
               setSearch("");
               setStatus("all");
-              setPriority("all");
             }}
           >
             Clear filters
@@ -180,7 +159,6 @@ const LabPending = () => {
                       <Badge className={getLabStatusBadgeClassName(order.status)}>
                         {formatLabStatusLabel(order.status)}
                       </Badge>
-                      {order.priority ? <Badge variant="outline">{order.priority}</Badge> : null}
                     </div>
                     <p className="font-medium text-primary">{order.testName}</p>
                     <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">

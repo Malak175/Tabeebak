@@ -1,7 +1,6 @@
 import { Link } from "react-router-dom";
 import {
   Activity,
-  AlertTriangle,
   BadgeCheck,
   Building2,
   CheckCircle,
@@ -58,7 +57,6 @@ const LabDashboard = () => {
   const totalBranchesCount = summary?.totalBranchesCount ?? 0;
   const pendingTestsCount = summary?.pendingTestsCount ?? 0;
   const completedTestsToday = summary?.completedTestsToday ?? 0;
-  const urgentTestsCount = summary?.urgentTestsCount ?? 0;
   const totalTestsThisMonth = summary?.totalTestsThisMonth ?? 0;
   const homeCollectionAvailable = summary?.homeCollectionAvailable ?? profile?.homeCollectionAvailable;
   const completionPercent =
@@ -91,12 +89,6 @@ const LabDashboard = () => {
       value: completedTestsToday,
       icon: CheckCircle,
       helper: "Moved to Archive today",
-    },
-    {
-      label: "Urgent Queue",
-      value: urgentTestsCount,
-      icon: AlertTriangle,
-      helper: "Urgent items across workflow",
     },
     {
       label: "Monthly Throughput",

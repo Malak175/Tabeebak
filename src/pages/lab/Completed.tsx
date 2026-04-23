@@ -180,7 +180,6 @@ const LabCompleted = () => {
                           <Badge className={getLabStatusBadgeClassName(order.status)}>
                             {formatLabStatusLabel(order.status)}
                           </Badge>
-                          {order.priority ? <Badge variant="outline">{order.priority}</Badge> : null}
                         </div>
                         <p className="font-medium text-primary">{order.testName}</p>
                         <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
@@ -262,7 +261,6 @@ const LabCompleted = () => {
                           <Badge className={getLabStatusBadgeClassName(order.status)}>
                             {formatLabStatusLabel(order.status)}
                           </Badge>
-                          {order.priority ? <Badge variant="outline">{order.priority}</Badge> : null}
                         </div>
                         <p className="font-medium text-primary">{order.testName}</p>
                         <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">

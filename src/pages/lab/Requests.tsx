@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLabOrdersQuery } from "@/hooks/useLabWorkflow";
 import { useLabProfileQuery } from "@/hooks/useLabProfile";
@@ -43,7 +42,6 @@ const LabRequestsPage = () => {
   const profileQuery = useLabProfileQuery(Boolean(user));
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const [priority, setPriority] = useState("all");
 
   const enabled = Boolean(user);
   const userName = getDisplayName(profileQuery.data ?? user ?? {});
@@ -55,11 +53,10 @@ const LabRequestsPage = () => {
       limit: 8,
       search,
       status: inboxStatuses[0],
-      priority: priority === "all" ? undefined : priority,
       sortBy: "orderedAt",
       sortOrder: "desc" as const,
     }),
-    [inboxStatuses, page, priority, search],
+    [inboxStatuses, page, search],
   );
 
   const inboxQuery = useLabOrdersQuery(filters, enabled);
@@ -86,7 +83,7 @@ const LabRequestsPage = () => {
         <CardHeader>
           <CardTitle className="text-lg">Inbox filters</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-3">
+        <CardContent className="grid gap-4 md:grid-cols-2">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -99,30 +96,11 @@ const LabRequestsPage = () => {
               placeholder="Search patient, order, or test"
             />
           </div>
-          <Select
-            value={priority}
-            onValueChange={(value) => {
-              setPage(1);
-              setPriority(value);
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Priority" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All priorities</SelectItem>
-              <SelectItem value="urgent">Urgent</SelectItem>
-              <SelectItem value="high">High</SelectItem>
-              <SelectItem value="normal">Normal</SelectItem>
-              <SelectItem value="routine">Routine</SelectItem>
-            </SelectContent>
-          </Select>
           <Button
             variant="outline"
             onClick={() => {
               setPage(1);
               setSearch("");
-              setPriority("all");
             }}
           >
             Clear filters
@@ -153,7 +131,6 @@ const LabRequestsPage = () => {
                       <Badge className={getLabStatusBadgeClassName(order.status)}>
                         {formatLabStatusLabel(order.status)}
                       </Badge>
-                      {order.priority ? <Badge variant="outline">{order.priority}</Badge> : null}
                     </div>
                     <p className="font-medium text-primary">{order.testName}</p>
                     <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
@@ -215,4 +192,3 @@ const LabRequestsPage = () => {
 };
 
 export default LabRequestsPage;
-

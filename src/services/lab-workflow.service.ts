@@ -401,7 +401,6 @@ const normalizeLabOrder = (payload: unknown): LabOrder => {
           pickString(request, ["status", "orderStatus", "order_status"]) ??
           pickString(order, ["status", "orderStatus", "order_status"]),
       ) || "Pending",
-    priority: pickNullableString(raw, ["priority", "urgency"]),
     sampleId: pickNullableString(raw, ["sampleId", "sample_id", "specimenId", "specimen_id"]),
     orderedAt:
       pickNullableString(raw, ["orderedAt", "createdAt", "dateOrdered", "date"]) ??
@@ -682,7 +681,6 @@ const normalizeLabResult = (payload: unknown): LabResult => {
     testName: pickString(raw, ["testName", "test_name", "name"]) ?? "Lab result",
     category: pickNullableString(raw, ["category", "testCategory", "test_category"]),
     status: normalizeLabOrderStatus(pickString(raw, ["status", "resultStatus", "result_status"])) || "Completed",
-    priority: pickNullableString(raw, ["priority", "urgency"]),
     reportedAt: pickNullableString(raw, ["reportedAt", "completedAt", "issuedAt", "date"]),
     collectedAt: pickNullableString(raw, ["collectedAt", "sampleCollectedAt"]),
     orderedAt: pickNullableString(raw, ["orderedAt", "createdAt", "dateOrdered"]),
