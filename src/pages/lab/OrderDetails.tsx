@@ -1,4 +1,4 @@
-import { ChangeEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, useEffect, useState } from "react";
 import { ArrowLeft, CalendarClock, CheckCircle2, FileUp, FlaskConical, XCircle } from "lucide-react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -284,28 +284,6 @@ const LabOrderDetailsPage = () => {
       : getFallbackBackLink(detail?.status);
   const backLabel = locationState?.fromLabel ? `Back to ${locationState.fromLabel}` : "Back to lab workflow";
   const workflowActionHint = getWorkflowActionHint(actionStatus, detail?.sampleCollectionRequired);
-
-  const timelineAuditRows = useMemo(
-    () => [
-      { label: "Order received", value: formatDateTime(detail?.orderedAt) },
-      { label: "Preferred schedule", value: formatDateTime(detail?.scheduledAt) },
-      { label: "Sample collected", value: formatDateTime(detail?.collectedAt) },
-      { label: "Workflow closed", value: formatDateTime(detail?.completedAt) },
-      { label: "Sample collection status", value: sampleCollectionLabel },
-      { label: "Result status", value: resultStatusLabel },
-      { label: "Latest internal note", value: detail?.internalNotes ?? detail?.notes ?? null },
-    ],
-    [
-      detail?.completedAt,
-      detail?.collectedAt,
-      detail?.internalNotes,
-      detail?.notes,
-      detail?.orderedAt,
-      detail?.scheduledAt,
-      resultStatusLabel,
-      sampleCollectionLabel,
-    ],
-  );
 
   useEffect(() => {
     if (!detail) return;
@@ -960,18 +938,6 @@ const LabOrderDetailsPage = () => {
             ) : null}
           </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Timeline / Audit</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-2">
-                {timelineAuditRows.map((row) => (
-                  <DetailRow key={row.label} label={row.label} value={row.value} />
-                ))}
-              </div>
-            </CardContent>
-          </Card>
         </div>
       ) : (
         <Card>
