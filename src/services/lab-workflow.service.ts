@@ -735,6 +735,8 @@ const buildResultPayload = (payload: UploadLabResultRequest) => {
   return formData;
 };
 
+const getLabOrderStatusEndpoint = (orderId: string) => `/api/v1/labs/me/orders/${orderId}/status`;
+
 export const labWorkflowService = {
   getLabOrders: async (
     params?: LabOrdersFilterParams,
@@ -761,9 +763,11 @@ export const labWorkflowService = {
     orderId: string,
     payload: UpdateLabOrderStatusRequest,
   ): Promise<LabOrderDetails> => {
-    const response = await apiRequest<unknown>(`/api/v1/labs/me/orders/${orderId}/status`, {
+    const response = await apiRequest<unknown>(getLabOrderStatusEndpoint(orderId), {
       method: "PATCH",
-      body: payload,
+      body: {
+        status: payload.status,
+      },
       auth: true,
     });
 
@@ -774,27 +778,9 @@ export const labWorkflowService = {
     orderId: string,
     payload: ReviewLabOrderRequest,
   ): Promise<LabOrderDetails> => {
-    const response = await apiRequest<unknown>(`/api/v1/labs/me/orders/${orderId}/review`, {
-      method: "PATCH",
-      body: {
-        action: payload.action,
-        decision: payload.action,
-        status: payload.status,
-        ...(payload.message?.trim()
-          ? {
-              message: payload.message.trim(),
-            }
-          : {}),
-        ...(payload.notes?.trim()
-          ? {
-              notes: payload.notes.trim(),
-            }
-          : {}),
-      },
-      auth: true,
+    return labWorkflowService.updateLabOrderStatus(orderId, {
+      status: payload.status,
     });
-
-    return normalizeLabOrderDetails(response);
   },
 
   sendLabOrderMessage: async (
