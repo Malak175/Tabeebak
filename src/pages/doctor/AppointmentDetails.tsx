@@ -58,10 +58,9 @@ const DoctorAppointmentDetails = () => {
   const query = useDoctorAppointmentDetailsQuery(appointmentId, Boolean(user));
   const updateMutation = useUpdateDoctorAppointmentMutation(appointmentId ?? "");
   const userName = getDisplayName(user ?? {});
-  const [isEditing, setIsEditing] = useState(false);
   const [diagnosis, setDiagnosis] = useState("");
   const [notes, setNotes] = useState("");
-  const [submitAction, setSubmitAction] = useState<"save" | "complete" | null>(null);
+  const [submitAction, setSubmitAction] = useState<"start" | "save" | "complete" | null>(null);
 
   const appointmentRequest = query.data?.appointmentRequest ?? null;
   const reason = appointmentRequest?.reason ?? query.data?.reason ?? null;
@@ -71,6 +70,8 @@ const DoctorAppointmentDetails = () => {
   const appointmentStatusKey = normalizeApiStatusKey(query.data?.status);
   const appointmentStatusLabel = formatApiStatusLabel(appointmentStatusKey);
   const isCompleted = appointmentStatusKey === "COMPLETED";
+  const isInProgress = appointmentStatusKey === "IN_PROGRESS";
+  const isReadyToStart = ["SCHEDULED", "CONFIRMED", "BOOKED", "UPCOMING"].includes(appointmentStatusKey);
   const prescriptionInfo = query.data?.prescription ?? null;
   const prescriptionExists = prescriptionInfo?.exists === true;
   const prescriptionLatestId = prescriptionInfo?.latestId
@@ -82,17 +83,11 @@ const DoctorAppointmentDetails = () => {
   );
 
   useEffect(() => {
-    if (!query.data || isEditing) return;
+    if (!query.data) return;
 
     setDiagnosis(query.data.diagnosis ?? "");
     setNotes(query.data.notes ?? "");
-  }, [query.data, isEditing]);
-
-  useEffect(() => {
-    if (isCompleted) {
-      setIsEditing(false);
-    }
-  }, [isCompleted]);
+  }, [query.data]);
 
   const detailRows = query.data
     ? ([
@@ -148,7 +143,6 @@ const DoctorAppointmentDetails = () => {
       {
         onSuccess: () => {
           toast.success("Visit details saved.");
-          setIsEditing(false);
           setSubmitAction(null);
         },
         onError: (error: Error) => {
@@ -176,7 +170,31 @@ const DoctorAppointmentDetails = () => {
       {
         onSuccess: () => {
           toast.success("Visit marked as completed.");
-          setIsEditing(false);
+          setSubmitAction(null);
+        },
+        onError: (error: Error) => {
+          toast.error(error.message);
+          setSubmitAction(null);
+        },
+      },
+    );
+  };
+
+  const handleStartVisit = () => {
+    if (!appointmentId) {
+      toast.error("Missing appointment id.");
+      return;
+    }
+
+    setSubmitAction("start");
+    updateMutation.mutate(
+      {
+        appointmentId,
+        status: "IN_PROGRESS",
+      },
+      {
+        onSuccess: () => {
+          toast.success("Visit started.");
           setSubmitAction(null);
         },
         onError: (error: Error) => {
@@ -352,21 +370,13 @@ const DoctorAppointmentDetails = () => {
                       Capture diagnosis and clinical notes for this visit.
                     </p>
                   </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={isCompleted || isMutating}
-                    onClick={() => setIsEditing((current) => !current)}
-                  >
-                    {isEditing ? "Close" : "Record Visit"}
-                  </Button>
                 </CardHeader>
                 <CardContent>
                   {isCompleted ? (
                     <p className="text-sm text-muted-foreground">
                       This visit is already completed. Visit details are read-only.
                     </p>
-                  ) : isEditing ? (
+                  ) : isInProgress ? (
                     <div className="space-y-4">
                       <div className="space-y-2">
                         <Label htmlFor="diagnosis">Diagnosis</Label>
@@ -396,21 +406,11 @@ const DoctorAppointmentDetails = () => {
                         >
                           {isMutating && submitAction === "save" ? "Saving..." : "Save"}
                         </Button>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          onClick={handleComplete}
-                          disabled={isMutating}
-                        >
-                          {isMutating && submitAction === "complete"
-                            ? "Completing..."
-                            : "Complete Visit"}
-                        </Button>
                       </div>
                     </div>
                   ) : (
                     <p className="text-sm text-muted-foreground">
-                      Click "Record Visit" to update diagnosis and clinical notes.
+                      Start the visit to enable diagnosis and clinical notes.
                     </p>
                   )}
                 </CardContent>
@@ -419,11 +419,26 @@ const DoctorAppointmentDetails = () => {
 
             <Card>
               <CardHeader>
-                <CardTitle>Actions</CardTitle>
+                <CardTitle>Next Step</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
+                {isReadyToStart ? (
+                  <Button className="w-full" onClick={handleStartVisit} disabled={isMutating}>
+                    {isMutating && submitAction === "start" ? "Starting..." : "Start Visit"}
+                  </Button>
+                ) : null}
+                {isInProgress ? (
+                  <Button className="w-full" onClick={handleComplete} disabled={isMutating}>
+                    {isMutating && submitAction === "complete" ? "Completing..." : "Complete Visit"}
+                  </Button>
+                ) : null}
+                {isCompleted ? (
+                  <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800">
+                    This appointment is completed.
+                  </div>
+                ) : null}
                 <Button asChild className="w-full" variant="outline">
-                  <Link to="/doctor/appointments">Return to queue</Link>
+                  <Link to="/doctor/appointments">Back to appointments</Link>
                 </Button>
               {prescriptionExists ? (
                 <Button asChild className="w-full" variant="outline">

@@ -166,11 +166,16 @@ export const useUpdateDoctorAppointmentMutation = (appointmentId: string) => {
   return useMutation({
     mutationFn: (payload: UpdateDoctorAppointmentPayload) =>
       doctorWorkflowService.updateDoctorAppointment(payload),
-    onSuccess: (_data, variables) => {
+    onSuccess: (data, variables) => {
       const resolvedAppointmentId = variables?.appointmentId || appointmentId;
       if (resolvedAppointmentId) {
+        queryClient.setQueryData(
+          doctorWorkflowQueryKeys.appointmentDetails(resolvedAppointmentId),
+          data,
+        );
         queryClient.invalidateQueries({
           queryKey: doctorWorkflowQueryKeys.appointmentDetails(resolvedAppointmentId),
+          refetchType: "none",
         });
       }
       queryClient.invalidateQueries({ queryKey: doctorWorkflowQueryKeys.appointments() });
