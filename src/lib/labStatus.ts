@@ -38,6 +38,7 @@ const LEGACY_STATUS_ALIASES: Record<string, CanonicalLabOrderStatus> = {
   PROCESSING: "IN_PROGRESS",
   INPROGRESS: "IN_PROGRESS",
   INPROCESS: "IN_PROGRESS",
+  RESULT_READY: "RESULT_UPLOADED",
   REQUESTED: "SAMPLE_COLLECTION_REQUESTED",
   // Legacy intermediary value removed from the official workflow.
   ASSIGNED_TO_DOCTOR: "RESULT_UPLOADED",

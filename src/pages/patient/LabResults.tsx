@@ -2,6 +2,7 @@
 import { ClipboardList, Download, FlaskConical, User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import OrderTimeline from "@/components/patient/OrderTimeline";
 import { patientNavItems } from "@/components/settings/AccountSettingsContent";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -307,6 +308,7 @@ const PatientLabResults = () => {
                           {order.orderingDoctorName || "Unknown clinician"} •{" "}
                           {order.laboratoryName || "Laboratory pending"}
                         </p>
+                        <OrderTimeline status={order.status} />
                       </div>
                     </CardContent>
                   </Card>
