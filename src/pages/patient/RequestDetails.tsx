@@ -28,6 +28,7 @@ import {
 } from "@/hooks/usePatientBooking";
 import { getDisplayName } from "@/lib/auth";
 import { formatDisplayDateTime } from "@/lib/date-time";
+import { normalizeApiStatusKey } from "@/lib/apiStatus";
 
 const PatientRequestDetailsPage = () => {
   const { requestType, requestId } = useParams();
@@ -56,9 +57,9 @@ const PatientRequestDetailsPage = () => {
       ? activeRequest.appointmentScheduledAt
       : null;
   const requestStatus = activeRequest?.status;
-  const isRequestRejected =
-    requestStatus === "rejected" || requestStatus === "cancelled" || requestStatus === "canceled";
-  const isRequestApproved = requestStatus === "approved" || requestStatus === "completed";
+  const requestStatusKey = normalizeApiStatusKey(requestStatus);
+  const isRequestRejected = ["REJECTED", "CANCELLED", "CANCELED"].includes(requestStatusKey);
+  const isRequestApproved = ["APPROVED", "COMPLETED"].includes(requestStatusKey);
   const journeySteps = isDoctorRequest
     ? [
         { label: "Request", state: "complete" as const, helper: "Submitted" },
@@ -87,18 +88,6 @@ const PatientRequestDetailsPage = () => {
         },
       ]
     : [];
-
-  if (activeRequest) {
-    console.log("Patient Request Details - activeRequest", activeRequest);
-    console.log("Visit type fields", {
-      reference: (activeRequest as Record<string, unknown>).reference,
-      consultationType: (activeRequest as Record<string, unknown>).consultationType,
-      consultation_type: (activeRequest as Record<string, unknown>).consultation_type,
-      id: (activeRequest as Record<string, unknown>).id,
-      requestId: (activeRequest as Record<string, unknown>).requestId,
-    });
-    console.log("REFERENCE VALUE:", (activeRequest as Record<string, unknown>).reference);
-  }
 
   const handleSendReply = () => {
     if (!requestId || !reply.trim()) return;
@@ -233,7 +222,7 @@ const PatientRequestDetailsPage = () => {
 
           {isDoctorRequest ? <JourneyTimeline title="Journey" steps={journeySteps} /> : null}
 
-          {isDoctorRequest && activeRequest.status === "approved" ? (
+          {isDoctorRequest && normalizeApiStatusKey(activeRequest.status) === "APPROVED" ? (
             <SectionCard
               title="Next step: appointment"
               description="Approval means your request was accepted and the appointment is now scheduled or being prepared."

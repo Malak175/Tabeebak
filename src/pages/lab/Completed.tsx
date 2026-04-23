@@ -131,9 +131,9 @@ const LabCompleted = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All archive statuses</SelectItem>
-              <SelectItem value="Completed">Completed</SelectItem>
-              <SelectItem value="Rejected">Rejected</SelectItem>
-              <SelectItem value="Cancelled">Cancelled</SelectItem>
+              <SelectItem value="COMPLETED">Completed</SelectItem>
+              <SelectItem value="REJECTED">Rejected</SelectItem>
+              <SelectItem value="CANCELLED">Cancelled</SelectItem>
             </SelectContent>
           </Select>
           <Button
@@ -325,4 +325,3 @@ const LabCompleted = () => {
 };
 
 export default LabCompleted;
-

@@ -158,7 +158,7 @@ const PatientLabResultDetails = () => {
 
   const aiResultId = query.data?.id ?? resultId ?? null;
   const canRunAiAnalysis =
-    Boolean(aiResultId) && isPatientResultVisibleStatus(query.data?.orderStatus ?? null);
+    Boolean(aiResultId) && isPatientResultVisibleStatus(query.data?.orderStatus ?? query.data?.status ?? null);
   const requestId = query.data?.requestId ?? null;
   const hasPrediction = Boolean(prediction);
   const isHighRisk = (prediction?.riskLevel ?? "").trim().toLowerCase() === "high";
@@ -238,9 +238,9 @@ const PatientLabResultDetails = () => {
       analysisRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (error: unknown) {
       const apiError = error instanceof ApiError ? error : null;
-      const message =
+        const message =
         apiError?.statusCode === 404
-          ? "AI analysis is temporarily unavailable for this completed result."
+          ? "AI analysis is temporarily unavailable for this result."
           : error instanceof Error
             ? error.message
             : "Unable to run AI analysis.";
@@ -465,11 +465,11 @@ const PatientLabResultDetails = () => {
           </AlertDescription>
         </Alert>
       ) : query.data ? (
-        !isPatientResultVisibleStatus(query.data.orderStatus) ? (
+        !isPatientResultVisibleStatus(query.data.orderStatus ?? query.data.status) ? (
           <Alert>
             <AlertTitle>Result not available yet</AlertTitle>
             <AlertDescription>
-              This result will appear once the related lab order reaches Completed.
+              This result will appear once the related lab order reaches Result Uploaded.
             </AlertDescription>
           </Alert>
         ) : (
@@ -584,7 +584,7 @@ const PatientLabResultDetails = () => {
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <p className="text-sm font-medium">AI Analysis</p>
-                      <p className="text-xs text-muted-foreground">Generated from this completed lab result.</p>
+                      <p className="text-xs text-muted-foreground">Generated from this published lab result.</p>
                     </div>
                     {predictionLoading || predicting ? (
                       <Badge variant="outline">Analyzing...</Badge>
@@ -679,7 +679,7 @@ const PatientLabResultDetails = () => {
                   )
                 ) : (
                   <p className="rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-                    AI analysis is available after this result is fully published.
+                    AI analysis is available after the result reaches Result Uploaded.
                   </p>
                 )}
                 {hasPrediction && isHighRisk ? (

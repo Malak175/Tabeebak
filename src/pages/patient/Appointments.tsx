@@ -18,18 +18,19 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName } from "@/lib/auth";
 import { formatDisplayDateTime } from "@/lib/date-time";
+import { formatApiStatusLabel, normalizeApiStatusKey } from "@/lib/apiStatus";
 
 const formatDateTime = (value?: string | null) => formatDisplayDateTime(value);
 
 const getStatusClassName = (status?: string | null) => {
-  switch ((status ?? "").toLowerCase()) {
-    case "confirmed":
-    case "completed":
+  switch (normalizeApiStatusKey(status)) {
+    case "CONFIRMED":
+    case "COMPLETED":
       return "bg-green-100 text-green-700 border-green-200";
-    case "pending":
+    case "PENDING":
       return "bg-yellow-100 text-yellow-700 border-yellow-200";
-    case "cancelled":
-    case "canceled":
+    case "CANCELLED":
+    case "CANCELED":
       return "bg-red-100 text-red-700 border-red-200";
     default:
       return "bg-muted text-muted-foreground border-border";
@@ -68,7 +69,7 @@ const AppointmentCard = ({
         <div className="flex-1 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-lg font-semibold">{doctorName}</h3>
-            <Badge className={getStatusClassName(status)}>{status}</Badge>
+            <Badge className={getStatusClassName(status)}>{formatApiStatusLabel(status)}</Badge>
           </div>
           <p className="text-sm text-muted-foreground">
             {doctorSpecialty || "Specialty not available"}
@@ -224,10 +225,10 @@ const PatientAppointments = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All statuses</SelectItem>
-                  <SelectItem value="confirmed">Confirmed</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                  <SelectItem value="CONFIRMED">Confirmed</SelectItem>
+                  <SelectItem value="PENDING">Pending</SelectItem>
+                  <SelectItem value="COMPLETED">Completed</SelectItem>
+                  <SelectItem value="CANCELLED">Cancelled</SelectItem>
                 </SelectContent>
               </Select>
               <Select

@@ -18,6 +18,7 @@ import {
 } from "@/hooks/useDoctorWorkflow";
 import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName } from "@/lib/auth";
+import { formatApiStatusLabel, normalizeApiStatusKey } from "@/lib/apiStatus";
 import { DoctorAppointment } from "@/types/doctor-workflow.types";
 
 const formatDateTime = (value?: string | null, dateOnly = false) => {
@@ -26,16 +27,16 @@ const formatDateTime = (value?: string | null, dateOnly = false) => {
 };
 
 const getStatusClassName = (status?: string | null) => {
-  switch ((status ?? "").toLowerCase()) {
-    case "confirmed":
-    case "completed":
+  switch (normalizeApiStatusKey(status)) {
+    case "CONFIRMED":
+    case "COMPLETED":
       return "bg-green-100 text-green-700 border-green-200";
-    case "in-progress":
+    case "IN_PROGRESS":
       return "bg-blue-100 text-blue-700 border-blue-200";
-    case "pending":
+    case "PENDING":
       return "bg-yellow-100 text-yellow-700 border-yellow-200";
-    case "cancelled":
-    case "canceled":
+    case "CANCELLED":
+    case "CANCELED":
       return "bg-red-100 text-red-700 border-red-200";
     default:
       return "bg-muted text-muted-foreground border-border";
@@ -70,7 +71,9 @@ const AppointmentCard = ({
 
       <div className="flex-1 space-y-2">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge className={getStatusClassName(appointment.status)}>{appointment.status}</Badge>
+          <Badge className={getStatusClassName(appointment.status)}>
+            {formatApiStatusLabel(appointment.status)}
+          </Badge>
           {appointment.type ? <Badge variant="outline">{appointment.type}</Badge> : null}
           {appointment.mode ? <Badge variant="outline">{appointment.mode}</Badge> : null}
         </div>
@@ -222,11 +225,11 @@ const DoctorAppointments = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All statuses</SelectItem>
-              <SelectItem value="confirmed">Confirmed</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="in-progress">In progress</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
+              <SelectItem value="CONFIRMED">Confirmed</SelectItem>
+              <SelectItem value="PENDING">Pending</SelectItem>
+              <SelectItem value="IN_PROGRESS">In progress</SelectItem>
+              <SelectItem value="COMPLETED">Completed</SelectItem>
+              <SelectItem value="CANCELLED">Cancelled</SelectItem>
             </SelectContent>
           </Select>
           <Select
@@ -293,8 +296,8 @@ const DoctorAppointments = () => {
                     <p className="mt-2 text-3xl font-bold">
                       {
                         todayQuery.data.data.filter((item) =>
-                          ["confirmed", "pending", "in-progress", "scheduled"].includes(
-                            item.status.toLowerCase(),
+                          ["CONFIRMED", "PENDING", "IN_PROGRESS", "SCHEDULED"].includes(
+                            normalizeApiStatusKey(item.status),
                           ),
                         ).length
                       }
@@ -307,7 +310,7 @@ const DoctorAppointments = () => {
                     <p className="mt-2 text-3xl font-bold">
                       {
                         todayQuery.data.data.filter(
-                          (item) => item.status.toLowerCase() === "completed",
+                          (item) => normalizeApiStatusKey(item.status) === "COMPLETED",
                         ).length
                       }
                     </p>

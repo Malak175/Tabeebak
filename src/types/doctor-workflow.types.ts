@@ -65,6 +65,17 @@ export interface DoctorReviewFilterParams {
   sortOrder?: DoctorWorkflowSortOrder;
 }
 
+export interface DoctorLabResultFilterParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: string;
+  category?: string;
+  patientId?: string;
+  sortBy?: string;
+  sortOrder?: DoctorWorkflowSortOrder;
+}
+
 export interface DoctorAppointment {
   id: string;
   appointmentNumber?: string | null;
@@ -211,6 +222,27 @@ export interface DoctorPrescription {
   refillsRemaining?: number | null;
   diagnosis?: string | null;
   notes?: string | null;
+}
+
+export interface DoctorLabResult {
+  id: string;
+  resultNumber?: string | null;
+  orderId?: string | null;
+  orderNumber?: string | null;
+  patientId?: string | null;
+  patientName: string;
+  testName: string;
+  category?: string | null;
+  status: string;
+  reportedAt?: string | null;
+  collectedAt?: string | null;
+  orderedAt?: string | null;
+  laboratoryName?: string | null;
+  orderingDoctorName?: string | null;
+  summary?: string | null;
+  conclusion?: string | null;
+  notes?: string | null;
+  reportUrl?: string | null;
 }
 
 export interface CreatePrescriptionMedication {

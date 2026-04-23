@@ -23,6 +23,7 @@ import {
   UpdatePatientMedicalProfileRequest,
   UpdatePatientProfileRequest,
 } from "@/types/patient-profile.types";
+import { normalizeApiStatusKey } from "@/lib/apiStatus";
 
 const asRecord = (value: unknown): Record<string, unknown> =>
   value && typeof value === "object" && !Array.isArray(value)
@@ -234,33 +235,24 @@ const getListEnvelope = (payload: unknown) => {
   }
 
   const raw = asRecord(payload);
-  const data = raw.data;
-
-  if (Array.isArray(data)) {
-    return {
-      items: data,
-      meta: mergeRecords(raw, raw.meta, raw.pagination),
-    };
-  }
-
-  const container = asRecord(data);
+  const container = asRecord(raw.data);
   const candidates = [
     container.items,
+    raw.items,
     container.results,
+    raw.results,
     container.records,
+    raw.records,
     container.appointments,
+    raw.appointments,
     container.prescriptions,
+    raw.prescriptions,
     container.labOrders,
     container.lab_orders,
     container.labResults,
     container.lab_results,
     container.laboratoryResults,
     container.laboratory_results,
-    raw.items,
-    raw.results,
-    raw.records,
-    raw.appointments,
-    raw.prescriptions,
     raw.labOrders,
     raw.lab_orders,
     raw.labResults,
@@ -273,7 +265,20 @@ const getListEnvelope = (payload: unknown) => {
 
   return {
     items: items ?? [],
-    meta: mergeRecords(raw, raw.meta, raw.pagination, container, container.meta, container.pagination),
+    meta: mergeRecords(
+      {
+        page: asRecord(container.pagination).page,
+        pageSize: asRecord(container.pagination).page_size,
+        totalItems: asRecord(container.pagination).total_items,
+        totalPages: asRecord(container.pagination).total_pages,
+      },
+      raw,
+      raw.meta,
+      raw.pagination,
+      container,
+      container.meta,
+      container.pagination,
+    ),
   };
 };
 
@@ -284,11 +289,11 @@ const normalizePaginatedResponse = <T>(
   const { items, meta } = getListEnvelope(payload);
   const page = pickNumber(meta, ["page", "currentPage", "pageNumber"]) ?? 1;
   const limit =
-    pickNumber(meta, ["limit", "perPage", "pageSize", "size"]) ??
+    pickNumber(meta, ["pageSize", "page_size", "limit", "perPage", "size"]) ??
     (items.length > 0 ? items.length : 10);
-  const total = pickNumber(meta, ["total", "totalCount", "totalItems", "count"]) ?? items.length;
+  const total = pickNumber(meta, ["totalItems", "total_items", "total", "totalCount", "count"]) ?? items.length;
   const totalPages =
-    pickNumber(meta, ["totalPages", "pageCount", "pages"]) ??
+    pickNumber(meta, ["totalPages", "total_pages", "pageCount", "pages"]) ??
     Math.max(1, Math.ceil(total / Math.max(limit, 1)));
   const hasNextPage =
     pickBoolean(meta, ["hasNextPage", "hasMore", "has_next_page"]) ?? page < totalPages;
@@ -556,7 +561,9 @@ const normalizeAppointment = (payload: unknown): Appointment => {
       ["appointmentTime", "appointment_time", "time", "startTime", "start_time"],
     ),
     endAt: buildDateTime(raw, ["endAt", "endDate", "end_date"], ["endTime", "end_time"]),
-    status: pickString(raw, ["status", "appointmentStatus", "appointment_status"]) ?? "scheduled",
+    status:
+      normalizeApiStatusKey(pickString(raw, ["status", "appointmentStatus", "appointment_status"])) ||
+      "SCHEDULED",
     type: pickNullableString(raw, ["type", "appointmentType", "appointment_type", "visitType"]),
     mode: pickNullableString(raw, ["mode", "consultationMode", "consultation_mode"]),
     location:
@@ -577,8 +584,10 @@ const normalizeAppointment = (payload: unknown): Appointment => {
       pickNullableString(raw, ["requestReference", "requestNumber", "request_number", "reference"]) ??
       pickNullableString(request, ["reference", "requestNumber", "request_number", "referenceNumber"]),
     requestStatus:
-      pickNullableString(raw, ["requestStatus", "request_status"]) ??
-      pickNullableString(request, ["status", "requestStatus", "request_status"]),
+      normalizeApiStatusKey(
+        pickNullableString(raw, ["requestStatus", "request_status"]) ??
+          pickNullableString(request, ["status", "requestStatus", "request_status"]),
+      ) || null,
     requestReason:
       pickNullableString(raw, ["requestReason"]) ??
       pickNullableString(request, ["reason", "chiefComplaint", "chief_complaint"]),
@@ -674,8 +683,10 @@ const normalizePrescription = (payload: unknown): Prescription => {
       pickNullableString(raw, ["appointmentNumber", "appointment_number"]) ??
       pickNullableString(appointment, ["appointmentNumber", "appointment_number", "referenceNumber"]),
     appointmentStatus:
-      pickNullableString(raw, ["appointmentStatus", "appointment_status"]) ??
-      pickNullableString(appointment, ["status", "appointmentStatus", "appointment_status"]),
+      normalizeApiStatusKey(
+        pickNullableString(raw, ["appointmentStatus", "appointment_status"]) ??
+          pickNullableString(appointment, ["status", "appointmentStatus", "appointment_status"]),
+      ) || null,
     appointmentScheduledAt:
       pickNullableString(raw, ["appointmentDate", "scheduledAt", "scheduledFor"]) ??
       pickNullableString(appointment, [
@@ -704,7 +715,7 @@ const normalizeLabOrder = (payload: unknown): LabOrder => {
     category:
       pickNullableString(raw, ["category", "testCategory", "test_category"]) ??
       pickNullableString(test, ["category"]),
-    status: pickString(raw, ["status", "orderStatus", "order_status"]) ?? "pending",
+    status: normalizeApiStatusKey(pickString(raw, ["status", "orderStatus", "order_status"])) || "PENDING",
     orderedAt: pickNullableString(raw, ["orderedAt", "createdAt", "dateOrdered", "date"]),
     scheduledAt: pickNullableString(raw, ["scheduledAt", "scheduledFor", "appointmentDate"]),
     laboratoryName:
@@ -748,7 +759,7 @@ const normalizeMeasurementMap = (payload: unknown) => {
 
 const normalizeLabResult = (payload: unknown): LabResult => {
   const payloadRecord = unwrapPayload(payload);
-  const raw = mergeRecords(payloadRecord, pickRecord(payloadRecord, ["item"]));
+  const raw = payloadRecord;
   const resultRecord = mergeRecords(
     pickRecord(raw, ["laboratoryResult", "laboratory_result", "result", "labResult", "lab_result"]),
   );
@@ -867,10 +878,13 @@ const normalizeLabResult = (payload: unknown): LabResult => {
       pickNullableString(raw, ["category", "testCategory", "test_category"]) ??
       pickNullableString(test, ["category"]),
     orderStatus:
-      pickNullableString(raw, ["orderStatus", "order_status"]) ??
-      pickNullableString(resultRecord, ["orderStatus", "order_status"]) ??
-      null,
-    status: pickString(raw, ["status", "resultStatus", "result_status"]) ?? "completed",
+      normalizeApiStatusKey(
+        pickNullableString(raw, ["orderStatus", "order_status"]) ??
+          pickNullableString(resultRecord, ["orderStatus", "order_status"]),
+      ) || null,
+    status:
+      normalizeApiStatusKey(pickString(raw, ["status", "resultStatus", "result_status"])) ||
+      "COMPLETED",
     orderedAt: pickNullableString(raw, ["orderedAt", "createdAt", "dateOrdered"]),
     collectedAt: pickNullableString(raw, ["collectedAt", "sampleCollectedAt"]),
     reportedAt: pickNullableString(raw, ["reportedAt", "completedAt", "issuedAt", "date"]),

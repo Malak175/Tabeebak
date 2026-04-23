@@ -134,6 +134,7 @@ export const useCreateAppointmentRequestMutation = () => {
         queryKey: patientBookingQueryKeys.appointmentRequestDetail(data.id),
       });
       queryClient.invalidateQueries({ queryKey: patientQueryKeys.appointments() });
+      queryClient.invalidateQueries({ queryKey: patientQueryKeys.upcomingAppointments() });
     },
     onSettled: (_data, _error, variables) => {
       if (variables?.doctorId) {
@@ -171,6 +172,8 @@ export const useCancelAppointmentRequestMutation = () => {
         patientBookingQueryKeys.appointmentRequestDetail(data.id),
         data,
       );
+      queryClient.invalidateQueries({ queryKey: patientQueryKeys.appointments() });
+      queryClient.invalidateQueries({ queryKey: patientQueryKeys.upcomingAppointments() });
     },
   });
 };
@@ -201,6 +204,7 @@ export const useCreateTestRequestMutation = () => {
         queryKey: patientBookingQueryKeys.testRequestDetail(data.id),
       });
       queryClient.invalidateQueries({ queryKey: patientQueryKeys.labOrders() });
+      queryClient.invalidateQueries({ queryKey: patientQueryKeys.labResults() });
     },
   });
 };
@@ -228,6 +232,8 @@ export const useCancelTestRequestMutation = () => {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: patientBookingQueryKeys.testRequests() });
       queryClient.setQueryData(patientBookingQueryKeys.testRequestDetail(data.id), data);
+      queryClient.invalidateQueries({ queryKey: patientQueryKeys.labOrders() });
+      queryClient.invalidateQueries({ queryKey: patientQueryKeys.labResults() });
     },
   });
 };

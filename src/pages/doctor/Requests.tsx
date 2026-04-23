@@ -14,20 +14,21 @@ import { useDoctorAppointmentRequestsQuery } from "@/hooks/useDoctorWorkflow";
 import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName } from "@/lib/auth";
 import { formatDisplayDateTime } from "@/lib/date-time";
+import { formatApiStatusLabel, normalizeApiStatusKey } from "@/lib/apiStatus";
 import { DoctorAppointmentRequest } from "@/types/doctor-workflow.types";
 
 const formatDateTime = (value?: string | null) => formatDisplayDateTime(value);
 
 const getStatusClassName = (status?: string | null) => {
-  switch ((status ?? "").toLowerCase()) {
-    case "approved":
-    case "confirmed":
+  switch (normalizeApiStatusKey(status)) {
+    case "APPROVED":
+    case "CONFIRMED":
       return "bg-green-100 text-green-700 border-green-200";
-    case "pending":
+    case "PENDING":
       return "bg-yellow-100 text-yellow-700 border-yellow-200";
-    case "rejected":
-    case "cancelled":
-    case "canceled":
+    case "REJECTED":
+    case "CANCELLED":
+    case "CANCELED":
       return "bg-red-100 text-red-700 border-red-200";
     default:
       return "bg-muted text-muted-foreground border-border";
@@ -44,7 +45,7 @@ const RequestCard = ({ request }: { request: DoctorAppointmentRequest }) => (
       <div className="flex-1 space-y-2">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="text-lg font-semibold">{request.patientName}</h3>
-          <Badge className={getStatusClassName(request.status)}>{request.status}</Badge>
+          <Badge className={getStatusClassName(request.status)}>{formatApiStatusLabel(request.status)}</Badge>
           {request.consultationType ? <Badge variant="outline">{request.consultationType}</Badge> : null}
         </div>
         <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
@@ -152,9 +153,9 @@ const DoctorRequestsPage = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All statuses</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="approved">Approved</SelectItem>
-              <SelectItem value="rejected">Rejected</SelectItem>
+              <SelectItem value="PENDING">Pending</SelectItem>
+              <SelectItem value="APPROVED">Approved</SelectItem>
+              <SelectItem value="REJECTED">Rejected</SelectItem>
             </SelectContent>
           </Select>
           <Select
@@ -207,7 +208,7 @@ const DoctorRequestsPage = () => {
               <CardContent className="p-5">
                 <p className="text-sm text-muted-foreground">Pending</p>
                 <p className="mt-2 text-3xl font-bold">
-                  {query.data.data.filter((item) => item.status.toLowerCase() === "pending").length}
+                  {query.data.data.filter((item) => normalizeApiStatusKey(item.status) === "PENDING").length}
                 </p>
               </CardContent>
             </Card>
@@ -215,7 +216,7 @@ const DoctorRequestsPage = () => {
               <CardContent className="p-5">
                 <p className="text-sm text-muted-foreground">Approved</p>
                 <p className="mt-2 text-3xl font-bold">
-                  {query.data.data.filter((item) => item.status.toLowerCase() === "approved").length}
+                  {query.data.data.filter((item) => normalizeApiStatusKey(item.status) === "APPROVED").length}
                 </p>
               </CardContent>
             </Card>
@@ -223,7 +224,7 @@ const DoctorRequestsPage = () => {
               <CardContent className="p-5">
                 <p className="text-sm text-muted-foreground">Rejected</p>
                 <p className="mt-2 text-3xl font-bold">
-                  {query.data.data.filter((item) => item.status.toLowerCase() === "rejected").length}
+                  {query.data.data.filter((item) => normalizeApiStatusKey(item.status) === "REJECTED").length}
                 </p>
               </CardContent>
             </Card>

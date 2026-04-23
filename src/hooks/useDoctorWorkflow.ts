@@ -5,6 +5,7 @@ import {
   CreatePrescriptionPayload,
   DoctorAppointmentRequestFilterParams,
   DoctorAppointmentFilterParams,
+  DoctorLabResultFilterParams,
   DoctorPatientFilterParams,
   DoctorPrescriptionFilterParams,
   DoctorReviewFilterParams,
@@ -30,11 +31,11 @@ export const doctorWorkflowQueryKeys = {
   appointments: (params?: DoctorAppointmentFilterParams) =>
     ["doctor-workflow", "appointments", normalizeListParams(params)] as const,
   todayAppointments: (params?: DoctorAppointmentFilterParams) =>
-    ["appointments-today", normalizeListParams(params)] as const,
+    ["doctor-workflow", "appointments", "today", normalizeListParams(params)] as const,
   pendingRequests: (params?: DoctorAppointmentRequestFilterParams) =>
-    ["pending-requests", normalizeListParams(params)] as const,
+    ["doctor-workflow", "appointment-requests", "pending", normalizeListParams(params)] as const,
   appointmentDetails: (appointmentId: string) =>
-    ["appointment-details", appointmentId] as const,
+    ["doctor-workflow", "appointments", "detail", appointmentId] as const,
   patients: (params?: DoctorPatientFilterParams) =>
     ["doctor-workflow", "patients", normalizeListParams(params)] as const,
   patientSummary: (patientId: string) =>
@@ -42,10 +43,14 @@ export const doctorWorkflowQueryKeys = {
   prescriptions: (params?: DoctorPrescriptionFilterParams) =>
     ["doctor-workflow", "prescriptions", normalizeListParams(params)] as const,
   prescriptionDetails: (prescriptionId: string) =>
-    ["prescription", prescriptionId] as const,
-  reviewsSummary: () => ["reviews-summary"] as const,
+    ["doctor-workflow", "prescriptions", "detail", prescriptionId] as const,
+  reviewsSummary: () => ["doctor-workflow", "reviews", "summary"] as const,
   reviews: (params?: DoctorReviewFilterParams) =>
     ["doctor-workflow", "reviews", normalizeListParams(params)] as const,
+  labResults: (params?: DoctorLabResultFilterParams) =>
+    ["doctor-workflow", "lab-results", normalizeListParams(params)] as const,
+  labResultDetails: (resultId: string) =>
+    ["doctor-workflow", "lab-results", "detail", resultId] as const,
 };
 
 export const useDoctorAppointmentRequestsQuery = (
@@ -93,9 +98,17 @@ export const useUpdateDoctorAppointmentRequestStatusMutation = () => {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: doctorWorkflowQueryKeys.appointmentRequests() });
       queryClient.invalidateQueries({ queryKey: doctorWorkflowQueryKeys.pendingRequests() });
+      queryClient.invalidateQueries({ queryKey: doctorWorkflowQueryKeys.appointments() });
+      queryClient.invalidateQueries({ queryKey: doctorWorkflowQueryKeys.todayAppointments() });
       queryClient.invalidateQueries({ queryKey: doctorWorkflowQueryKeys.all });
+      queryClient.invalidateQueries({ queryKey: ["patient-booking", "appointment-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["patient", "appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["patient", "appointments", "upcoming"] });
       queryClient.invalidateQueries({
         queryKey: doctorWorkflowQueryKeys.appointmentRequestDetails(variables.requestId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["patient-booking", "appointment-requests", "detail", variables.requestId],
       });
     },
   });
@@ -161,6 +174,7 @@ export const useUpdateDoctorAppointmentMutation = (appointmentId: string) => {
         });
       }
       queryClient.invalidateQueries({ queryKey: doctorWorkflowQueryKeys.appointments() });
+      queryClient.invalidateQueries({ queryKey: doctorWorkflowQueryKeys.todayAppointments() });
     },
   });
 };
@@ -246,4 +260,25 @@ export const useDoctorReviewsQuery = (
     queryFn: () => doctorWorkflowService.getDoctorReviews(params),
     enabled,
     placeholderData: (previousData) => previousData,
+  });
+
+export const useDoctorLabResultsQuery = (
+  params?: DoctorLabResultFilterParams,
+  enabled = true,
+) =>
+  useQuery({
+    queryKey: doctorWorkflowQueryKeys.labResults(params),
+    queryFn: () => doctorWorkflowService.getDoctorLabResults(params),
+    enabled,
+    placeholderData: (previousData) => previousData,
+  });
+
+export const useDoctorLabResultDetailsQuery = (
+  resultId: string | undefined,
+  enabled = true,
+) =>
+  useQuery({
+    queryKey: doctorWorkflowQueryKeys.labResultDetails(resultId ?? ""),
+    queryFn: () => doctorWorkflowService.getDoctorLabResultById(resultId ?? ""),
+    enabled: enabled && Boolean(resultId),
   });

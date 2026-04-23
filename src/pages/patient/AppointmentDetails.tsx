@@ -12,18 +12,19 @@ import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName } from "@/lib/auth";
 import { formatDisplayDateTime } from "@/lib/date-time";
 import { JourneyTimeline } from "@/components/patient/BookingFlowSection";
+import { formatApiStatusLabel, normalizeApiStatusKey } from "@/lib/apiStatus";
 
 const formatDateTime = (value?: string | null) => formatDisplayDateTime(value);
 
 const statusClassName = (status?: string | null) => {
-  switch ((status ?? "").toLowerCase()) {
-    case "confirmed":
-    case "completed":
+  switch (normalizeApiStatusKey(status)) {
+    case "CONFIRMED":
+    case "COMPLETED":
       return "bg-green-100 text-green-700 border-green-200";
-    case "pending":
+    case "PENDING":
       return "bg-yellow-100 text-yellow-700 border-yellow-200";
-    case "cancelled":
-    case "canceled":
+    case "CANCELLED":
+    case "CANCELED":
       return "bg-red-100 text-red-700 border-red-200";
     default:
       return "bg-muted text-muted-foreground border-border";
@@ -31,8 +32,8 @@ const statusClassName = (status?: string | null) => {
 };
 
 const getOutcomeExpectation = (status?: string | null) => {
-  const normalized = (status ?? "").trim().toLowerCase();
-  if (["cancelled", "canceled"].includes(normalized)) {
+  const normalized = normalizeApiStatusKey(status);
+  if (["CANCELLED", "CANCELED"].includes(normalized)) {
     return {
       kind: "cancelled",
       label: "Visit cancelled",
@@ -40,7 +41,7 @@ const getOutcomeExpectation = (status?: string | null) => {
       emptyMessage: "Outcomes are not expected for a cancelled visit.",
     };
   }
-  if (["no_show", "no-show", "no show"].includes(normalized)) {
+  if (["NO_SHOW"].includes(normalized)) {
     return {
       kind: "no_show",
       label: "Visit not attended",
@@ -48,7 +49,7 @@ const getOutcomeExpectation = (status?: string | null) => {
       emptyMessage: "Outcomes are not expected when a visit is marked as no-show.",
     };
   }
-  if (["scheduled", "pending", "confirmed", "booked", "upcoming"].includes(normalized)) {
+  if (["SCHEDULED", "PENDING", "CONFIRMED", "BOOKED", "UPCOMING"].includes(normalized)) {
     return {
       kind: "upcoming",
       label: "Upcoming visit",
@@ -56,7 +57,7 @@ const getOutcomeExpectation = (status?: string | null) => {
       emptyMessage: "Outcomes will appear after this appointment is completed.",
     };
   }
-  if (["completed", "finished", "done"].includes(normalized)) {
+  if (["COMPLETED", "FINISHED", "DONE"].includes(normalized)) {
     return {
       kind: "completed",
       label: "Visit completed",
@@ -101,13 +102,13 @@ const PatientAppointmentDetails = () => {
   const outcomeExpectation = getOutcomeExpectation(query.data?.status);
   const requestApproved =
     Boolean(query.data?.id) ||
-    (requestInfo?.status ?? "").toLowerCase() === "approved" ||
-    (requestInfo?.status ?? "").toLowerCase() === "completed";
-  const appointmentStatus = (query.data?.status ?? "").toLowerCase();
+    normalizeApiStatusKey(requestInfo?.status) === "APPROVED" ||
+    normalizeApiStatusKey(requestInfo?.status) === "COMPLETED";
+  const appointmentStatus = normalizeApiStatusKey(query.data?.status);
   const appointmentState =
-    appointmentStatus === "completed"
+    appointmentStatus === "COMPLETED"
       ? "complete"
-      : ["cancelled", "canceled", "no_show", "no-show", "no show"].includes(appointmentStatus)
+      : ["CANCELLED", "CANCELED", "NO_SHOW"].includes(appointmentStatus)
         ? "blocked"
         : "current";
   const journeySteps = [
@@ -127,7 +128,7 @@ const PatientAppointmentDetails = () => {
       helper:
         appointmentState === "blocked"
           ? "Not completed"
-          : appointmentStatus === "completed"
+          : appointmentStatus === "COMPLETED"
             ? "Visit completed"
             : "In progress",
     },
@@ -179,7 +180,9 @@ const PatientAppointmentDetails = () => {
             <CardHeader>
               <div className="flex flex-wrap items-center gap-3">
                 <CardTitle>{query.data.doctorName}</CardTitle>
-                <Badge className={statusClassName(query.data.status)}>{query.data.status}</Badge>
+                <Badge className={statusClassName(query.data.status)}>
+                  {formatApiStatusLabel(query.data.status)}
+                </Badge>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -194,7 +197,7 @@ const PatientAppointmentDetails = () => {
                   {query.data.type || query.data.mode || "Appointment"}
                 </span>
                 <span className="flex items-center gap-1.5">
-                  {query.data.mode?.toLowerCase().includes("video") ? (
+                  {(query.data.mode ?? "").toLowerCase().includes("video") ? (
                     <Video className="h-4 w-4" />
                   ) : (
                     <MapPin className="h-4 w-4" />

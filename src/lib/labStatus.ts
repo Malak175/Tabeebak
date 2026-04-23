@@ -1,76 +1,76 @@
 export type CanonicalLabOrderStatus =
-  | "Pending"
-  | "Sample_Collection_Requested"
-  | "Sample_Collected"
-  | "In_Progress"
-  | "Result_Uploaded"
-  | "Completed"
-  | "Cancelled"
-  | "Rejected";
+  | "PENDING"
+  | "SAMPLE_COLLECTION_REQUESTED"
+  | "SAMPLE_COLLECTED"
+  | "IN_PROGRESS"
+  | "RESULT_UPLOADED"
+  | "COMPLETED"
+  | "CANCELLED"
+  | "REJECTED";
 
 export type LabWorkflowBucket = "inbox" | "activeWork" | "resultsReady" | "archive";
 
 const STATUS_LABELS: Record<CanonicalLabOrderStatus, string> = {
-  Pending: "Pending",
-  Sample_Collection_Requested: "Collection Requested",
-  Sample_Collected: "Sample Collected",
-  In_Progress: "In Progress",
-  Result_Uploaded: "Results Ready",
-  Completed: "Completed",
-  Cancelled: "Cancelled",
-  Rejected: "Rejected",
-};
-
-const CANONICAL_STATUS_BY_KEY: Record<string, CanonicalLabOrderStatus> = {
   PENDING: "Pending",
-  SAMPLE_COLLECTION_REQUESTED: "Sample_Collection_Requested",
-  SAMPLE_COLLECTED: "Sample_Collected",
-  IN_PROGRESS: "In_Progress",
-  RESULT_UPLOADED: "Result_Uploaded",
+  SAMPLE_COLLECTION_REQUESTED: "Collection Requested",
+  SAMPLE_COLLECTED: "Sample Collected",
+  IN_PROGRESS: "In Progress",
+  RESULT_UPLOADED: "Results Ready",
   COMPLETED: "Completed",
   CANCELLED: "Cancelled",
   REJECTED: "Rejected",
 };
 
+const CANONICAL_STATUS_BY_KEY: Record<string, CanonicalLabOrderStatus> = {
+  PENDING: "PENDING",
+  SAMPLE_COLLECTION_REQUESTED: "SAMPLE_COLLECTION_REQUESTED",
+  SAMPLE_COLLECTED: "SAMPLE_COLLECTED",
+  IN_PROGRESS: "IN_PROGRESS",
+  RESULT_UPLOADED: "RESULT_UPLOADED",
+  COMPLETED: "COMPLETED",
+  CANCELLED: "CANCELLED",
+  REJECTED: "REJECTED",
+};
+
 const LEGACY_STATUS_ALIASES: Record<string, CanonicalLabOrderStatus> = {
-  APPROVED: "In_Progress",
-  ACCEPTED: "In_Progress",
-  PROCESSING: "In_Progress",
-  REQUESTED: "Sample_Collection_Requested",
+  APPROVED: "IN_PROGRESS",
+  ACCEPTED: "IN_PROGRESS",
+  PROCESSING: "IN_PROGRESS",
+  REQUESTED: "SAMPLE_COLLECTION_REQUESTED",
   // Legacy intermediary value removed from the official workflow.
-  ASSIGNED_TO_DOCTOR: "Result_Uploaded",
+  ASSIGNED_TO_DOCTOR: "RESULT_UPLOADED",
 };
 
 const LAB_STATUS_CLASS_NAMES: Record<CanonicalLabOrderStatus, string> = {
-  Pending: "bg-yellow-100 text-yellow-700 border-yellow-200",
-  Sample_Collection_Requested: "bg-blue-100 text-blue-700 border-blue-200",
-  Sample_Collected: "bg-blue-100 text-blue-700 border-blue-200",
-  In_Progress: "bg-blue-100 text-blue-700 border-blue-200",
-  Result_Uploaded: "bg-green-100 text-green-700 border-green-200",
-  Completed: "bg-green-100 text-green-700 border-green-200",
-  Cancelled: "bg-red-100 text-red-700 border-red-200",
-  Rejected: "bg-red-100 text-red-700 border-red-200",
+  PENDING: "bg-yellow-100 text-yellow-700 border-yellow-200",
+  SAMPLE_COLLECTION_REQUESTED: "bg-blue-100 text-blue-700 border-blue-200",
+  SAMPLE_COLLECTED: "bg-blue-100 text-blue-700 border-blue-200",
+  IN_PROGRESS: "bg-blue-100 text-blue-700 border-blue-200",
+  RESULT_UPLOADED: "bg-green-100 text-green-700 border-green-200",
+  COMPLETED: "bg-green-100 text-green-700 border-green-200",
+  CANCELLED: "bg-red-100 text-red-700 border-red-200",
+  REJECTED: "bg-red-100 text-red-700 border-red-200",
 };
 
 const STATUS_BUCKETS: Record<LabWorkflowBucket, CanonicalLabOrderStatus[]> = {
-  inbox: ["Pending"],
-  activeWork: ["Sample_Collection_Requested", "Sample_Collected", "In_Progress"],
-  resultsReady: ["Result_Uploaded"],
-  archive: ["Completed", "Rejected", "Cancelled"],
+  inbox: ["PENDING"],
+  activeWork: ["SAMPLE_COLLECTION_REQUESTED", "SAMPLE_COLLECTED", "IN_PROGRESS"],
+  resultsReady: ["RESULT_UPLOADED"],
+  archive: ["COMPLETED", "REJECTED", "CANCELLED"],
 };
 
 const WORKFLOW_TRANSITIONS: Record<CanonicalLabOrderStatus, CanonicalLabOrderStatus[]> = {
-  Pending: ["Sample_Collection_Requested", "In_Progress", "Rejected", "Cancelled"],
-  Sample_Collection_Requested: ["Sample_Collected", "Cancelled"],
-  Sample_Collected: ["In_Progress", "Cancelled"],
-  In_Progress: ["Result_Uploaded", "Cancelled"],
-  Result_Uploaded: ["Completed"],
-  Completed: [],
-  Rejected: [],
-  Cancelled: [],
+  PENDING: ["SAMPLE_COLLECTION_REQUESTED", "IN_PROGRESS", "REJECTED", "CANCELLED"],
+  SAMPLE_COLLECTION_REQUESTED: ["SAMPLE_COLLECTED", "CANCELLED"],
+  SAMPLE_COLLECTED: ["IN_PROGRESS", "CANCELLED"],
+  IN_PROGRESS: ["RESULT_UPLOADED", "CANCELLED"],
+  RESULT_UPLOADED: ["COMPLETED"],
+  COMPLETED: [],
+  REJECTED: [],
+  CANCELLED: [],
 };
 
-const TERMINAL_STATUSES: CanonicalLabOrderStatus[] = ["Completed", "Rejected", "Cancelled"];
+const TERMINAL_STATUSES: CanonicalLabOrderStatus[] = ["COMPLETED", "REJECTED", "CANCELLED"];
 
 export const normalizeLabStatusKey = (value?: string | null) =>
   (value ?? "")
@@ -82,7 +82,7 @@ export const normalizeLabStatusKey = (value?: string | null) =>
 export const normalizeLabOrderStatus = (status?: string | null): CanonicalLabOrderStatus | "" => {
   const key = normalizeLabStatusKey(status);
   if (!key) return "";
-  if (key === "CANCELED") return "Cancelled";
+  if (key === "CANCELED") return "CANCELLED";
   return CANONICAL_STATUS_BY_KEY[key] ?? LEGACY_STATUS_ALIASES[key] ?? "";
 };
 
@@ -123,9 +123,9 @@ export const getNextLabOrderStatuses = (status?: string | null) => {
   return WORKFLOW_TRANSITIONS[canonical] ?? [];
 };
 
-export const canReviewLabOrder = (status?: string | null) => normalizeLabOrderStatus(status) === "Pending";
+export const canReviewLabOrder = (status?: string | null) => normalizeLabOrderStatus(status) === "PENDING";
 
-export const canUploadLabResult = (status?: string | null) => normalizeLabOrderStatus(status) === "In_Progress";
+export const canUploadLabResult = (status?: string | null) => normalizeLabOrderStatus(status) === "IN_PROGRESS";
 
 export const isTerminalLabOrderStatus = (status?: string | null) => {
   const canonical = normalizeLabOrderStatus(status);
@@ -136,8 +136,8 @@ export const canReplyOnLabOrder = (status?: string | null) => !isTerminalLabOrde
 
 export const isResultReadyStatus = (status?: string | null) => {
   const canonical = normalizeLabOrderStatus(status);
-  return canonical === "Result_Uploaded";
+  return canonical === "RESULT_UPLOADED";
 };
 
 export const isPatientResultVisibleStatus = (status?: string | null) =>
-  normalizeLabOrderStatus(status) === "Completed";
+  ["RESULT_UPLOADED", "COMPLETED"].includes(normalizeLabOrderStatus(status));

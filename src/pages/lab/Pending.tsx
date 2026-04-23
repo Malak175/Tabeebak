@@ -25,9 +25,9 @@ const formatDateTime = (value?: string | null) => formatDisplayDateTime(value);
 
 const ACTIVE_WORK_FILTERS = [
   { value: "all", label: "All active work" },
-  { value: "Sample_Collection_Requested", label: "Collection Requested" },
-  { value: "Sample_Collected", label: "Sample Collected" },
-  { value: "In_Progress", label: "In Progress" },
+  { value: "SAMPLE_COLLECTION_REQUESTED", label: "Collection Requested" },
+  { value: "SAMPLE_COLLECTED", label: "Sample Collected" },
+  { value: "IN_PROGRESS", label: "In Progress" },
 ];
 
 const OrdersSkeleton = () => (
@@ -242,4 +242,3 @@ const LabPending = () => {
 };
 
 export default LabPending;
-

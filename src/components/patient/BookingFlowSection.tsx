@@ -3,6 +3,7 @@ import { ReactNode, useEffect, useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
 import { DoctorAvailability } from "@/types/doctor-profile.types";
 import { buildStableKey } from "@/lib/reactKeys";
+import { normalizeApiStatusKey } from "@/lib/apiStatus";
 import {
   formatDateTime as formatDateTimeParts,
   formatDisplayDate,
@@ -124,7 +125,7 @@ export const RequestSummaryCard = ({ request, href }: RequestCardProps) => {
   const derivedTime = preferredDateTime ? formatDateTimeParts(preferredDateTime).time : "-";
   const timeLabel =
     request.preferredTime || (derivedTime !== "-" ? derivedTime : null) || "Time pending";
-  const isApproved = request.status === "approved";
+  const isApproved = normalizeApiStatusKey(request.status) === "APPROVED";
   const isDoctorRequest = "doctorId" in request;
   const appointmentId = "appointmentId" in request ? request.appointmentId : null;
   const appointmentScheduledAt = "appointmentScheduledAt" in request ? request.appointmentScheduledAt : null;

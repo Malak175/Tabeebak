@@ -12,6 +12,8 @@ import {
   DoctorAppointmentRequestDetails,
   DoctorAppointmentRequestFilterParams,
   DoctorAppointmentFilterParams,
+  DoctorLabResult,
+  DoctorLabResultFilterParams,
   DoctorPatientFilterParams,
   DoctorPatientListItem,
   DoctorPatientSummary,
@@ -24,6 +26,7 @@ import {
   UpdateDoctorAppointmentPayload,
   UpdateDoctorAppointmentRequestStatusPayload,
 } from "@/types/doctor-workflow.types";
+import { normalizeApiStatusKey } from "@/lib/apiStatus";
 
 const asRecord = (value: unknown): Record<string, unknown> =>
   value && typeof value === "object" && !Array.isArray(value)
@@ -260,30 +263,21 @@ const getListEnvelope = (payload: unknown) => {
   }
 
   const raw = asRecord(payload);
-  const data = raw.data;
-
-  if (Array.isArray(data)) {
-    return {
-      items: data,
-      meta: mergeRecords(raw, raw.meta, raw.pagination),
-    };
-  }
-
-  const container = asRecord(data);
+  const container = asRecord(raw.data);
   const candidates = [
     container.items,
-    container.results,
-    container.records,
-    container.appointments,
-    container.patients,
-    container.prescriptions,
-    container.reviews,
     raw.items,
+    container.results,
     raw.results,
+    container.records,
     raw.records,
+    container.appointments,
     raw.appointments,
+    container.patients,
     raw.patients,
+    container.prescriptions,
     raw.prescriptions,
+    container.reviews,
     raw.reviews,
   ];
 
@@ -299,19 +293,33 @@ const normalizePaginatedResponse = <T>(
   payload: unknown,
   mapItem: (value: unknown) => T,
 ): PaginatedResponse<T> => {
+  const raw = asRecord(payload);
+  const data = asRecord(raw.data);
+  const pagination = asRecord(data.pagination);
   const { items, meta } = getListEnvelope(payload);
-  const page = pickNumber(meta, ["page", "currentPage", "pageNumber"]) ?? 1;
+  const normalizedMeta = mergeRecords(
+    {
+      page: pagination.page,
+      pageSize: pagination.page_size,
+      totalItems: pagination.total_items,
+      totalPages: pagination.total_pages,
+    },
+    meta,
+  );
+  const page = pickNumber(normalizedMeta, ["page", "currentPage", "pageNumber"]) ?? 1;
   const limit =
-    pickNumber(meta, ["limit", "perPage", "pageSize", "size"]) ??
+    pickNumber(normalizedMeta, ["pageSize", "page_size", "limit", "perPage", "size"]) ??
     (items.length > 0 ? items.length : 10);
-  const total = pickNumber(meta, ["total", "totalCount", "totalItems", "count"]) ?? items.length;
+  const total =
+    pickNumber(normalizedMeta, ["totalItems", "total_items", "total", "totalCount", "count"]) ??
+    items.length;
   const totalPages =
-    pickNumber(meta, ["totalPages", "pageCount", "pages"]) ??
+    pickNumber(normalizedMeta, ["totalPages", "total_pages", "pageCount", "pages"]) ??
     Math.max(1, Math.ceil(total / Math.max(limit, 1)));
   const hasNextPage =
-    pickBoolean(meta, ["hasNextPage", "hasMore", "has_next_page"]) ?? page < totalPages;
+    pickBoolean(normalizedMeta, ["hasNextPage", "hasMore", "has_next_page"]) ?? page < totalPages;
   const hasPreviousPage =
-    pickBoolean(meta, ["hasPreviousPage", "hasPrevPage", "has_previous_page"]) ?? page > 1;
+    pickBoolean(normalizedMeta, ["hasPreviousPage", "hasPrevPage", "has_previous_page"]) ?? page > 1;
 
   return {
     data: items.map(mapItem),
@@ -417,7 +425,9 @@ const normalizeDoctorAppointment = (payload: unknown): DoctorAppointment => {
       ["appointmentTime", "appointment_time", "time", "startTime", "start_time"],
     ),
     endAt: buildDateTime(raw, ["endAt", "endDate", "end_date"], ["endTime", "end_time"]),
-    status: pickString(raw, ["status", "appointmentStatus", "appointment_status"]) ?? "scheduled",
+    status:
+      normalizeApiStatusKey(pickString(raw, ["status", "appointmentStatus", "appointment_status"])) ||
+      "SCHEDULED",
     type: pickNullableString(raw, ["type", "appointmentType", "appointment_type", "visitType"]),
     mode: pickNullableString(raw, ["mode", "consultationMode", "consultation_mode"]),
     location:
@@ -535,7 +545,9 @@ const normalizeDoctorAppointmentRequest = (payload: unknown): DoctorAppointmentR
         "visit_type",
         "type",
       ]) ?? pickNullableString(raw, ["mode"]),
-    status: pickString(raw, ["status", "requestStatus", "request_status"]) ?? "pending",
+    status:
+      normalizeApiStatusKey(pickString(raw, ["status", "requestStatus", "request_status"])) ||
+      "PENDING",
     latestSummary,
     reason: pickNullableString(raw, ["reason", "chiefComplaint", "chief_complaint"]),
     notes: pickNullableString(raw, ["note", "notes", "patientNote", "patient_note"]),
@@ -550,7 +562,7 @@ const normalizeDoctorAppointmentRequest = (payload: unknown): DoctorAppointmentR
     updatedAt: pickNullableString(raw, ["updatedAt", "updated_at"]),
     canReply:
       pickBoolean(raw, ["canReply", "can_reply"]) ??
-      !["cancelled", "canceled"].includes((pickString(raw, ["status"]) ?? "").toLowerCase()),
+      !["CANCELLED", "CANCELED", "REJECTED"].includes(normalizeApiStatusKey(pickString(raw, ["status"]))),
   };
 };
 
@@ -783,6 +795,43 @@ const normalizeDoctorReview = (payload: unknown): DoctorReview => {
     comment: pickNullableString(raw, ["comment", "review", "message", "feedback"]),
     wouldRecommend: pickBoolean(raw, ["wouldRecommend", "recommended", "isRecommended"]) ?? null,
     createdAt: pickNullableString(raw, ["createdAt", "created_at", "reviewedAt", "date"]),
+  };
+};
+
+const normalizeDoctorLabResult = (payload: unknown): DoctorLabResult => {
+  const raw = unwrapPayload(payload);
+  const patient = mergeRecords(pickRecord(raw, ["patient", "patientProfile"]));
+  const doctor = mergeRecords(pickRecord(raw, ["doctor", "orderingDoctor", "provider"]));
+  const laboratory = mergeRecords(pickRecord(raw, ["laboratory", "lab"]));
+
+  return {
+    id: pickString(raw, ["id", "_id", "resultId", "result_id", "labResultId", "lab_result_id"]) ?? "",
+    resultNumber: pickNullableString(raw, ["resultNumber", "result_number", "referenceNumber"]),
+    orderId: pickNullableString(raw, ["orderId", "order_id", "labOrderId", "lab_order_id"]),
+    orderNumber: pickNullableString(raw, ["orderNumber", "order_number"]),
+    patientId:
+      pickNullableString(raw, ["patientId", "patient_id"]) ??
+      pickNullableString(patient, ["id", "_id", "patientId", "patient_id"]),
+    patientName:
+      pickString(raw, ["patientName", "patient_name"]) ??
+      pickString(patient, ["displayName", "name", "fullName", "full_name"]) ??
+      "Patient",
+    testName: pickString(raw, ["testName", "test_name", "name"]) ?? "Lab result",
+    category: pickNullableString(raw, ["category", "testCategory", "test_category"]),
+    status: normalizeApiStatusKey(pickString(raw, ["status", "resultStatus", "result_status"])) || "UNKNOWN",
+    reportedAt: pickNullableString(raw, ["reportedAt", "completedAt", "issuedAt", "date"]),
+    collectedAt: pickNullableString(raw, ["collectedAt", "sampleCollectedAt", "collected_at"]),
+    orderedAt: pickNullableString(raw, ["orderedAt", "createdAt", "dateOrdered"]),
+    laboratoryName:
+      pickNullableString(raw, ["laboratoryName", "labName", "lab_name"]) ??
+      pickNullableString(laboratory, ["name", "displayName"]),
+    orderingDoctorName:
+      pickNullableString(raw, ["orderingDoctorName", "doctorName", "doctor_name"]) ??
+      pickNullableString(doctor, ["fullName", "full_name", "displayName", "name"]),
+    summary: pickNullableString(raw, ["summary", "interpretation"]),
+    conclusion: pickNullableString(raw, ["conclusion", "impression"]),
+    notes: pickNullableString(raw, ["notes", "comment"]),
+    reportUrl: pickNullableString(raw, ["reportUrl", "pdfUrl", "downloadUrl"]),
   };
 };
 
@@ -1033,5 +1082,26 @@ export const doctorWorkflowService = {
     });
 
     return normalizePaginatedResponse(response, normalizeDoctorReview);
+  },
+
+  getDoctorLabResults: async (
+    params?: DoctorLabResultFilterParams,
+  ): Promise<PaginatedResponse<DoctorLabResult>> => {
+    const response = await apiRequest<unknown>("/api/v1/doctors/me/lab-results", {
+      method: "GET",
+      params: buildQueryParams(params),
+      auth: true,
+    });
+
+    return normalizePaginatedResponse(response, normalizeDoctorLabResult);
+  },
+
+  getDoctorLabResultById: async (resultId: string): Promise<DoctorLabResult> => {
+    const response = await apiRequest<unknown>(`/api/v1/doctors/me/lab-results/${resultId}`, {
+      method: "GET",
+      auth: true,
+    });
+
+    return normalizeDoctorLabResult(response);
   },
 };

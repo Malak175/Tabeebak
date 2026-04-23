@@ -29,6 +29,7 @@ import {
   useDoctorTodayAppointmentsQuery,
 } from "@/hooks/useDoctorWorkflow";
 import { getDisplayName } from "@/lib/auth";
+import { normalizeApiStatusKey } from "@/lib/apiStatus";
 
 const getUpcomingAppointmentsCount = (appointments: { scheduledAt?: string | null; status?: string }[]) => {
   const now = new Date();
@@ -37,8 +38,8 @@ const getUpcomingAppointmentsCount = (appointments: { scheduledAt?: string | nul
     if (!appointment.scheduledAt) return false;
     const parsed = parseISO(appointment.scheduledAt);
     if (!isValid(parsed)) return false;
-    const status = appointment.status?.toLowerCase();
-    if (status && ["completed", "cancelled", "canceled", "no_show"].includes(status)) {
+    const status = normalizeApiStatusKey(appointment.status);
+    if (["COMPLETED", "CANCELLED", "CANCELED", "NO_SHOW"].includes(status)) {
       return false;
     }
     return isAfter(parsed, now);

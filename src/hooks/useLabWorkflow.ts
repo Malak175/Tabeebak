@@ -57,7 +57,10 @@ export const useUpdateLabOrderStatusMutation = () => {
       payload: UpdateLabOrderStatusRequest;
     }) => labWorkflowService.updateLabOrderStatus(orderId, payload),
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: labWorkflowQueryKeys.all });
+      queryClient.invalidateQueries({ queryKey: labWorkflowQueryKeys.ordersRoot() });
+      queryClient.invalidateQueries({ queryKey: labWorkflowQueryKeys.results() });
+      queryClient.invalidateQueries({ queryKey: ["patient", "lab-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["patient", "lab-results"] });
       queryClient.invalidateQueries({
         queryKey: labWorkflowQueryKeys.orderDetails(variables.orderId),
       });
@@ -77,7 +80,10 @@ export const useReviewLabOrderMutation = () => {
       payload: ReviewLabOrderRequest;
     }) => labWorkflowService.reviewLabOrder(orderId, payload),
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: labWorkflowQueryKeys.all });
+      queryClient.invalidateQueries({ queryKey: labWorkflowQueryKeys.ordersRoot() });
+      queryClient.invalidateQueries({ queryKey: labWorkflowQueryKeys.results() });
+      queryClient.invalidateQueries({ queryKey: ["patient", "lab-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["patient", "lab-results"] });
       queryClient.invalidateQueries({
         queryKey: labWorkflowQueryKeys.orderDetails(variables.orderId),
       });
@@ -115,9 +121,11 @@ export const useUploadLabOrderResultMutation = () => {
       payload: UploadLabResultRequest;
     }) => labWorkflowService.uploadLabOrderResult(orderId, payload),
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: labWorkflowQueryKeys.all });
-      queryClient.invalidateQueries({ queryKey: ["lab-workflow", "orders"] });
-      queryClient.invalidateQueries({ queryKey: ["lab-workflow", "results"] });
+      queryClient.invalidateQueries({ queryKey: labWorkflowQueryKeys.ordersRoot() });
+      queryClient.invalidateQueries({ queryKey: labWorkflowQueryKeys.results() });
+      queryClient.invalidateQueries({ queryKey: ["patient", "lab-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["patient", "lab-results"] });
+      queryClient.invalidateQueries({ queryKey: ["doctor-workflow", "lab-results"] });
       queryClient.invalidateQueries({
         queryKey: labWorkflowQueryKeys.orderDetails(variables.orderId),
       });

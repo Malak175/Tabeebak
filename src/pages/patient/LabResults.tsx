@@ -76,7 +76,7 @@ const PatientLabResults = () => {
   const visibleResults = useMemo(
     () =>
       (resultsQuery.data?.data ?? []).filter((result) =>
-        isPatientResultVisibleStatus(result.orderStatus),
+        isPatientResultVisibleStatus(result.orderStatus ?? result.status),
       ),
     [resultsQuery.data?.data],
   );
@@ -123,16 +123,16 @@ const PatientLabResults = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All statuses</SelectItem>
-              <SelectItem value="Pending">{formatLabStatusLabel("Pending")}</SelectItem>
-              <SelectItem value="Sample_Collection_Requested">
-                {formatLabStatusLabel("Sample_Collection_Requested")}
+              <SelectItem value="PENDING">{formatLabStatusLabel("PENDING")}</SelectItem>
+              <SelectItem value="SAMPLE_COLLECTION_REQUESTED">
+                {formatLabStatusLabel("SAMPLE_COLLECTION_REQUESTED")}
               </SelectItem>
-              <SelectItem value="Sample_Collected">{formatLabStatusLabel("Sample_Collected")}</SelectItem>
-              <SelectItem value="In_Progress">{formatLabStatusLabel("In_Progress")}</SelectItem>
-              <SelectItem value="Result_Uploaded">{formatLabStatusLabel("Result_Uploaded")}</SelectItem>
-              <SelectItem value="Completed">{formatLabStatusLabel("Completed")}</SelectItem>
-              <SelectItem value="Rejected">{formatLabStatusLabel("Rejected")}</SelectItem>
-              <SelectItem value="Cancelled">{formatLabStatusLabel("Cancelled")}</SelectItem>
+              <SelectItem value="SAMPLE_COLLECTED">{formatLabStatusLabel("SAMPLE_COLLECTED")}</SelectItem>
+              <SelectItem value="IN_PROGRESS">{formatLabStatusLabel("IN_PROGRESS")}</SelectItem>
+              <SelectItem value="RESULT_UPLOADED">{formatLabStatusLabel("RESULT_UPLOADED")}</SelectItem>
+              <SelectItem value="COMPLETED">{formatLabStatusLabel("COMPLETED")}</SelectItem>
+              <SelectItem value="REJECTED">{formatLabStatusLabel("REJECTED")}</SelectItem>
+              <SelectItem value="CANCELLED">{formatLabStatusLabel("CANCELLED")}</SelectItem>
             </SelectContent>
           </Select>
           <Button
@@ -178,7 +178,7 @@ const PatientLabResults = () => {
                 <Alert>
                   <AlertTitle>Some results are not visible yet</AlertTitle>
                   <AlertDescription>
-                    {hiddenResultsCount} result record(s) are hidden until the related order reaches Completed.
+                    {hiddenResultsCount} result record(s) are hidden until the related order reaches Result Uploaded.
                   </AlertDescription>
                 </Alert>
               ) : null}
@@ -238,7 +238,7 @@ const PatientLabResults = () => {
               <div className="flex flex-col gap-3 rounded-lg border bg-card p-4 md:flex-row md:items-center md:justify-between">
                 <p className="text-sm text-muted-foreground">
                   Page {resultsQuery.data.page} of {resultsQuery.data.totalPages} with{" "}
-                  {visibleResults.length} visible completed result(s)
+                  {visibleResults.length} visible published result(s)
                 </p>
                 <div className="flex gap-2">
                   <Button
@@ -259,11 +259,11 @@ const PatientLabResults = () => {
               </div>
             </>
           ) : (
-            <Card>
-              <CardContent className="p-8 text-center text-muted-foreground">
-                No completed lab results matched your current filters.
-              </CardContent>
-            </Card>
+              <Card>
+                <CardContent className="p-8 text-center text-muted-foreground">
+                No visible lab results matched your current filters.
+                </CardContent>
+              </Card>
           )}
         </TabsContent>
 

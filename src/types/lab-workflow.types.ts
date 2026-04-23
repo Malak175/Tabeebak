@@ -126,7 +126,7 @@ export interface UpdateLabOrderStatusRequest {
 
 export interface ReviewLabOrderRequest {
   action: "approve" | "reject";
-  status: "Sample_Collection_Requested" | "In_Progress" | "Rejected";
+  status: "SAMPLE_COLLECTION_REQUESTED" | "IN_PROGRESS" | "REJECTED";
   message?: string | null;
   notes?: string | null;
 }
@@ -142,7 +142,7 @@ export interface UploadLabResultValue {
 }
 
 export interface UploadLabResultRequest {
-  status: "Result_Uploaded";
+  status: "RESULT_UPLOADED";
   summary?: string | null;
   conclusion?: string | null;
   notes?: string | null;

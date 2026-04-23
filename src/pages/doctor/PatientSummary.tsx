@@ -8,10 +8,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useDoctorPatientSummaryQuery } from "@/hooks/useDoctorWorkflow";
+import { useDoctorLabResultsQuery, useDoctorPatientSummaryQuery } from "@/hooks/useDoctorWorkflow";
 import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName, getInitials } from "@/lib/auth";
 import { formatDisplayDate } from "@/lib/date-time";
+import { formatLabStatusLabel, getLabStatusBadgeClassName } from "@/lib/labStatus";
 
 const formatDateValue = (value?: string | null) => formatDisplayDate(value);
 
@@ -40,6 +41,16 @@ const DoctorPatientSummary = () => {
   const { patientId } = useParams();
   const { user } = useAuth();
   const query = useDoctorPatientSummaryQuery(patientId, Boolean(user));
+  const labResultsQuery = useDoctorLabResultsQuery(
+    {
+      page: 1,
+      limit: 5,
+      patientId,
+      sortBy: "reportedAt",
+      sortOrder: "desc",
+    },
+    Boolean(user) && Boolean(patientId),
+  );
   const userName = getDisplayName(user ?? {});
 
   return (
@@ -190,6 +201,38 @@ const DoctorPatientSummary = () => {
               <p className="whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
                 {query.data.notes || "No notes were returned for this patient summary yet."}
               </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent Lab Results</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {labResultsQuery.isLoading ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                </div>
+              ) : labResultsQuery.isError ? (
+                <p className="text-sm text-destructive">{(labResultsQuery.error as Error).message}</p>
+              ) : labResultsQuery.data?.data.length ? (
+                <div className="space-y-2">
+                  {labResultsQuery.data.data.map((result) => (
+                    <div key={result.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3">
+                      <div>
+                        <p className="font-medium">{result.testName}</p>
+                        <p className="text-xs text-muted-foreground">{formatDateValue(result.reportedAt)}</p>
+                      </div>
+                      <Badge className={getLabStatusBadgeClassName(result.status)}>
+                        {formatLabStatusLabel(result.status)}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No lab results returned for this patient yet.</p>
+              )}
             </CardContent>
           </Card>
         </div>

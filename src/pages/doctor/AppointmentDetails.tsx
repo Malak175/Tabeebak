@@ -19,6 +19,7 @@ import {
 } from "@/hooks/useDoctorWorkflow";
 import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName } from "@/lib/auth";
+import { formatApiStatusLabel, normalizeApiStatusKey } from "@/lib/apiStatus";
 import { toast } from "sonner";
 
 const formatDateTime = (value?: string | null) => formatDisplayDateTime(value);
@@ -26,16 +27,16 @@ const formatDateTime = (value?: string | null) => formatDisplayDateTime(value);
 const formatDateOnly = (value?: string | null) => formatDisplayDate(value);
 
 const getStatusClassName = (status?: string | null) => {
-  switch ((status ?? "").toLowerCase()) {
-    case "confirmed":
-    case "completed":
+  switch (normalizeApiStatusKey(status)) {
+    case "CONFIRMED":
+    case "COMPLETED":
       return "bg-green-100 text-green-700 border-green-200";
-    case "in-progress":
+    case "IN_PROGRESS":
       return "bg-blue-100 text-blue-700 border-blue-200";
-    case "pending":
+    case "PENDING":
       return "bg-yellow-100 text-yellow-700 border-yellow-200";
-    case "cancelled":
-    case "canceled":
+    case "CANCELLED":
+    case "CANCELED":
       return "bg-red-100 text-red-700 border-red-200";
     default:
       return "bg-muted text-muted-foreground border-border";
@@ -65,7 +66,7 @@ const DoctorAppointmentDetails = () => {
   const requestNote = appointmentRequest?.notes ?? appointmentRequest?.providerMessage ?? null;
   const visitNote = query.data?.notes ?? null;
   const showRequestNote = Boolean(requestNote && (!visitNote || requestNote !== visitNote));
-  const isCompleted = (query.data?.status ?? "").toLowerCase() === "completed";
+  const isCompleted = normalizeApiStatusKey(query.data?.status) === "COMPLETED";
   const prescriptionInfo = query.data?.prescription ?? null;
   const prescriptionExists = prescriptionInfo?.exists === true;
   const prescriptionLatestId = prescriptionInfo?.latestId
@@ -228,7 +229,9 @@ const DoctorAppointmentDetails = () => {
             <div className="space-y-2">
               <div className="flex flex-wrap items-center gap-3">
                 <h2 className="text-2xl font-semibold">{query.data.patientName}</h2>
-                <Badge className={getStatusClassName(query.data.status)}>{query.data.status}</Badge>
+                <Badge className={getStatusClassName(query.data.status)}>
+                  {formatApiStatusLabel(query.data.status)}
+                </Badge>
               </div>
               <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                 {query.data.scheduledAt ? (

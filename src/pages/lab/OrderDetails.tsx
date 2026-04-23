@@ -76,30 +76,30 @@ const getLabTimelineSteps = (
   const canonicalStatus = toCanonicalStatus(status);
 
   switch (canonicalStatus) {
-    case "Pending":
+    case "PENDING":
       setState(0, "current");
       break;
-    case "Sample_Collection_Requested":
+    case "SAMPLE_COLLECTION_REQUESTED":
       setState(0, "complete");
       setState(1, "current");
       break;
-    case "Sample_Collected":
-    case "In_Progress":
+    case "SAMPLE_COLLECTED":
+    case "IN_PROGRESS":
       setState(0, "complete");
       setState(1, "complete");
       setState(2, "current");
       break;
-    case "Result_Uploaded":
+    case "RESULT_UPLOADED":
       setState(0, "complete");
       setState(1, "complete");
       setState(2, "complete");
       setState(3, "current");
       break;
-    case "Completed":
+    case "COMPLETED":
       steps.forEach((_, index) => setState(index, "complete"));
       break;
-    case "Cancelled":
-    case "Rejected":
+    case "CANCELLED":
+    case "REJECTED":
       setState(0, "complete");
       break;
     default:
@@ -110,7 +110,7 @@ const getLabTimelineSteps = (
     steps[1] = { ...steps[1], state: "complete", helper: "Not required" };
   }
 
-  if (canonicalStatus === "Cancelled" || canonicalStatus === "Rejected") {
+  if (canonicalStatus === "CANCELLED" || canonicalStatus === "REJECTED") {
     for (let index = 1; index < steps.length; index += 1) {
       if (steps[index].state !== "complete") {
         setState(index, "upcoming");
@@ -127,17 +127,17 @@ const getLabTimelineSteps = (
 
 const getReviewPresentation = (status?: string | null) => {
   const normalized = toCanonicalStatus(status);
-  if (normalized === "Pending") {
+  if (normalized === "PENDING") {
     return null;
   }
-  if (normalized === "Rejected") {
+  if (normalized === "REJECTED") {
     return {
       label: "Rejected",
       tone: "danger",
       description: "The request was declined and is no longer active.",
     };
   }
-  if (normalized === "Cancelled") {
+  if (normalized === "CANCELLED") {
     return {
       label: "Cancelled",
       tone: "danger",
@@ -157,9 +157,9 @@ const getReviewPresentation = (status?: string | null) => {
 const resolveReviewedOrderStatus = (
   action: "approve" | "reject",
   sampleCollectionRequired?: boolean,
-): "Sample_Collection_Requested" | "In_Progress" | "Rejected" => {
-  if (action === "reject") return "Rejected";
-  return sampleCollectionRequired !== false ? "Sample_Collection_Requested" : "In_Progress";
+): "SAMPLE_COLLECTION_REQUESTED" | "IN_PROGRESS" | "REJECTED" => {
+  if (action === "reject") return "REJECTED";
+  return sampleCollectionRequired !== false ? "SAMPLE_COLLECTION_REQUESTED" : "IN_PROGRESS";
 };
 
 const DetailRow = ({ label, value }: { label: string; value?: string | null }) => (
@@ -204,25 +204,25 @@ const getFallbackBackLink = (status?: string | null) => {
 
 const getWorkflowActionHint = (status?: string | null, sampleCollectionRequired?: boolean) => {
   const canonical = toCanonicalStatus(status);
-  if (canonical === "Pending") {
+  if (canonical === "PENDING") {
     return "This order is in Inbox. Approve to start Active Work, or reject if it cannot be processed.";
   }
-  if (canonical === "Sample_Collection_Requested") {
+  if (canonical === "SAMPLE_COLLECTION_REQUESTED") {
     return "Collection is pending. Move to Sample Collected once the specimen is received.";
   }
-  if (canonical === "Sample_Collected") {
+  if (canonical === "SAMPLE_COLLECTED") {
     return "Collection is complete. Move to In Progress when processing starts.";
   }
-  if (canonical === "In_Progress") {
+  if (canonical === "IN_PROGRESS") {
     return "Processing is active. Upload the result to move this order into Results Ready.";
   }
-  if (canonical === "Result_Uploaded") {
+  if (canonical === "RESULT_UPLOADED") {
     return "Result upload is complete. Move this order to Completed when hand-off is confirmed.";
   }
-  if (canonical === "Completed") {
+  if (canonical === "COMPLETED") {
     return "Workflow complete. This order is now in Archive.";
   }
-  if (canonical === "Cancelled" || canonical === "Rejected") {
+  if (canonical === "CANCELLED" || canonical === "REJECTED") {
     return "Workflow closed. No further workflow actions are available.";
   }
   if (sampleCollectionRequired === false) {
@@ -447,7 +447,7 @@ const LabOrderDetailsPage = () => {
       {
         orderId,
         payload: {
-          status: "Result_Uploaded",
+          status: "RESULT_UPLOADED",
           summary: summary || null,
           conclusion: conclusion || null,
           notes: resultNotes || null,
@@ -949,7 +949,7 @@ const LabOrderDetailsPage = () => {
                 ) : null}
               </CardContent>
               </Card>
-            ) : normalizedStatus === "Result_Uploaded" || normalizedStatus === "Completed" ? (
+            ) : normalizedStatus === "RESULT_UPLOADED" || normalizedStatus === "COMPLETED" ? (
               <Alert>
                 <AlertTitle>Result upload complete</AlertTitle>
                 <AlertDescription>
