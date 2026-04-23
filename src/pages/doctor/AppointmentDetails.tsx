@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { formatDisplayDate, formatDisplayDateTime } from "@/lib/date-time";
 import { Calendar, Clock, MapPin, Stethoscope, Video } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
+import DoctorAppointmentTimeline from "@/components/doctor/DoctorAppointmentTimeline";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { doctorNavItems } from "@/components/settings/AccountSettingsContent";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -278,6 +279,11 @@ const DoctorAppointmentDetails = () => {
               ) : null}
             </div>
           </div>
+
+          <DoctorAppointmentTimeline
+            appointmentStatus={query.data.status}
+            requestStatus={query.data.appointmentRequest?.status}
+          />
 
           <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
             <div className="space-y-6">

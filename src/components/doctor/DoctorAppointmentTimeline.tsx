@@ -1,11 +1,6 @@
 import ProgressTimeline, { ProgressTimelineStep } from "@/components/shared/ProgressTimeline";
 
-type TerminalState = {
-  label: string;
-  message: string;
-};
-
-const APPOINTMENT_TIMELINE_STEPS: ProgressTimelineStep[] = [
+const DOCTOR_APPOINTMENT_STEPS: ProgressTimelineStep[] = [
   { key: "REQUEST_SUBMITTED", label: "Request Submitted" },
   { key: "APPROVED", label: "Approved" },
   { key: "APPOINTMENT_SCHEDULED", label: "Appointment Scheduled" },
@@ -23,7 +18,7 @@ const normalizeStatusKey = (status?: string | null) =>
 const resolveStatusKey = (appointmentStatus?: string | null, requestStatus?: string | null) =>
   normalizeStatusKey(appointmentStatus) || normalizeStatusKey(requestStatus);
 
-const resolveTimelineProgress = (statusKey: string) => {
+const resolveProgress = (statusKey: string) => {
   switch (statusKey) {
     case "PENDING":
       return { completedIndex: 0, currentIndex: 1 };
@@ -50,23 +45,23 @@ const resolveTimelineProgress = (statusKey: string) => {
   }
 };
 
-const getTerminalState = (statusKey: string): TerminalState | null => {
+const getTerminalState = (statusKey: string) => {
   if (statusKey === "REJECTED") {
     return {
       label: "Rejected",
-      message: "This request was rejected and the journey stopped before scheduling.",
+      message: "This appointment flow was rejected before scheduling.",
     };
   }
   if (statusKey === "CANCELLED" || statusKey === "CANCELED") {
     return {
       label: "Cancelled",
-      message: "This appointment journey was cancelled and is no longer active.",
+      message: "This appointment flow was cancelled and is no longer active.",
     };
   }
   return null;
 };
 
-const AppointmentTimeline = ({
+const DoctorAppointmentTimeline = ({
   appointmentStatus,
   requestStatus,
 }: {
@@ -74,19 +69,19 @@ const AppointmentTimeline = ({
   requestStatus?: string | null;
 }) => {
   const statusKey = resolveStatusKey(appointmentStatus, requestStatus);
-  const progress = resolveTimelineProgress(statusKey);
-  const terminalState = getTerminalState(statusKey);
+  const progress = resolveProgress(statusKey);
+  const terminal = getTerminalState(statusKey);
 
   return (
     <ProgressTimeline
       title="Appointment Progress"
-      steps={APPOINTMENT_TIMELINE_STEPS}
+      steps={DOCTOR_APPOINTMENT_STEPS}
       completedIndex={progress.completedIndex}
       currentIndex={progress.currentIndex}
-      terminalLabel={terminalState?.label ?? null}
-      terminalMessage={terminalState?.message ?? null}
+      terminalLabel={terminal?.label ?? null}
+      terminalMessage={terminal?.message ?? null}
     />
   );
 };
 
-export default AppointmentTimeline;
+export default DoctorAppointmentTimeline;

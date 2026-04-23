@@ -3,12 +3,11 @@ import { ArrowLeft, CalendarClock, CheckCircle2, FileUp, FlaskConical, XCircle }
 import { Link, useLocation, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
-  JourneyTimeline,
   MessageThread,
   ReplyComposer,
   SectionCard,
 } from "@/components/patient/BookingFlowSection";
-import type { JourneyStep } from "@/components/patient/BookingFlowSection";
+import LabOrderTimeline from "@/components/lab/LabOrderTimeline";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { labNavItems } from "@/components/settings/AccountSettingsContent";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -50,79 +49,6 @@ const formatDateTime = (value?: string | null) => formatDisplayDateTime(value);
 
 const toCanonicalStatus = (status?: string | null) => {
   return normalizeLabOrderStatus(status);
-};
-
-const getLabTimelineSteps = (
-  status?: string | null,
-  sampleCollectionRequired?: boolean,
-): JourneyStep[] => {
-  const requiresCollection = sampleCollectionRequired !== false;
-  const steps: JourneyStep[] = [
-    { label: "Request", state: "upcoming", helper: "Submitted" },
-    {
-      label: "Collection",
-      state: "upcoming",
-      helper: requiresCollection ? "Sample collection" : "Not required",
-    },
-    { label: "Processing", state: "upcoming", helper: "Lab processing" },
-    { label: "Results", state: "upcoming", helper: "Result upload" },
-    { label: "Completion", state: "upcoming", helper: "Hand-off" },
-  ];
-
-  const setState = (index: number, state: JourneyStep["state"]) => {
-    steps[index] = { ...steps[index], state };
-  };
-
-  const canonicalStatus = toCanonicalStatus(status);
-
-  switch (canonicalStatus) {
-    case "PENDING":
-      setState(0, "current");
-      break;
-    case "SAMPLE_COLLECTION_REQUESTED":
-      setState(0, "complete");
-      setState(1, "current");
-      break;
-    case "SAMPLE_COLLECTED":
-    case "IN_PROGRESS":
-      setState(0, "complete");
-      setState(1, "complete");
-      setState(2, "current");
-      break;
-    case "RESULT_UPLOADED":
-      setState(0, "complete");
-      setState(1, "complete");
-      setState(2, "complete");
-      setState(3, "current");
-      break;
-    case "COMPLETED":
-      steps.forEach((_, index) => setState(index, "complete"));
-      break;
-    case "CANCELLED":
-    case "REJECTED":
-      setState(0, "complete");
-      break;
-    default:
-      setState(0, "current");
-  }
-
-  if (!requiresCollection) {
-    steps[1] = { ...steps[1], state: "complete", helper: "Not required" };
-  }
-
-  if (canonicalStatus === "CANCELLED" || canonicalStatus === "REJECTED") {
-    for (let index = 1; index < steps.length; index += 1) {
-      if (steps[index].state !== "complete") {
-        setState(index, "upcoming");
-      }
-    }
-    const blockedIndex = steps.findIndex((step, index) => index > 0 && step.state !== "complete");
-    if (blockedIndex !== -1) {
-      setState(blockedIndex, "blocked");
-    }
-  }
-
-  return steps;
 };
 
 const getReviewPresentation = (status?: string | null) => {
@@ -267,7 +193,6 @@ const LabOrderDetailsPage = () => {
     ? formatLabStatusLabel(detail.sampleCollectionStatus)
     : null;
   const resultStatusLabel = detail?.resultStatus ? formatLabStatusLabel(detail.resultStatus) : null;
-  const timelineSteps = getLabTimelineSteps(detail?.status, detail?.sampleCollectionRequired);
   const canReviewOrder = canReviewLabOrder(actionStatus);
   const canUploadResultNow = canUploadLabResult(actionStatus);
   const statusOptions = getNextLabOrderStatuses(actionStatus);
@@ -520,7 +445,7 @@ const LabOrderDetailsPage = () => {
             </CardContent>
           </Card>
 
-          <JourneyTimeline title="Workflow Progress" steps={timelineSteps} />
+          <LabOrderTimeline status={actionStatus} />
 
           <Card className="border-primary/25">
             <CardHeader>

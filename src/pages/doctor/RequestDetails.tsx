@@ -12,6 +12,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { MessageThread, ReplyComposer, SectionCard } from "@/components/patient/BookingFlowSection";
+import DoctorRequestTimeline from "@/components/doctor/DoctorRequestTimeline";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { doctorNavItems } from "@/components/settings/AccountSettingsContent";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -309,6 +310,8 @@ const DoctorRequestDetailsPage = () => {
               </div>
             </CardContent>
           </Card>
+
+          <DoctorRequestTimeline status={query.data.status} />
 
           <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
             <div className="space-y-6">

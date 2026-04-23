@@ -1,9 +1,6 @@
-type TimelineStep = {
-  key: "REQUEST_SUBMITTED" | "APPROVED" | "SAMPLE_COLLECTED" | "IN_PROGRESS" | "RESULTS_READY";
-  label: string;
-};
+import ProgressTimeline, { ProgressTimelineStep } from "@/components/shared/ProgressTimeline";
 
-const ORDER_TIMELINE_STEPS: TimelineStep[] = [
+const ORDER_TIMELINE_STEPS: ProgressTimelineStep[] = [
   { key: "REQUEST_SUBMITTED", label: "Request Submitted" },
   { key: "APPROVED", label: "Approved" },
   { key: "SAMPLE_COLLECTED", label: "Sample Collected" },
@@ -47,36 +44,12 @@ const OrderTimeline = ({ status }: { status?: string | null }) => {
   const progress = resolveTimelineProgress(status);
 
   return (
-    <div className="rounded-lg border bg-muted/20 p-4">
-      <p className="mb-3 text-sm font-medium">Order Progress</p>
-      <div className="grid gap-3 md:grid-cols-5">
-        {ORDER_TIMELINE_STEPS.map((step, index) => {
-          const isCompleted = index <= progress.completedIndex;
-          const isCurrent = index === progress.currentIndex && !isCompleted;
-
-          return (
-            <div key={step.key} className="flex items-center gap-2">
-              <span
-                className={`h-2.5 w-2.5 rounded-full ${
-                  isCompleted ? "bg-green-600" : isCurrent ? "bg-primary" : "bg-muted-foreground/40"
-                }`}
-              />
-              <span
-                className={`text-xs ${
-                  isCompleted
-                    ? "font-medium text-green-700"
-                    : isCurrent
-                      ? "font-medium text-primary"
-                      : "text-muted-foreground"
-                }`}
-              >
-                {step.label}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
+    <ProgressTimeline
+      title="Order Progress"
+      steps={ORDER_TIMELINE_STEPS}
+      completedIndex={progress.completedIndex}
+      currentIndex={progress.currentIndex}
+    />
   );
 };
 
