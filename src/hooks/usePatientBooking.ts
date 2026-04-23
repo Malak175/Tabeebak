@@ -135,6 +135,8 @@ export const useCreateAppointmentRequestMutation = () => {
       });
       queryClient.invalidateQueries({ queryKey: patientQueryKeys.appointments() });
       queryClient.invalidateQueries({ queryKey: patientQueryKeys.upcomingAppointments() });
+      queryClient.invalidateQueries({ queryKey: patientQueryKeys.labResults() });
+      queryClient.invalidateQueries({ queryKey: ["patient", "lab-results", "detail"] });
     },
     onSettled: (_data, _error, variables) => {
       if (variables?.doctorId) {

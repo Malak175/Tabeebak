@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { differenceInYears, isValid, parseISO } from "date-fns";
 import { ArrowLeft, CheckCircle, Download, FlaskConical, User } from "lucide-react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { patientNavItems } from "@/components/settings/AccountSettingsContent";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -24,12 +25,11 @@ import { getDisplayName } from "@/lib/auth";
 import { patientService } from "@/services/patient.service";
 import { ApiError } from "@/types/api.types";
 import { formatDisplayDateTime } from "@/lib/date-time";
+import { getPatientLabDocumentStatusLabel, getPatientLabWorkflowBadgeClassName, getPatientLabWorkflowLabel, resolvePatientFollowUpStatusLabel, resolvePatientLabWorkflowStatus } from "@/lib/patientLabStatus";
 import { resolveHeartMeasurementDefaults } from "@/lib/heartMeasurementSchema";
 import { computeMeasurementStatus } from "@/lib/measurementStatus";
 import type { LabResultMeasurement } from "@/types/patient-records.types";
 import {
-  formatLabStatusLabel,
-  getLabStatusBadgeClassName,
   isPatientResultVisibleStatus,
 } from "@/lib/labStatus";
 
@@ -204,7 +204,9 @@ const buildStructuredMeasurementsPayload = (measurements: LabResultMeasurement[]
 
 const PatientLabResultDetails = () => {
   const { resultId } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user } = useAuth();
   const query = usePatientLabResultDetailsQuery(resultId, Boolean(user));
   const profileQuery = usePatientProfileQuery(Boolean(user));
@@ -214,10 +216,15 @@ const PatientLabResultDetails = () => {
   const [predicting, setPredicting] = useState(false);
   const [predictionError, setPredictionError] = useState<string | null>(null);
   const analysisRef = useRef<HTMLDivElement | null>(null);
+  const handledFollowUpRefreshToken = useRef<string | null>(null);
 
   const aiResultId = query.data?.id ?? resultId ?? null;
+  const workflowStatus = resolvePatientLabWorkflowStatus({
+    orderStatus: query.data?.orderStatus ?? null,
+    status: query.data?.status ?? null,
+  });
   const canRunAiAnalysis =
-    Boolean(aiResultId) && isPatientResultVisibleStatus(query.data?.orderStatus ?? query.data?.status ?? null);
+    Boolean(aiResultId) && isPatientResultVisibleStatus(workflowStatus);
   const requestId = query.data?.requestId ?? null;
   const hasPrediction = Boolean(prediction);
   const isHighRisk = (prediction?.riskLevel ?? "").trim().toLowerCase() === "high";
@@ -234,6 +241,29 @@ const PatientLabResultDetails = () => {
     Boolean(doctorFollowUp?.appointmentId) ||
     Boolean(doctorFollowUp?.appointmentScheduledAt) ||
     Boolean(doctorFollowUp?.appointmentStatus);
+  const followUpStatusLabel = resolvePatientFollowUpStatusLabel({
+    appointmentStatus: doctorFollowUp?.appointmentStatus ?? null,
+    requestStatus: doctorFollowUp?.requestStatus ?? null,
+    hasFollowUpAppointment,
+    hasRequest: Boolean(doctorFollowUp?.requestId),
+  });
+  const showBookFollowUpAction = !hasDoctorFollowUp && hasPrediction && isHighRisk;
+
+  useEffect(() => {
+    const state = location.state as
+      | { source?: string; followUpCreatedAt?: number; followUpRequestId?: string }
+      | null;
+
+    if (state?.source !== "follow_up_booking") return;
+    if (!aiResultId) return;
+    const refreshToken = String(state.followUpCreatedAt ?? state.followUpRequestId ?? "");
+    if (!refreshToken || handledFollowUpRefreshToken.current === refreshToken) return;
+
+    handledFollowUpRefreshToken.current = refreshToken;
+
+    queryClient.invalidateQueries({ queryKey: ["patient", "lab-results", "detail", aiResultId] });
+    void query.refetch();
+  }, [aiResultId, location.state, query, queryClient]);
 
   useEffect(() => {
     if (!canRunAiAnalysis || !aiResultId) {
@@ -539,7 +569,7 @@ const PatientLabResultDetails = () => {
           </AlertDescription>
         </Alert>
       ) : query.data ? (
-        !isPatientResultVisibleStatus(query.data.orderStatus ?? query.data.status) ? (
+        !isPatientResultVisibleStatus(workflowStatus) ? (
           <Alert>
             <AlertTitle>Result not available yet</AlertTitle>
             <AlertDescription>
@@ -556,8 +586,17 @@ const PatientLabResultDetails = () => {
                     <FlaskConical className="h-5 w-5" />
                   </div>
                    <CardTitle>{query.data.testName}</CardTitle>
-                   <Badge className={getLabStatusBadgeClassName(query.data.status)}>
-                     {formatLabStatusLabel(query.data.status)}
+                   <Badge className={getPatientLabWorkflowBadgeClassName({
+                     orderStatus: query.data.orderStatus ?? null,
+                     status: query.data.status ?? null,
+                   })}>
+                     {getPatientLabWorkflowLabel({
+                       orderStatus: query.data.orderStatus ?? null,
+                       status: query.data.status ?? null,
+                     })}
+                   </Badge>
+                   <Badge variant="outline">
+                     Report: {getPatientLabDocumentStatusLabel(query.data.status)}
                    </Badge>
                    {query.data.isAbnormal ? <Badge variant="destructive">Abnormal</Badge> : null}
                  </div>
@@ -756,73 +795,64 @@ const PatientLabResultDetails = () => {
                     AI analysis is available after the result reaches Result Uploaded.
                   </p>
                 )}
-                {hasPrediction && isHighRisk ? (
-                  <div className="rounded-lg border bg-green-50 p-4">
-                    {hasDoctorFollowUp ? (
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2">
-                          <CheckCircle className="h-5 w-5 text-green-600" />
-                          <p className="text-sm font-medium text-green-800">
-                            {hasFollowUpAppointment ? "Appointment scheduled" : "Doctor follow-up started"}
-                          </p>
-                        </div>
-                        {hasFollowUpAppointment ? (
-                          <div className="space-y-1 text-sm text-muted-foreground">
-                            {doctorFollowUp?.doctorName ? (
-                              <p>Doctor: {doctorFollowUp.doctorName}</p>
-                            ) : null}
-                            {doctorFollowUp?.appointmentScheduledAt ? (
-                              <p>Appointment: {formatDate(doctorFollowUp.appointmentScheduledAt)}</p>
-                            ) : null}
-                            {doctorFollowUp?.appointmentStatus ? (
-                              <p>Status: {doctorFollowUp.appointmentStatus}</p>
-                            ) : null}
-                          </div>
-                        ) : (
-                          <div className="space-y-1 text-sm text-muted-foreground">
-                            {doctorFollowUp?.doctorName ? (
-                              <p>Doctor: {doctorFollowUp.doctorName}</p>
-                            ) : null}
-                            {doctorFollowUp?.requestStatus ? (
-                              <p>Request status: {doctorFollowUp.requestStatus}</p>
-                            ) : null}
-                          </div>
-                        )}
-                        <div className="flex flex-wrap gap-2">
-                          {hasFollowUpAppointment && doctorFollowUp?.appointmentId ? (
-                            <Button asChild className="w-full" variant="outline">
-                              <Link to={`/patient/appointments/${doctorFollowUp.appointmentId}`}>
-                                View appointment
-                              </Link>
-                            </Button>
-                          ) : doctorFollowUp?.requestId ? (
-                            <Button asChild className="w-full" variant="outline">
-                              <Link to={`/patient/requests/doctor/${doctorFollowUp.requestId}`}>
-                                View request
-                              </Link>
-                            </Button>
-                          ) : null}
-                        </div>
+                {hasDoctorFollowUp ? (
+                  <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="h-5 w-5 text-green-600" />
+                        <p className="text-sm font-medium text-green-800">
+                          {hasFollowUpAppointment ? "Appointment scheduled" : "Doctor follow-up started"}
+                        </p>
                       </div>
-                    ) : (
-                      <Button
-                        className="w-full"
-                        onClick={() =>
-                          navigate("/patient/doctors", {
-                            state: {
-                              source: "ai_prediction",
-                              requestId,
-                              resultId,
-                              riskLevel: "High",
-                              sourceTestRequestId: requestId,
-                            },
-                          })
-                        }
-                      >
-                        Book an appointment
-                      </Button>
-                    )}
+                      <div className="space-y-1 text-sm text-muted-foreground">
+                        <p>Doctor: {doctorFollowUp?.doctorName || "Assigned doctor"}</p>
+                        <p>Status: {followUpStatusLabel}</p>
+                        {doctorFollowUp?.appointmentScheduledAt ? (
+                          <p>Scheduled: {formatDate(doctorFollowUp.appointmentScheduledAt)}</p>
+                        ) : null}
+                        {doctorFollowUp?.requestId ? (
+                          <p>Follow-up request ref: {doctorFollowUp.requestId}</p>
+                        ) : null}
+                        {doctorFollowUp?.appointmentId ? (
+                          <p>Appointment ref: {doctorFollowUp.appointmentId}</p>
+                        ) : null}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {hasFollowUpAppointment && doctorFollowUp?.appointmentId ? (
+                          <Button asChild className="w-full" variant="outline">
+                            <Link to={`/patient/appointments/${doctorFollowUp.appointmentId}`}>
+                              View appointment
+                            </Link>
+                          </Button>
+                        ) : doctorFollowUp?.requestId ? (
+                          <Button asChild className="w-full" variant="outline">
+                            <Link to={`/patient/requests/doctor/${doctorFollowUp.requestId}`}>
+                              View request
+                            </Link>
+                          </Button>
+                        ) : null}
+                      </div>
+                    </div>
                   </div>
+                ) : null}
+                {showBookFollowUpAction ? (
+                  <Button
+                    className="w-full"
+                    variant="outline"
+                    onClick={() =>
+                      navigate("/patient/doctors", {
+                        state: {
+                          source: "ai_prediction",
+                          requestId,
+                          resultId,
+                          riskLevel: "High",
+                          sourceTestRequestId: requestId,
+                        },
+                      })
+                    }
+                  >
+                    Book an appointment
+                  </Button>
                 ) : null}
               </CardContent>
             </Card>

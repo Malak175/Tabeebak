@@ -42,6 +42,11 @@ const PatientDoctorDetailsPage = () => {
   const [reason, setReason] = useState("");
   const [note, setNote] = useState("");
   const doctor = doctorQuery.data;
+  const aiBookingState = (location.state as {
+    source?: string;
+    sourceTestRequestId?: string;
+    resultId?: string;
+  } | null) ?? null;
   const detailRows = useMemo(
     () =>
       [
@@ -155,8 +160,7 @@ const PatientDoctorDetailsPage = () => {
       return;
     }
 
-    const sourceTestRequestId =
-      (location.state as { sourceTestRequestId?: string } | null)?.sourceTestRequestId ?? undefined;
+    const sourceTestRequestId = aiBookingState?.sourceTestRequestId ?? undefined;
     createRequestMutation.mutate(
       {
         doctorId: doctor.doctorId,
@@ -169,6 +173,17 @@ const PatientDoctorDetailsPage = () => {
       {
         onSuccess: (request) => {
           toast.success("Appointment request submitted.");
+          if (aiBookingState?.source === "ai_prediction" && aiBookingState.resultId) {
+            navigate(`/patient/lab-results/${aiBookingState.resultId}`, {
+              state: {
+                source: "follow_up_booking",
+                followUpRequestId: request.id,
+                followUpCreatedAt: Date.now(),
+              },
+            });
+            return;
+          }
+
           navigate(`/patient/requests/doctor/${request.id}`);
         },
         onError: (error: Error) => toast.error(error.message),

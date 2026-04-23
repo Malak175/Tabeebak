@@ -20,10 +20,14 @@ import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName } from "@/lib/auth";
 import { formatDisplayDate } from "@/lib/date-time";
 import {
-  formatLabStatusLabel,
-  getLabStatusBadgeClassName,
   isPatientResultVisibleStatus,
 } from "@/lib/labStatus";
+import {
+  getPatientLabDocumentStatusLabel,
+  getPatientLabWorkflowBadgeClassName,
+  getPatientLabWorkflowLabel,
+  resolvePatientLabWorkflowStatus,
+} from "@/lib/patientLabStatus";
 
 const formatDate = (value?: string | null) => formatDisplayDate(value);
 
@@ -77,7 +81,12 @@ const PatientLabResults = () => {
   const visibleResults = useMemo(
     () =>
       (resultsQuery.data?.data ?? []).filter((result) =>
-        isPatientResultVisibleStatus(result.orderStatus ?? result.status),
+        isPatientResultVisibleStatus(
+          resolvePatientLabWorkflowStatus({
+            orderStatus: result.orderStatus ?? null,
+            status: result.status ?? null,
+          }),
+        ),
       ),
     [resultsQuery.data?.data],
   );
@@ -124,16 +133,16 @@ const PatientLabResults = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All statuses</SelectItem>
-              <SelectItem value="PENDING">{formatLabStatusLabel("PENDING")}</SelectItem>
+              <SelectItem value="PENDING">{getPatientLabWorkflowLabel({ orderStatus: "PENDING" })}</SelectItem>
               <SelectItem value="SAMPLE_COLLECTION_REQUESTED">
-                {formatLabStatusLabel("SAMPLE_COLLECTION_REQUESTED")}
+                {getPatientLabWorkflowLabel({ orderStatus: "SAMPLE_COLLECTION_REQUESTED" })}
               </SelectItem>
-              <SelectItem value="SAMPLE_COLLECTED">{formatLabStatusLabel("SAMPLE_COLLECTED")}</SelectItem>
-              <SelectItem value="IN_PROGRESS">{formatLabStatusLabel("IN_PROGRESS")}</SelectItem>
-              <SelectItem value="RESULT_UPLOADED">{formatLabStatusLabel("RESULT_UPLOADED")}</SelectItem>
-              <SelectItem value="COMPLETED">{formatLabStatusLabel("COMPLETED")}</SelectItem>
-              <SelectItem value="REJECTED">{formatLabStatusLabel("REJECTED")}</SelectItem>
-              <SelectItem value="CANCELLED">{formatLabStatusLabel("CANCELLED")}</SelectItem>
+              <SelectItem value="SAMPLE_COLLECTED">{getPatientLabWorkflowLabel({ orderStatus: "SAMPLE_COLLECTED" })}</SelectItem>
+              <SelectItem value="IN_PROGRESS">{getPatientLabWorkflowLabel({ orderStatus: "IN_PROGRESS" })}</SelectItem>
+              <SelectItem value="RESULT_UPLOADED">{getPatientLabWorkflowLabel({ orderStatus: "RESULT_UPLOADED" })}</SelectItem>
+              <SelectItem value="COMPLETED">{getPatientLabWorkflowLabel({ orderStatus: "COMPLETED" })}</SelectItem>
+              <SelectItem value="REJECTED">{getPatientLabWorkflowLabel({ orderStatus: "REJECTED" })}</SelectItem>
+              <SelectItem value="CANCELLED">{getPatientLabWorkflowLabel({ orderStatus: "CANCELLED" })}</SelectItem>
             </SelectContent>
           </Select>
           <Button
@@ -197,8 +206,19 @@ const PatientLabResults = () => {
                       <div className="flex-1 space-y-2">
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className="text-lg font-semibold">{result.testName}</h3>
-                          <Badge className={getLabStatusBadgeClassName(result.status)}>
-                            {formatLabStatusLabel(result.status)}
+                          <Badge
+                            className={getPatientLabWorkflowBadgeClassName({
+                              orderStatus: result.orderStatus ?? null,
+                              status: result.status ?? null,
+                            })}
+                          >
+                            {getPatientLabWorkflowLabel({
+                              orderStatus: result.orderStatus ?? null,
+                              status: result.status ?? null,
+                            })}
+                          </Badge>
+                          <Badge variant="outline">
+                            Report: {getPatientLabDocumentStatusLabel(result.status)}
                           </Badge>
                           {result.isAbnormal ? <Badge variant="destructive">Abnormal</Badge> : null}
                         </div>
@@ -297,8 +317,8 @@ const PatientLabResults = () => {
                       <div className="flex-1 space-y-2">
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className="text-lg font-semibold">{order.testName}</h3>
-                          <Badge className={getLabStatusBadgeClassName(order.status)}>
-                            {formatLabStatusLabel(order.status)}
+                          <Badge className={getPatientLabWorkflowBadgeClassName({ orderStatus: order.status })}>
+                            {getPatientLabWorkflowLabel({ orderStatus: order.status })}
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">

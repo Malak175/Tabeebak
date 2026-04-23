@@ -56,7 +56,13 @@ const PatientDoctorsBrowsePage = () => {
   const activeQuery = nearbyParams ? nearQuery : doctorsQuery;
   const doctors = useMemo(() => activeQuery.data ?? [], [activeQuery.data]);
   const directoryDoctors = useMemo(() => doctorsQuery.data ?? [], [doctorsQuery.data]);
-  const aiState = location.state as { source?: string; sourceTestRequestId?: string } | null;
+  const aiState = location.state as {
+    source?: string;
+    sourceTestRequestId?: string;
+    resultId?: string;
+    requestId?: string;
+    riskLevel?: string;
+  } | null;
   const aiRedirected = aiState?.source === "ai_prediction";
 
   const specialties = useMemo(
@@ -98,9 +104,7 @@ const PatientDoctorsBrowsePage = () => {
     }
 
     navigate(`/patient/doctors/${targetId}`, {
-      state: aiState?.sourceTestRequestId
-        ? { source: aiState.source, sourceTestRequestId: aiState.sourceTestRequestId }
-        : null,
+      state: aiState?.source === "ai_prediction" ? aiState : null,
     });
   };
 
