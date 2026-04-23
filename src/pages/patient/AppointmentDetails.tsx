@@ -18,6 +18,7 @@ const formatDateTime = (value?: string | null) => formatDisplayDateTime(value);
 
 const statusClassName = (status?: string | null) => {
   switch (normalizeApiStatusKey(status)) {
+    case "APPROVED":
     case "CONFIRMED":
     case "COMPLETED":
       return "bg-green-100 text-green-700 border-green-200";
@@ -141,8 +142,7 @@ const PatientAppointmentDetails = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <AppointmentTimeline
-                appointmentStatus={query.data.status}
-                requestStatus={query.data.requestStatus}
+                status={query.data.status}
               />
               <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1.5">

@@ -29,6 +29,7 @@ const formatDateOnly = (value?: string | null) => formatDisplayDate(value);
 
 const getStatusClassName = (status?: string | null) => {
   switch (normalizeApiStatusKey(status)) {
+    case "APPROVED":
     case "CONFIRMED":
     case "COMPLETED":
       return "bg-green-100 text-green-700 border-green-200";
@@ -67,7 +68,9 @@ const DoctorAppointmentDetails = () => {
   const requestNote = appointmentRequest?.notes ?? appointmentRequest?.providerMessage ?? null;
   const visitNote = query.data?.notes ?? null;
   const showRequestNote = Boolean(requestNote && (!visitNote || requestNote !== visitNote));
-  const isCompleted = normalizeApiStatusKey(query.data?.status) === "COMPLETED";
+  const appointmentStatusKey = normalizeApiStatusKey(query.data?.status);
+  const appointmentStatusLabel = formatApiStatusLabel(appointmentStatusKey);
+  const isCompleted = appointmentStatusKey === "COMPLETED";
   const prescriptionInfo = query.data?.prescription ?? null;
   const prescriptionExists = prescriptionInfo?.exists === true;
   const prescriptionLatestId = prescriptionInfo?.latestId
@@ -93,18 +96,13 @@ const DoctorAppointmentDetails = () => {
 
   const detailRows = query.data
     ? ([
-        query.data.status ? { label: "Status", value: query.data.status } : null,
         query.data.scheduledAt
           ? { label: "Scheduled for", value: formatDateTime(query.data.scheduledAt) }
           : { label: "Scheduled for", value: "Not recorded yet" },
         query.data.endAt ? { label: "Ends at", value: formatDateTime(query.data.endAt) } : null,
         query.data.type ? { label: "Visit type", value: query.data.type } : null,
         query.data.mode ? { label: "Consultation mode", value: query.data.mode } : null,
-        query.data.location
-          ? { label: "Location", value: query.data.location }
-          : query.data.mode
-            ? { label: "Location", value: query.data.mode }
-            : null,
+        query.data.location ? { label: "Location", value: query.data.location } : null,
         query.data.patientName ? { label: "Patient", value: query.data.patientName } : null,
         query.data.patientGender ? { label: "Gender", value: query.data.patientGender } : null,
         query.data.patientAge !== null && query.data.patientAge !== undefined
@@ -230,9 +228,7 @@ const DoctorAppointmentDetails = () => {
             <div className="space-y-2">
               <div className="flex flex-wrap items-center gap-3">
                 <h2 className="text-2xl font-semibold">{query.data.patientName}</h2>
-                <Badge className={getStatusClassName(query.data.status)}>
-                  {formatApiStatusLabel(query.data.status)}
-                </Badge>
+                <Badge className={getStatusClassName(appointmentStatusKey)}>{appointmentStatusLabel}</Badge>
               </div>
               <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                 {query.data.scheduledAt ? (
@@ -280,10 +276,7 @@ const DoctorAppointmentDetails = () => {
             </div>
           </div>
 
-          <DoctorAppointmentTimeline
-            appointmentStatus={query.data.status}
-            requestStatus={query.data.appointmentRequest?.status}
-          />
+          <DoctorAppointmentTimeline status={appointmentStatusKey} />
 
           <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
             <div className="space-y-6">

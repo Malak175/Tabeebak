@@ -16,7 +16,7 @@ const ProgressTimeline = ({
   title: string;
   steps: ProgressTimelineStep[];
   completedIndex: number;
-  currentIndex: number;
+  currentIndex: number | null;
   terminalLabel?: string | null;
   terminalMessage?: string | null;
 }) => (
@@ -28,10 +28,10 @@ const ProgressTimeline = ({
       ) : null}
     </div>
     {terminalMessage ? <p className="mb-3 text-xs text-muted-foreground">{terminalMessage}</p> : null}
-    <div className="grid gap-3 md:grid-cols-5">
+    <div className="grid gap-3 md:grid-flow-col md:auto-cols-fr">
       {steps.map((step, index) => {
         const isCompleted = index <= completedIndex;
-        const isCurrent = index === currentIndex && !isCompleted;
+        const isCurrent = currentIndex !== null && index === currentIndex;
 
         return (
           <div key={step.key} className="flex items-center gap-2">

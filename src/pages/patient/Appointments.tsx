@@ -25,6 +25,7 @@ const formatDateTime = (value?: string | null) => formatDisplayDateTime(value);
 
 const getStatusClassName = (status?: string | null) => {
   switch (normalizeApiStatusKey(status)) {
+    case "APPROVED":
     case "CONFIRMED":
     case "COMPLETED":
       return "bg-green-100 text-green-700 border-green-200";
@@ -46,7 +47,6 @@ const AppointmentCard = ({
   status,
   mode,
   type,
-  requestStatus,
   location,
   joinUrl,
 }: {
@@ -57,7 +57,6 @@ const AppointmentCard = ({
   status: string;
   mode?: string | null;
   type?: string | null;
-  requestStatus?: string | null;
   location?: string | null;
   joinUrl?: string | null;
 }) => {
@@ -91,7 +90,7 @@ const AppointmentCard = ({
               {location || mode || type || "Location pending"}
             </span>
           </div>
-          <AppointmentTimeline appointmentStatus={status} requestStatus={requestStatus} />
+          <AppointmentTimeline status={status} />
         </div>
         <div className="flex flex-wrap gap-2">
           {joinUrl ? (
