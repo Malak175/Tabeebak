@@ -179,18 +179,18 @@ const Login = () => {
             </CardHeader>
             <CardContent>
               {/* Role Selection Tabs */}
-              <Tabs value={selectedRole} onValueChange={(v) => setSelectedRole(v as UserRole)} className="mb-6">
-                <TabsList className="grid grid-cols-3 w-full">
+              <Tabs value={selectedRole} onValueChange={(v) => setSelectedRole(v as LoginRole)} className="mb-6">
+                <TabsList className="grid h-auto w-full grid-cols-3 gap-0 rounded-xl bg-muted p-1 overflow-hidden">
                   {(["patient", "doctor", "laboratory"] as const).map((role) => {
                     const Icon = roleIcons[role];
                     return (
                       <TabsTrigger
                         key={role}
                         value={role}
-                        className="flex flex-col gap-1 py-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                        className="h-full w-full min-w-0 flex flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 text-center data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
                       >
                         <Icon className="h-4 w-4" />
-                        <span className="text-xs capitalize">{role}</span>
+                        <span className="text-xs capitalize leading-tight">{role}</span>
                       </TabsTrigger>
                     );
                   })}
