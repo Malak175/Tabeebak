@@ -7,7 +7,7 @@ import axios, {
 } from "axios";
 import { ApiError } from "@/types/api.types";
 
-export const API_BASE_URL = "http://localhost:5000";
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 const AUTH_STORAGE_KEY = "tabeebak_auth";
 const IS_DEV = import.meta.env.DEV;
 
