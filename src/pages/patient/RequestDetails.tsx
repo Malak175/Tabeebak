@@ -28,7 +28,7 @@ import {
 } from "@/hooks/usePatientBooking";
 import { getDisplayName } from "@/lib/auth";
 import { formatDisplayDateTime } from "@/lib/date-time";
-import { normalizeApiStatusKey } from "@/lib/apiStatus";
+import { normalizeApiStatusKey, isRejectedApiStatus } from "@/lib/apiStatus";
 
 const PatientRequestDetailsPage = () => {
   const { requestType, requestId } = useParams();
@@ -58,29 +58,29 @@ const PatientRequestDetailsPage = () => {
       : null;
   const requestStatus = activeRequest?.status;
   const requestStatusKey = normalizeApiStatusKey(requestStatus);
-  const isRequestRejected = ["REJECTED", "CANCELLED", "CANCELED"].includes(requestStatusKey);
+  const isRequestRejected = isRejectedApiStatus(requestStatus);
   const isRequestApproved = ["APPROVED", "COMPLETED"].includes(requestStatusKey);
   const requestTimelineSteps = isDoctorRequest
     ? [
-        {
-          label: "Request Submitted",
-          state: "complete" as const,
-          helper: "Submitted",
-        },
-        {
-          label: "Approved",
-          state: isRequestRejected
-            ? ("blocked" as const)
-            : isRequestApproved
-              ? ("complete" as const)
-              : ("current" as const),
-          helper: isRequestRejected
-            ? "Not approved"
-            : isRequestApproved
-              ? "Approved"
-              : "Under review",
-        },
-      ]
+      {
+        label: "Request Submitted",
+        state: "complete" as const,
+        helper: "Submitted",
+      },
+      {
+        label: "Approved",
+        state: isRequestRejected
+          ? ("blocked" as const)
+          : isRequestApproved
+            ? ("complete" as const)
+            : ("current" as const),
+        helper: isRequestRejected
+          ? "Not approved"
+          : isRequestApproved
+            ? "Approved"
+            : "Under review",
+      },
+    ]
     : [];
 
   const handleSendReply = () => {
@@ -106,7 +106,7 @@ const PatientRequestDetailsPage = () => {
     if (!requestId) return;
 
     cancelMutation.mutate(requestId, {
-      onSuccess: () => toast.success("Request cancelled."),
+      onSuccess: () => toast.success("Request rejected."),
       onError: (error: Error) => toast.error(error.message),
     });
   };
@@ -161,10 +161,10 @@ const PatientRequestDetailsPage = () => {
                     <p className="mt-1 text-sm text-muted-foreground">
                       {"consultationType" in activeRequest || "consultation_type" in activeRequest
                         ? formatVisitType(
-                            ("consultationType" in activeRequest
-                              ? activeRequest.consultationType
-                              : activeRequest.consultation_type) ?? null,
-                          ) || "Not provided"
+                          ("consultationType" in activeRequest
+                            ? activeRequest.consultationType
+                            : activeRequest.consultation_type) ?? null,
+                        ) || "Not provided"
                         : "Not provided"}
                     </p>
                   </div>
@@ -244,7 +244,7 @@ const PatientRequestDetailsPage = () => {
 
           {isDoctorRequest && isRequestRejected ? (
             <SectionCard
-              title={`Request ${requestStatusKey === "REJECTED" ? "rejected" : "cancelled"}`}
+              title="Request rejected"
               description="This request is closed."
             >
               <p className="text-sm text-muted-foreground">

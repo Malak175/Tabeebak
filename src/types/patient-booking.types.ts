@@ -227,10 +227,13 @@ export interface CreateAppointmentRequestPayload {
   sourceTestRequestId?: string;
 }
 
+export type LabAvailableSlot = DoctorAvailableSlot;
+export type LabAvailableSlots = DoctorAvailableSlots;
+export type LabAvailableSlotsParams = DoctorAvailableSlotsParams;
+
 export interface CreateTestRequestPayload {
   labId: string;
-  preferredDate: string;
-  preferredTime: string;
+  slotStart: string;
   branchId?: string;
   serviceIds: string[];
   note?: string;

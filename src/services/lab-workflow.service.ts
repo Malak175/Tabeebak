@@ -406,8 +406,24 @@ const normalizeLabOrder = (payload: unknown): LabOrder => {
       pickNullableString(raw, ["orderedAt", "createdAt", "dateOrdered", "date"]) ??
       pickNullableString(order, ["orderedAt", "createdAt", "dateOrdered", "date"]),
     scheduledAt:
-      pickNullableString(raw, ["scheduledAt", "scheduledFor", "appointmentDate"]) ??
-      pickNullableString(order, ["scheduledAt", "scheduledFor", "appointmentDate"]),
+      pickNullableString(raw, [
+        "scheduledAt",
+        "scheduledFor",
+        "appointmentDate",
+        "preferredTime",
+        "preferred_time",
+        "preferredDateTime",
+        "preferred_datetime",
+      ]) ??
+      pickNullableString(order, [
+        "scheduledAt",
+        "scheduledFor",
+        "appointmentDate",
+        "preferredTime",
+        "preferred_time",
+        "preferredDateTime",
+        "preferred_datetime",
+      ]),
     collectedAt:
       pickNullableString(raw, ["collectedAt", "sampleCollectedAt", "collected_at"]) ??
       pickNullableString(order, ["collectedAt", "sampleCollectedAt", "collected_at"]),

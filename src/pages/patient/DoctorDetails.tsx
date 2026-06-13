@@ -1,8 +1,9 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { addDays, format, isValid, parseISO } from "date-fns";
+import { addDays, format } from "date-fns";
 import { ArrowLeft, User } from "lucide-react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
+import AvailableTimeSlotsPicker from "@/components/booking/AvailableTimeSlotsPicker";
 import { EmptyCard, ErrorCard, LoadingCard, SectionCard } from "@/components/patient/BookingFlowSection";
 import { patientBookingNavItems } from "@/components/patient/patientNavigation";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
@@ -17,7 +18,6 @@ import {
   useDoctorBookingDetailQuery,
 } from "@/hooks/usePatientBooking";
 import { getDisplayName } from "@/lib/auth";
-import { formatDisplayDate, formatDisplayDateTime, formatDisplayTime } from "@/lib/date-time";
 import { buildStableKey } from "@/lib/reactKeys";
 
 const PatientDoctorDetailsPage = () => {
@@ -97,41 +97,6 @@ const PatientDoctorDetailsPage = () => {
     }
     return Array.from(options, ([value, label]) => ({ value, label }));
   }, [consultationTypes, visitType]);
-
-  const groupedSlots = useMemo(() => {
-    const slots = slotsQuery.data?.slots ?? [];
-    const now = new Date();
-    const bucket = new Map<
-      string,
-      {
-        dateKey: string;
-        label: string;
-        slots: { slot: (typeof slots)[number]; start: Date }[];
-      }
-    >();
-
-    slots.forEach((slot) => {
-      const parsed = parseISO(slot.startAt);
-      if (!isValid(parsed)) return;
-      if (parsed.getTime() <= now.getTime()) return;
-
-      const dateKey = slot.date?.trim() || format(parsed, "yyyy-MM-dd");
-      const label = formatDisplayDate(slot.startAt);
-      const entry = bucket.get(dateKey) ?? { dateKey, label, slots: [] };
-      entry.slots.push({ slot, start: parsed });
-      bucket.set(dateKey, entry);
-    });
-
-    return Array.from(bucket.values())
-      .sort((a, b) => a.dateKey.localeCompare(b.dateKey))
-      .map((entry) => ({
-        dateKey: entry.dateKey,
-        label: entry.label,
-        slots: entry.slots
-          .sort((a, b) => a.start.getTime() - b.start.getTime())
-          .map(({ slot }) => slot),
-      }));
-  }, [slotsQuery.data?.slots]);
 
   useEffect(() => {
     const optionValues = visitTypeOptions.map((option) => option.value);
@@ -242,71 +207,18 @@ const PatientDoctorDetailsPage = () => {
                 </div>
               </div>
             </SectionCard>
-
           </div>
 
           <SectionCard title="Book an appointment" description="Choose a time and share a quick note.">
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label>Available times</Label>
-                <div className="rounded-lg border p-4">
-                  {slotsQuery.isLoading ? (
-                    <div className="mt-3 space-y-2">
-                      <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
-                      <div className="h-4 w-1/2 animate-pulse rounded bg-muted" />
-                      <div className="h-4 w-3/4 animate-pulse rounded bg-muted" />
-                    </div>
-                  ) : slotsQuery.isError ? (
-                    <div className="mt-3">
-                      <ErrorCard
-                        title="Unable to load available slots"
-                        message={(slotsQuery.error as Error).message}
-                      />
-                    </div>
-                  ) : groupedSlots.length ? (
-                    <div className="mt-4 space-y-4">
-                      {groupedSlots.map((group) => (
-                        <div key={group.dateKey} className="space-y-2">
-                            <p className="text-sm font-medium">{group.label}</p>
-                            <div className="flex flex-wrap gap-2">
-                              {group.slots.map((slot) => {
-                                const parsed = parseISO(slot.startAt);
-                              const timeLabel = slot.time?.trim()
-                                ? formatDisplayTime(slot.time)
-                                : isValid(parsed)
-                                  ? formatDisplayTime(slot.startAt)
-                                  : "Time";
-                              const isSelected = selectedSlotStart === slot.startAt;
-
-                              return (
-                                <Button
-                                  key={slot.startAt}
-                                  type="button"
-                                  variant={isSelected ? "default" : "outline"}
-                                  className={isSelected ? "shadow-sm" : undefined}
-                                  onClick={() => setSelectedSlotStart(slot.startAt)}
-                                >
-                                    {timeLabel}
-                                  </Button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        ))}
-                    </div>
-                  ) : (
-                    <p className="mt-3 text-sm text-muted-foreground">
-                      No times are available right now. Check back soon.
-                    </p>
-                  )}
-                  {selectedSlotStart ? (
-                    <p className="mt-4 text-sm text-foreground">
-                      Selected time:{" "}
-                      {formatDisplayDateTime(selectedSlotStart)}
-                    </p>
-                  ) : null}
-                </div>
-              </div>
+              <AvailableTimeSlotsPicker
+                slots={slotsQuery.data?.slots ?? []}
+                selectedSlotStart={selectedSlotStart}
+                onSelect={setSelectedSlotStart}
+                isLoading={slotsQuery.isLoading}
+                isError={slotsQuery.isError}
+                errorMessage={(slotsQuery.error as Error | undefined)?.message}
+              />
               <div className="space-y-2">
                 <Label htmlFor="visitType">Visit type</Label>
                 <Select

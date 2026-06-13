@@ -8,6 +8,8 @@ import {
   DoctorAvailableSlot,
   DoctorAvailableSlots,
   DoctorAvailableSlotsParams,
+  LabAvailableSlots,
+  LabAvailableSlotsParams,
   DoctorDetail,
   DoctorDirectoryItem,
   DoctorRequestDetail,
@@ -370,12 +372,12 @@ const buildTestRequestBody = (payload: CreateTestRequestPayload) =>
   buildQueryParams({
     labId: payload.labId,
     lab_id: payload.labId,
-    preferredDate: payload.preferredDate,
-    preferred_date: payload.preferredDate,
-    preferredTime: payload.preferredTime,
-    preferred_time: buildPreferredDateTimeValue(payload.preferredDate, payload.preferredTime),
-    preferredDateTime: buildPreferredDateTimeValue(payload.preferredDate, payload.preferredTime),
-    preferred_datetime: buildPreferredDateTimeValue(payload.preferredDate, payload.preferredTime),
+    slotStart: payload.slotStart,
+    slot_start: payload.slotStart,
+    preferredTime: payload.slotStart,
+    preferred_time: payload.slotStart,
+    preferredDateTime: payload.slotStart,
+    preferred_datetime: payload.slotStart,
     branchId: payload.branchId,
     branch_id: payload.branchId,
     serviceIds: payload.serviceIds,
@@ -383,6 +385,7 @@ const buildTestRequestBody = (payload: CreateTestRequestPayload) =>
     note: payload.note,
     homeCollection: payload.homeCollection,
     home_collection: payload.homeCollection,
+    sample_collection_required: payload.homeCollection,
   });
 
 const buildDiscoveryQueryParams = <T extends Record<string, unknown>>(params?: T) => {
@@ -404,22 +407,22 @@ const buildDiscoveryQueryParams = <T extends Record<string, unknown>>(params?: T
     ...normalized,
     ...(search
       ? {
-          search,
-          q: search,
-          query: search,
-        }
+        search,
+        q: search,
+        query: search,
+      }
       : {}),
     ...(specialty
       ? {
-          specialty,
-          specialization: specialty,
-        }
+        specialty,
+        specialization: specialty,
+      }
       : {}),
     ...(service
       ? {
-          service,
-          category: service,
-        }
+        service,
+        category: service,
+      }
       : {}),
   };
 };
@@ -490,7 +493,7 @@ const sentenceCase = (value: string) => {
 
 const normalizeGenericRequestStatus = (normalized: string): RequestStatus => {
   if (!normalized) return "unknown";
-  if (normalized === "canceled") return "cancelled";
+  if (normalized === "canceled" || normalized === "cancelled") return "rejected";
   if (["accepted", "approve", "approved", "confirmed", "ready", "reported"].includes(normalized)) {
     return "approved";
   }
@@ -500,7 +503,7 @@ const normalizeGenericRequestStatus = (normalized: string): RequestStatus => {
   if (["requested", "request_submitted", "under_review", "in_review", "review"].includes(normalized)) {
     return "pending";
   }
-  if (normalized === "pending" || normalized === "cancelled" || normalized === "completed") {
+  if (normalized === "pending" || normalized === "rejected" || normalized === "completed") {
     return normalized;
   }
   return "unknown";
@@ -527,8 +530,8 @@ const normalizeRequestStatus = (
       RESULT_UPLOADED: { status: "pending", label: "Result uploaded" },
       ASSIGNED_TO_DOCTOR: { status: "pending", label: "Result uploaded" },
       COMPLETED: { status: "completed", label: "Completed" },
-      CANCELLED: { status: "cancelled", label: "Cancelled" },
-      CANCELED: { status: "cancelled", label: "Cancelled" },
+      CANCELLED: { status: "rejected", label: "Rejected" },
+      CANCELED: { status: "rejected", label: "Rejected" },
     };
 
     const mapped = labStatusMap[normalizedKey];
@@ -653,44 +656,44 @@ const normalizeDoctorAvailability = (payload: unknown): DoctorAvailability => {
   const weeklySchedule =
     daysSource.length > 0
       ? dedupeByIdentity(
-          daysSource.map((item) => {
-            const record = asRecord(item);
-            return {
-              dayOfWeek:
-                pickString(record, ["dayOfWeek", "day_of_week", "day", "weekday"]) ?? "Unknown",
-              isAvailable: pickBoolean(record, ["isAvailable", "is_available", "available"]) ?? false,
-              startTime: pickNullableString(record, ["startTime", "start_time", "from"]),
-              endTime: pickNullableString(record, ["endTime", "end_time", "to"]),
-              breakStartTime: pickNullableString(record, ["breakStartTime", "break_start_time"]),
-              breakEndTime: pickNullableString(record, ["breakEndTime", "break_end_time"]),
-              maxAppointments: pickNullableNumber(record, ["maxAppointments", "max_appointments", "capacity"]),
-            };
-          }),
-          (day) =>
-            buildIdentityKey(
-              day.dayOfWeek,
-              day.startTime,
-              day.endTime,
-              day.breakStartTime,
-              day.breakEndTime,
-            ),
-        )
+        daysSource.map((item) => {
+          const record = asRecord(item);
+          return {
+            dayOfWeek:
+              pickString(record, ["dayOfWeek", "day_of_week", "day", "weekday"]) ?? "Unknown",
+            isAvailable: pickBoolean(record, ["isAvailable", "is_available", "available"]) ?? false,
+            startTime: pickNullableString(record, ["startTime", "start_time", "from"]),
+            endTime: pickNullableString(record, ["endTime", "end_time", "to"]),
+            breakStartTime: pickNullableString(record, ["breakStartTime", "break_start_time"]),
+            breakEndTime: pickNullableString(record, ["breakEndTime", "break_end_time"]),
+            maxAppointments: pickNullableNumber(record, ["maxAppointments", "max_appointments", "capacity"]),
+          };
+        }),
+        (day) =>
+          buildIdentityKey(
+            day.dayOfWeek,
+            day.startTime,
+            day.endTime,
+            day.breakStartTime,
+            day.breakEndTime,
+          ),
+      )
       : ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
-          .map((dayKey) => {
-            const record = asRecord(scheduleContainer[dayKey] ?? raw[dayKey]);
-            if (!Object.keys(record).length) return null;
+        .map((dayKey) => {
+          const record = asRecord(scheduleContainer[dayKey] ?? raw[dayKey]);
+          if (!Object.keys(record).length) return null;
 
-            return {
-              dayOfWeek: dayKey.charAt(0).toUpperCase() + dayKey.slice(1),
-              isAvailable: pickBoolean(record, ["isAvailable", "is_available", "available"]) ?? false,
-              startTime: pickNullableString(record, ["startTime", "start_time", "from"]),
-              endTime: pickNullableString(record, ["endTime", "end_time", "to"]),
-              breakStartTime: pickNullableString(record, ["breakStartTime", "break_start_time"]),
-              breakEndTime: pickNullableString(record, ["breakEndTime", "break_end_time"]),
-              maxAppointments: pickNullableNumber(record, ["maxAppointments", "max_appointments", "capacity"]),
-            };
-          })
-          .filter((day): day is NonNullable<typeof day> => Boolean(day));
+          return {
+            dayOfWeek: dayKey.charAt(0).toUpperCase() + dayKey.slice(1),
+            isAvailable: pickBoolean(record, ["isAvailable", "is_available", "available"]) ?? false,
+            startTime: pickNullableString(record, ["startTime", "start_time", "from"]),
+            endTime: pickNullableString(record, ["endTime", "end_time", "to"]),
+            breakStartTime: pickNullableString(record, ["breakStartTime", "break_start_time"]),
+            breakEndTime: pickNullableString(record, ["breakEndTime", "break_end_time"]),
+            maxAppointments: pickNullableNumber(record, ["maxAppointments", "max_appointments", "capacity"]),
+          };
+        })
+        .filter((day): day is NonNullable<typeof day> => Boolean(day));
 
   return {
     timezone: pickString(raw, ["timezone", "timeZone"]) ?? pickString(scheduleContainer, ["timezone", "timeZone"]),
@@ -1200,6 +1203,22 @@ export const patientBookingService = {
     });
 
     return normalizeLabDetail(response);
+  },
+
+  async getLabAvailableSlots(
+    labId: string,
+    params: LabAvailableSlotsParams,
+  ): Promise<LabAvailableSlots> {
+    const response = await apiRequest<unknown>(`/api/v1/labs/${labId}/available-slots`, {
+      method: "GET",
+      params: buildQueryParams(params),
+    });
+
+    const normalized = normalizeDoctorAvailableSlots(response);
+    return {
+      ...normalized,
+      labId: normalized.doctorId || labId,
+    };
   },
 
   async getLabBranches(labId: string): Promise<LabBranchDirectoryItem[]> {

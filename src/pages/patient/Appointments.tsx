@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Calendar, Clock, MapPin, Plus, User, Video } from "lucide-react";
+import { Calendar, Clock, MapPin, Plus, Search, User, Video } from "lucide-react";
 import { Link } from "react-router-dom";
 import AppointmentTimeline from "@/components/patient/AppointmentTimeline";
 import { patientBookingNavItems } from "@/components/patient/patientNavigation";
@@ -19,25 +19,17 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName } from "@/lib/auth";
 import { formatDisplayDateTime } from "@/lib/date-time";
-import { formatApiStatusLabel, normalizeApiStatusKey } from "@/lib/apiStatus";
+import {
+  appointmentStatusFilterOptions,
+  appointmentWorkflowStatusOptions,
+  getAppointmentStatusClassName,
+  getAppointmentStatusLabel,
+  getAppointmentStatusOption,
+  normalizeAppointmentStatus,
+} from "@/lib/appointmentStatus";
 
 const formatDateTime = (value?: string | null) => formatDisplayDateTime(value);
 
-const getStatusClassName = (status?: string | null) => {
-  switch (normalizeApiStatusKey(status)) {
-    case "APPROVED":
-    case "CONFIRMED":
-    case "COMPLETED":
-      return "bg-green-100 text-green-700 border-green-200";
-    case "PENDING":
-      return "bg-yellow-100 text-yellow-700 border-yellow-200";
-    case "CANCELLED":
-    case "CANCELED":
-      return "bg-red-100 text-red-700 border-red-200";
-    default:
-      return "bg-muted text-muted-foreground border-border";
-  }
-};
 
 const AppointmentCard = ({
   id,
@@ -61,6 +53,8 @@ const AppointmentCard = ({
   joinUrl?: string | null;
 }) => {
   const hasId = Boolean(id);
+  const statusOption = getAppointmentStatusOption(status);
+  const StatusIcon = statusOption?.icon;
 
   return (
     <Card>
@@ -71,7 +65,10 @@ const AppointmentCard = ({
         <div className="flex-1 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-lg font-semibold">{doctorName}</h3>
-            <Badge className={getStatusClassName(status)}>{formatApiStatusLabel(status)}</Badge>
+            <Badge className={getAppointmentStatusClassName(status)}>
+              {StatusIcon ? <StatusIcon className="mr-1 h-3.5 w-3.5" /> : null}
+              {statusOption?.label ?? getAppointmentStatusLabel(status)}
+            </Badge>
           </div>
           <p className="text-sm text-muted-foreground">
             {doctorSpecialty || "Specialty not available"}
@@ -154,7 +151,7 @@ const PatientAppointments = () => {
     <DashboardLayout
       userRole="patient"
       userName={userName}
-      navItems={patientBookingNavItems}
+      navItems={[...patientBookingNavItems]}
       userIcon={User}
     >
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -171,6 +168,100 @@ const PatientAppointments = () => {
           </Link>
         </Button>
       </div>
+
+      <Card className="mb-6 overflow-hidden">
+        <CardHeader className="border-b px-6 py-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle className="text-lg">Filters</CardTitle>
+              <p className="text-sm text-muted-foreground">Search and filter your appointments across upcoming and history.</p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setPage(1);
+                setSearch("");
+                setStatus("all");
+                setType("all");
+              }}
+            >
+              All Appointments
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4 px-6 py-5">
+          <div className="grid gap-4 xl:grid-cols-[1.8fr_1fr]">
+            <div className="relative min-w-0">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                className="pl-10"
+                value={search}
+                onChange={(event) => {
+                  setPage(1);
+                  setSearch(event.target.value);
+                }}
+                placeholder="Search doctor, reason, location, or status"
+              />
+            </div>
+            <Select
+              value={status}
+              onValueChange={(value) => {
+                setPage(1);
+                setStatus(value);
+              }}
+            >
+              <SelectTrigger className="min-w-[12rem]">
+                <SelectValue placeholder="Appointment status" />
+              </SelectTrigger>
+              <SelectContent>
+                {appointmentStatusFilterOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 overflow-x-auto py-1">
+            {appointmentWorkflowStatusOptions.map((option) => {
+              const isActive = status === option.value;
+              const StatusIcon = option.icon;
+
+              return (
+                <Button
+                  key={option.value}
+                  variant={isActive ? "secondary" : "outline"}
+                  size="sm"
+                  className="rounded-full px-3 py-2 text-sm font-medium transition"
+                  onClick={() => {
+                    setPage(1);
+                    setStatus(option.value);
+                  }}
+                >
+                  <StatusIcon className="mr-1 h-4 w-4" />
+                  {option.label}
+                </Button>
+              );
+            })}
+
+            <Button
+              variant="ghost"
+              size="sm"
+              className="rounded-full px-3 py-2 text-sm text-muted-foreground hover:bg-muted/80"
+              onClick={() => {
+                setPage(1);
+                setSearch("");
+                setStatus("all");
+                setType("all");
+              }}
+            >
+              Reset filters
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       <Tabs defaultValue="upcoming" className="space-y-6">
         <TabsList>
@@ -203,66 +294,6 @@ const PatientAppointments = () => {
         </TabsContent>
 
         <TabsContent value="history" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Filters</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-4 md:grid-cols-4">
-              <Input
-                value={search}
-                onChange={(event) => {
-                  setPage(1);
-                  setSearch(event.target.value);
-                }}
-                placeholder="Search doctor or reason"
-              />
-              <Select
-                value={status}
-                onValueChange={(value) => {
-                  setPage(1);
-                  setStatus(value);
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All statuses</SelectItem>
-                  <SelectItem value="CONFIRMED">Confirmed</SelectItem>
-                  <SelectItem value="PENDING">Pending</SelectItem>
-                  <SelectItem value="COMPLETED">Completed</SelectItem>
-                  <SelectItem value="CANCELLED">Cancelled</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select
-                value={type}
-                onValueChange={(value) => {
-                  setPage(1);
-                  setType(value);
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Visit type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All types</SelectItem>
-                  <SelectItem value="video">Video</SelectItem>
-                  <SelectItem value="in-person">In Person</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setPage(1);
-                  setSearch("");
-                  setStatus("all");
-                  setType("all");
-                }}
-              >
-                Clear Filters
-              </Button>
-            </CardContent>
-          </Card>
 
           {appointmentsQuery.isLoading ? (
             <>

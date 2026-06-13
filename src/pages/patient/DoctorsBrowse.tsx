@@ -222,12 +222,6 @@ const PatientDoctorsBrowsePage = () => {
                     <Button onClick={() => handleDoctorNavigation(doctor.id, doctor.doctorId)}>
                       View details
                     </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => handleDoctorNavigation(doctor.id, doctor.doctorId)}
-                    >
-                      Request appointment
-                    </Button>
                   </div>
                 </CardContent>
               </Card>

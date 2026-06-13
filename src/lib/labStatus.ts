@@ -17,7 +17,7 @@ const STATUS_LABELS: Record<CanonicalLabOrderStatus, string> = {
   IN_PROGRESS: "In Progress",
   RESULT_UPLOADED: "Results Ready",
   COMPLETED: "Completed",
-  CANCELLED: "Cancelled",
+  CANCELLED: "Rejected",
   REJECTED: "Rejected",
 };
 

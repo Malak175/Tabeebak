@@ -1,14 +1,14 @@
-import { useState, useMemo, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContent, CardHeader, CardDescription, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Eye, EyeOff, ArrowLeft, UserRound, Heart, AlertTriangle } from "lucide-react";
+import { Eye, EyeOff, ArrowLeft, UserRound, Mail, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { FieldError } from "@/components/ui/field-error";
-import logo from "@/assets/logo.png";
+import AuthLayout from "@/components/auth/AuthLayout";
 import { useAuth, useRegisterMutation } from "@/hooks/useAuth";
 import { routeByRole } from "@/lib/auth";
 import {
@@ -37,7 +37,6 @@ const Register = () => {
   const registerMutation = useRegisterMutation();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [formData, setFormData] = useState({
     firstName: "",
@@ -191,7 +190,6 @@ const Register = () => {
       return;
     }
 
-    setIsLoading(true);
     registerMutation.mutate(
       {
         firstName: formData.firstName.trim(),
@@ -211,7 +209,6 @@ const Register = () => {
         onError: (error: Error) => {
           toast.error(error.message);
         },
-        onSettled: () => setIsLoading(false),
       },
     );
   };
@@ -226,252 +223,210 @@ const Register = () => {
     errors[field] ? "border-destructive/60 focus-visible:ring-destructive/40" : "";
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left Panel - Decorative */}
-      <div className="hidden lg:flex lg:w-1/2 gradient-hero relative overflow-hidden">
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0zNiAxOGMtNi42MjcgMC0xMiA1LjM3My0xMiAxMnM1LjM3MyAxMiAxMiAxMiAxMi01LjM3MyAxMi0xMi01LjM3My0xMi0xMi0xMnoiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLW9wYWNpdHk9Ii4xIi8+PC9nPjwvc3ZnPg==')] opacity-20" />
+    <AuthLayout backHref="/" backLabel="Back to Home">
+      <CardHeader className="text-center pb-2">
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary dark:bg-primary/15">
+          <UserRound className="h-8 w-8" />
+        </div>
+        <CardTitle className="text-3xl font-bold tracking-tight">Patient Registration</CardTitle>
+        <CardDescription className="mx-auto max-w-xl text-sm text-muted-foreground">
+          Create your patient account to book appointments, track health records, and receive care.
+        </CardDescription>
+      </CardHeader>
 
-        <div className="relative z-10 flex flex-col justify-center items-center w-full p-12 text-primary-foreground">
-          <img src={logo} alt="TABEEBAK" className="h-24 w-24 object-contain rounded-full mb-8" />
-          <h1 className="text-4xl font-bold mb-4">Join TABEEBAK</h1>
-          <p className="text-xl text-primary-foreground/80 text-center max-w-md mb-12">
-            Create your patient account and start your journey to better health.
+      <div className="space-y-6">
+        <div className="rounded-3xl border border-border/80 bg-card p-5 text-sm text-muted-foreground dark:bg-slate-900/70">
+          <p className="font-semibold">For patient accounts only</p>
+          <p className="mt-2">
+            Doctor and laboratory access is provisioned by administrators. If you represent a healthcare provider,
+            please contact support.
           </p>
-
-          <div className="bg-primary-foreground/10 backdrop-blur-sm rounded-2xl p-8 max-w-sm">
-            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <Heart className="h-5 w-5 animate-heartbeat" />
-              Why Join Us?
-            </h3>
-            <ul className="space-y-3 text-sm text-primary-foreground/90">
-              <li className="flex items-start gap-2">
-                <span className="text-primary-foreground font-bold">✓</span>
-                Book appointments with top doctors
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-primary-foreground font-bold">✓</span>
-                Access your medical records anytime
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-primary-foreground font-bold">✓</span>
-                View lab results online
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-primary-foreground font-bold">✓</span>
-                Secure and private platform
-              </li>
-            </ul>
-          </div>
         </div>
-      </div>
 
-      {/* Right Panel - Registration Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-background overflow-y-auto">
-        <div className="w-full max-w-md py-8">
-          <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-8">
-            <ArrowLeft className="h-4 w-4" />
-            Back to Home
-          </Link>
-
-          <div className="lg:hidden flex items-center gap-3 mb-8">
-            <img src={logo} alt="TABEEBAK" className="h-10 w-10 object-contain rounded-full" />
-            <span className="text-2xl font-bold text-gradient">TABEEBAK</span>
-          </div>
-
-          <Card className="border-0 shadow-xl">
-            <CardHeader className="text-center pb-4">
-              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <UserRound className="h-8 w-8 text-primary" />
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="firstName">First Name</Label>
+              <div className="relative">
+                <UserRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="firstName"
+                  placeholder="John"
+                  className={`pl-10 ${inputErrorClass("firstName")}`}
+                  value={formData.firstName}
+                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                  onBlur={() => handleBlur("firstName")}
+                  required
+                />
               </div>
-              <CardTitle className="text-2xl">Patient Registration</CardTitle>
-              <CardDescription>Create your account to access healthcare services</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="firstName">First Name</Label>
-                    <Input
-                      id="firstName"
-                      placeholder="John"
-                      className={inputErrorClass("firstName")}
-                      value={formData.firstName}
-                      onChange={(e) => setFormData({ ...formData, firstName: e.target.value.toLowerCase() })}
-                      onBlur={() => handleBlur("firstName")}
-                      required
-                    />
-                    <FieldError message={errors.firstName} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="lastName">Last Name</Label>
-                    <Input
-                      id="lastName"
-                      placeholder="Doe"
-                      className={inputErrorClass("lastName")}
-                      value={formData.lastName}
-                      onChange={(e) => setFormData({ ...formData, lastName: e.target.value.toLowerCase() })}
-                      onBlur={() => handleBlur("lastName")}
-                      required
-                    />
-                    <FieldError message={errors.lastName} />
-                  </div>
-                </div>
+              <FieldError message={errors.firstName} />
+            </div>
 
-                {/* Email with duplicate warning */}
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="john.doe@example.com"
-                    className={errors.email ? "border-amber-400/70 focus-visible:ring-amber-400/40" : ""}
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    onBlur={() => handleBlur("email")}
-                    required
-                  />
-                  {errors.email && (
-                    <div className="flex items-center gap-2 bg-destructive/5 border border-destructive/20 rounded-lg px-3 py-2 animate-fade-in">
-                      <AlertTriangle className="h-4 w-4 text-destructive/70 shrink-0" />
-                      <p className="text-xs font-medium text-destructive">{errors.email}</p>
-                    </div>
-                  )}
-                </div>
+            <div className="space-y-2">
+              <Label htmlFor="lastName">Last Name</Label>
+              <div className="relative">
+                <UserRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="lastName"
+                  placeholder="Doe"
+                  className={`pl-10 ${inputErrorClass("lastName")}`}
+                  value={formData.lastName}
+                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                  onBlur={() => handleBlur("lastName")}
+                  required
+                />
+              </div>
+              <FieldError message={errors.lastName} />
+            </div>
+          </div>
 
-                {/* Phone with digits-only filter */}
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number</Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    inputMode="numeric"
-                    placeholder="01234567890"
-                    className={inputErrorClass("phone")}
-                    value={formData.phone}
-                    onChange={(e) => handlePhoneChange(e.target.value)}
-                    onBlur={() => handleBlur("phone")}
-                    required
-                  />
-                  <FieldError message={errors.phone} />
-                </div>
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <div className="relative">
+              <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="email"
+                type="email"
+                placeholder="john.doe@example.com"
+                className={`pl-10 ${inputErrorClass("email")}`}
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                onBlur={() => handleBlur("email")}
+                required
+              />
+            </div>
+            <FieldError message={errors.email} />
+          </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  {/* Date of birth with max date */}
-                  <div className="space-y-2">
-                    <Label htmlFor="dateOfBirth">Date of Birth</Label>
-                    <Input
-                      id="dateOfBirth"
-                      type="date"
-                      max={maxDateOfBirth}
-                      className={inputErrorClass("dateOfBirth")}
-                      value={formData.dateOfBirth}
-                      onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
-                      onBlur={() => handleBlur("dateOfBirth")}
-                      required
-                    />
-                    <FieldError message={errors.dateOfBirth} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="gender">Gender</Label>
-                    <Select
-                      value={formData.gender}
-                      onValueChange={(value) => {
-                        setFormData({ ...formData, gender: value });
-                        setTouched((prev) => ({ ...prev, gender: true }));
-                      }}
-                    >
-                      <SelectTrigger className={errors.gender ? "border-destructive/60 focus-visible:ring-destructive/40" : ""}>
-                        <SelectValue placeholder="Select" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="male">Male</SelectItem>
-                        <SelectItem value="female">Female</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FieldError message={errors.gender} />
-                  </div>
-                </div>
+          <div className="space-y-2">
+            <Label htmlFor="phone">Phone Number</Label>
+            <Input
+              id="phone"
+              type="tel"
+              inputMode="numeric"
+              placeholder="01234567890"
+              className={inputErrorClass("phone")}
+              value={formData.phone}
+              onChange={(e) => handlePhoneChange(e.target.value)}
+              onBlur={() => handleBlur("phone")}
+              required
+            />
+            <FieldError message={errors.phone} />
+          </div>
 
-                {/* Password with strength validation */}
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <div className="relative">
-                    <Input
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      placeholder="At least 8 characters"
-                      className={inputErrorClass("password")}
-                      value={formData.password}
-                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      onBlur={() => handleBlur("password")}
-                      required
-                    />
-                    <button
-                      type="button"
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                  <FieldError message={errors.password} />
-                </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="dateOfBirth">Date of Birth</Label>
+              <Input
+                id="dateOfBirth"
+                type="date"
+                max={maxDateOfBirth}
+                className={inputErrorClass("dateOfBirth")}
+                value={formData.dateOfBirth}
+                onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+                onBlur={() => handleBlur("dateOfBirth")}
+                required
+              />
+              <FieldError message={errors.dateOfBirth} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="gender">Gender</Label>
+              <Select
+                value={formData.gender}
+                onValueChange={(value) => {
+                  setFormData({ ...formData, gender: value });
+                  setTouched((prev) => ({ ...prev, gender: true }));
+                }}
+              >
+                <SelectTrigger className={errors.gender ? "border-destructive/60 focus-visible:ring-destructive/40" : ""}>
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="male">Male</SelectItem>
+                  <SelectItem value="female">Female</SelectItem>
+                </SelectContent>
+              </Select>
+              <FieldError message={errors.gender} />
+            </div>
+          </div>
 
-                {/* Confirm Password */}
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirm Password</Label>
-                  <div className="relative">
-                    <Input
-                      id="confirmPassword"
-                      type={showConfirmPassword ? "text" : "password"}
-                      placeholder="Confirm your password"
-                      className={inputErrorClass("confirmPassword")}
-                      value={formData.confirmPassword}
-                      onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                      onBlur={() => handleBlur("confirmPassword")}
-                      required
-                    />
-                    <button
-                      type="button"
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    >
-                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                  <FieldError message={errors.confirmPassword} />
-                </div>
+          <div className="space-y-2">
+            <Label htmlFor="password">Password</Label>
+            <div className="relative">
+              <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="At least 8 characters"
+                className={`pl-10 ${inputErrorClass("password")}`}
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                onBlur={() => handleBlur("password")}
+                required
+              />
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition hover:text-foreground"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+            <FieldError message={errors.password} />
+          </div>
 
-                <label htmlFor="terms" className="flex items-start gap-3 cursor-pointer bg-muted/50 border border-input rounded-md px-3 py-3 hover:bg-muted transition-colors">
-                  <input type="checkbox" id="terms" className="h-4 w-4 mt-0.5 rounded-none border-2 border-primary accent-primary" required />
-                  <span className="text-sm text-foreground">
-                    I agree to the{" "}
-                    <Link to="/terms" className="text-primary hover:underline">
-                      Terms of Service
-                    </Link>{" "}
-                    and{" "}
-                    <Link to="/privacy" className="text-primary hover:underline">
-                      Privacy Policy
-                    </Link>
-                  </span>
-                </label>
+          <div className="space-y-2">
+            <Label htmlFor="confirmPassword">Confirm Password</Label>
+            <div className="relative">
+              <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="confirmPassword"
+                type={showConfirmPassword ? "text" : "password"}
+                placeholder="Confirm your password"
+                className={`pl-10 ${inputErrorClass("confirmPassword")}`}
+                value={formData.confirmPassword}
+                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                onBlur={() => handleBlur("confirmPassword")}
+                required
+              />
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition hover:text-foreground"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              >
+                {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+            <FieldError message={errors.confirmPassword} />
+          </div>
 
-                <Button type="submit" variant="hero" className="w-full" size="lg" disabled={isLoading || hasErrors}>
-                  {isLoading ? "Creating Account..." : "Create Account"}
-                </Button>
-              </form>
+          <label htmlFor="terms" className="flex items-start gap-3 cursor-pointer rounded-3xl border border-input bg-muted/50 px-4 py-3 transition hover:border-primary hover:bg-muted dark:bg-muted/30">
+            <input type="checkbox" id="terms" className="h-4 w-4 mt-1 rounded-sm border-2 border-primary accent-primary" required />
+            <span className="text-sm text-foreground">
+              I agree to the{' '}
+              <Link to="/terms" className="text-primary hover:underline">
+                Terms of Service
+              </Link>{' '}
+              and{' '}
+              <Link to="/privacy" className="text-primary hover:underline">
+                Privacy Policy
+              </Link>
+            </span>
+          </label>
 
-              <p className="text-center text-sm text-muted-foreground mt-6">
-                Already have an account?{" "}
-                <Link to="/login" className="text-primary font-medium hover:underline">
-                  Sign in here
-                </Link>
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+          <Button type="submit" variant="hero" className="w-full" size="lg" disabled={registerMutation.isPending || hasErrors}>
+            {registerMutation.isPending ? "Creating Account..." : "Create Account"}
+          </Button>
+        </form>
+
+        <p className="text-center text-sm text-muted-foreground mt-4">
+          Already have an account?{' '}
+          <Link to="/login" className="text-primary font-medium hover:underline">
+            Sign in here
+          </Link>
+        </p>
       </div>
-    </div>
+    </AuthLayout>
   );
 };
 

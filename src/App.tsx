@@ -51,6 +51,7 @@ import LabPending from "./pages/lab/Pending";
 import LabCompleted from "./pages/lab/Completed";
 import LabOrderDetailsPage from "./pages/lab/OrderDetails";
 import LabRequestsPage from "./pages/lab/Requests";
+import LabSchedule from "./pages/lab/Schedule";
 import LabSettings from "./pages/lab/LabSettings";
 import LabHelp from "./pages/lab/Help";
 import NotFound from "./pages/NotFound";
@@ -117,6 +118,7 @@ const App = () => (
               <Route path="/lab/requests/:orderId" element={<ProtectedRoute allowedRoles={["Lab"]}><LabOrderDetailsPage /></ProtectedRoute>} />
               <Route path="/lab/pending" element={<ProtectedRoute allowedRoles={["Lab"]}><LabPending /></ProtectedRoute>} />
               <Route path="/lab/completed" element={<ProtectedRoute allowedRoles={["Lab"]}><LabCompleted /></ProtectedRoute>} />
+              <Route path="/lab/schedule" element={<ProtectedRoute allowedRoles={["Lab"]}><LabSchedule /></ProtectedRoute>} />
               <Route path="/lab/orders/:orderId" element={<ProtectedRoute allowedRoles={["Lab"]}><LabOrderDetailsPage /></ProtectedRoute>} />
               <Route path="/lab/settings" element={<ProtectedRoute allowedRoles={["Lab"]}><LabSettings /></ProtectedRoute>} />
               <Route path="/lab/help" element={<ProtectedRoute allowedRoles={["Lab"]}><LabHelp /></ProtectedRoute>} />

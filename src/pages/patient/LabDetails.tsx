@@ -1,30 +1,28 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { addDays, format } from "date-fns";
 import { ArrowLeft, Building2 } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import {
-  EmptyCard,
-  ErrorCard,
-  LoadingCard,
-  SectionCard,
-} from "@/components/patient/BookingFlowSection";
+import AvailableTimeSlotsPicker from "@/components/booking/AvailableTimeSlotsPicker";
+import { EmptyCard, ErrorCard, LoadingCard, SectionCard } from "@/components/patient/BookingFlowSection";
 import { patientBookingNavItems } from "@/components/patient/patientNavigation";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
 import {
   useCreateTestRequestMutation,
+  useLabAvailableSlotsQuery,
   useLabBookingDetailQuery,
   useLabBranchesDetailQuery,
   useLabServicesDetailQuery,
 } from "@/hooks/usePatientBooking";
 import { getDisplayName } from "@/lib/auth";
 import { buildStableKey } from "@/lib/reactKeys";
+import { cn } from "@/lib/utils";
 
 const PatientLabDetailsPage = () => {
   const { labId } = useParams();
@@ -35,63 +33,110 @@ const PatientLabDetailsPage = () => {
   const branchesQuery = useLabBranchesDetailQuery(labId);
   const servicesQuery = useLabServicesDetailQuery(labId);
   const createRequestMutation = useCreateTestRequestMutation();
+  const slotRange = useMemo(() => {
+    const today = new Date();
+    return {
+      startDate: format(today, "yyyy-MM-dd"),
+      endDate: format(addDays(today, 14), "yyyy-MM-dd"),
+    };
+  }, []);
+  const slotsQuery = useLabAvailableSlotsQuery(labId, labId ? slotRange : undefined);
 
-  const [preferredDate, setPreferredDate] = useState("");
-  const [preferredTime, setPreferredTime] = useState("");
+  const [selectedSlotStart, setSelectedSlotStart] = useState("");
   const [branchId, setBranchId] = useState("");
   const [serviceIds, setServiceIds] = useState<string[]>([]);
   const [note, setNote] = useState("");
   const [homeCollection, setHomeCollection] = useState(false);
 
+  const lab = labQuery.data;
   const services = useMemo(() => servicesQuery.data ?? [], [servicesQuery.data]);
   const branches = useMemo(() => branchesQuery.data ?? [], [branchesQuery.data]);
+  const effectiveLabId = useMemo(() => {
+    if (!lab) return "";
+    return String(lab.labId ?? lab.id ?? "").trim();
+  }, [lab]);
+  const supportsHomeCollection = lab?.homeCollectionAvailable === true;
 
-  const branchSummary = useMemo(
-    () => branches.find((branch) => branch.id === branchId),
-    [branchId, branches],
-  );
-  const profileRows = useMemo(
+  const detailRows = useMemo(
     () =>
       [
-        labQuery.data?.address ? { label: "Address", value: labQuery.data.address } : null,
-        labQuery.data?.website ? { label: "Website", value: labQuery.data.website } : null,
-        labQuery.data?.establishedYear != null
-          ? { label: "Established", value: String(labQuery.data.establishedYear) }
-          : null,
-        labQuery.data?.licenseNumber ? { label: "License", value: labQuery.data.licenseNumber } : null,
-        labQuery.data?.phone ? { label: "Phone", value: labQuery.data.phone } : null,
-        labQuery.data?.email ? { label: "Email", value: labQuery.data.email } : null,
+        lab?.address ? { label: "Address", value: lab.address } : null,
+        lab?.website ? { label: "Website", value: lab.website } : null,
+        lab?.establishedYear != null ? { label: "Established", value: String(lab.establishedYear) } : null,
+        lab?.licenseNumber ? { label: "License", value: lab.licenseNumber } : null,
+        lab?.phone ? { label: "Phone", value: lab.phone } : null,
+        lab?.email ? { label: "Email", value: lab.email } : null,
       ].filter((item): item is { label: string; value: string } => Boolean(item)),
-    [labQuery.data],
+    [lab],
   );
+
+  useEffect(() => {
+    setSelectedSlotStart("");
+    setBranchId("");
+    setServiceIds([]);
+    setNote("");
+    setHomeCollection(false);
+  }, [labId]);
+
+  useEffect(() => {
+    if (!selectedSlotStart) return;
+    const slots = slotsQuery.data?.slots ?? [];
+    const stillAvailable = slots.some((slot) => slot.startAt === selectedSlotStart);
+    if (!stillAvailable) {
+      setSelectedSlotStart("");
+    }
+  }, [selectedSlotStart, slotsQuery.data?.slots]);
 
   const handleServiceToggle = (serviceId: string, checked: boolean) => {
     setServiceIds((current) =>
-      checked ? [...current, serviceId] : current.filter((item) => item !== serviceId),
+      checked
+        ? current.includes(serviceId)
+          ? current
+          : [...current, serviceId]
+        : current.filter((item) => item !== serviceId),
     );
   };
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
-    if (!labQuery.data?.labId) {
+    if (!effectiveLabId) {
       toast.error("Lab request cannot be submitted because the lab ID is missing.");
+      return;
+    }
+    if (!selectedSlotStart) {
+      toast.error("Select an available slot before submitting the request.");
+      return;
+    }
+    if (servicesQuery.isLoading) {
+      toast.error("Lab services are still loading. Please wait a moment.");
+      return;
+    }
+    if (!services.length) {
+      toast.error("This lab has no published services yet. You cannot submit a request.");
+      return;
+    }
+    if (serviceIds.length === 0) {
+      toast.error("Select at least one test or service to request.");
       return;
     }
 
     createRequestMutation.mutate(
       {
-        labId: labQuery.data.labId,
-        preferredDate,
-        preferredTime,
+        labId: effectiveLabId,
+        slotStart: selectedSlotStart,
         branchId: branchId || undefined,
         serviceIds,
-        note: note || undefined,
-        homeCollection,
+        note: note.trim() || undefined,
+        ...(supportsHomeCollection && homeCollection ? { homeCollection: true } : {}),
       },
       {
         onSuccess: (request) => {
           toast.success("Lab request submitted.");
-          navigate(`/patient/requests/lab/${request.id}`);
+          if (request.id) {
+            navigate(`/patient/requests/lab/${request.id}`);
+          } else {
+            navigate("/patient/requests");
+          }
         },
         onError: (error: Error) => toast.error(error.message),
       },
@@ -109,7 +154,7 @@ const PatientLabDetailsPage = () => {
         </Button>
         <h1 className="text-3xl font-bold">Lab details</h1>
         <p className="mt-2 text-muted-foreground">
-          Compare branches and services, then send a test request.
+          Review the lab profile and choose a time that works for you.
         </p>
       </div>
 
@@ -117,19 +162,19 @@ const PatientLabDetailsPage = () => {
         <LoadingCard lines={6} />
       ) : labQuery.isError ? (
         <ErrorCard title="Unable to load lab profile" message={(labQuery.error as Error).message} />
-      ) : labQuery.data ? (
+      ) : lab ? (
         <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
           <div className="space-y-6">
-            <SectionCard title={labQuery.data.name} description={labQuery.data.accreditation || undefined}>
+            <SectionCard title={lab.name} description={lab.accreditation || undefined}>
               <div className="space-y-4">
                 <p className="text-sm leading-6 text-muted-foreground">
-                  {labQuery.data.description || "No lab description available yet."}
+                  {lab.description || "No lab description available yet."}
                 </p>
-                {profileRows.length ? (
+                {detailRows.length ? (
                   <div className="grid gap-3 md:grid-cols-2">
-                    {profileRows.map((item, index) => (
+                    {detailRows.map((item, index) => (
                       <div
-                        key={buildStableKey([item.label, item.value, index], `lab-profile-${index}`)}
+                        key={buildStableKey([item.label, item.value, index], `lab-detail-${index}`)}
                         className="rounded-lg border p-4"
                       >
                         <p className="text-sm font-medium">{item.label}</p>
@@ -139,194 +184,124 @@ const PatientLabDetailsPage = () => {
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    No additional lab profile details have been published yet.
+                    No address or contact details have been published yet.
                   </p>
                 )}
                 <div className="space-y-1 text-sm text-muted-foreground">
-                  {labQuery.data.homeCollectionAvailable === true ? <p>Home collection is supported.</p> : null}
-                  {labQuery.data.homeCollectionAvailable === false ? <p>Home collection is not supported.</p> : null}
-                  {labQuery.data.homeCollectionAvailable == null ? <p>Home collection availability has not been published yet.</p> : null}
+                  {lab.homeCollectionAvailable === true ? <p>Home sample collection is available.</p> : null}
+                  {lab.homeCollectionAvailable === false ? <p>Home sample collection is not available.</p> : null}
+                  {lab.homeCollectionAvailable == null ? (
+                    <p>Home collection availability has not been published yet.</p>
+                  ) : null}
+                  {servicesQuery.isLoading ? <p>Loading published services…</p> : null}
+                  {!servicesQuery.isLoading && services.length === 0 ? (
+                    <p>No published services yet.</p>
+                  ) : null}
+                  {!servicesQuery.isLoading && services.length > 0 ? (
+                    <p>{services.length} test{services.length === 1 ? "" : "s"} available to book.</p>
+                  ) : null}
                 </div>
               </div>
-            </SectionCard>
-
-            <SectionCard title="Branches" description="Rendered from /api/v1/labs/:labId/branches">
-              {branchesQuery.isLoading ? (
-                <LoadingCard lines={4} />
-              ) : branchesQuery.isError ? (
-                <ErrorCard title="Unable to load branches" message={(branchesQuery.error as Error).message} />
-              ) : branches.length ? (
-                <div className="space-y-3">
-                  {branches.map((branch, index) => (
-                    <div
-                      key={buildStableKey(
-                        [branch.id, branch.name, branch.address, branch.phone, index],
-                        `lab-branch-${index}`,
-                      )}
-                      className="rounded-lg border p-4"
-                    >
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-medium">{branch.name}</p>
-                        {branch.isMainBranch ? <Badge>Main branch</Badge> : null}
-                      </div>
-                      {branch.address ? <p className="mt-1 text-sm text-muted-foreground">{branch.address}</p> : null}
-                      {branch.operatingHours ? (
-                        <p className="mt-2 text-sm text-muted-foreground">{branch.operatingHours}</p>
-                      ) : (
-                        <p className="mt-2 text-sm text-muted-foreground">Operating hours not published yet.</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <EmptyCard title="No branches available" description="The lab has not published branches yet." />
-              )}
-            </SectionCard>
-
-            <SectionCard title="Services" description="Rendered from /api/v1/labs/:labId/services">
-              {servicesQuery.isLoading ? (
-                <LoadingCard lines={4} />
-              ) : servicesQuery.isError ? (
-                <ErrorCard title="Unable to load services" message={(servicesQuery.error as Error).message} />
-              ) : services.length ? (
-                <div className="space-y-3">
-                  {services.map((service, index) => (
-                    <div
-                      key={buildStableKey(
-                        [service.id, service.name, service.category, service.sampleType, index],
-                        `lab-service-${index}`,
-                      )}
-                      className="rounded-lg border p-4"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="font-medium">{service.name}</p>
-                        {service.price != null ? (
-                          <Badge variant="outline">{`${service.price} ${service.currency || ""}`.trim()}</Badge>
-                        ) : null}
-                      </div>
-                      {service.description ? (
-                        <p className="mt-1 text-sm text-muted-foreground">{service.description}</p>
-                      ) : null}
-                      <div className="mt-2 flex flex-wrap gap-3 text-sm text-muted-foreground">
-                        {service.category ? <span>{service.category}</span> : null}
-                        {service.sampleType ? <span>{service.sampleType}</span> : null}
-                        {service.turnaroundTime ? <span>{service.turnaroundTime}</span> : null}
-                      </div>
-                      {!service.description && !service.category && !service.sampleType && !service.turnaroundTime && service.price == null ? (
-                        <p className="mt-2 text-sm text-muted-foreground">No extra service details published yet.</p>
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <EmptyCard title="No services available" description="The lab has not published services yet." />
-              )}
             </SectionCard>
           </div>
 
-          <SectionCard title="Send lab request" description="Patient-only mutation against /api/v1/test-requests">
+          <SectionCard title="Book an appointment" description="Choose a time and share a quick note.">
             <form onSubmit={handleSubmit} className="space-y-4">
+              <AvailableTimeSlotsPicker
+                slots={slotsQuery.data?.slots ?? []}
+                selectedSlotStart={selectedSlotStart}
+                onSelect={setSelectedSlotStart}
+                isLoading={slotsQuery.isLoading}
+                isError={slotsQuery.isError}
+                errorMessage={(slotsQuery.error as Error | undefined)?.message}
+              />
+
               <div className="space-y-2">
-                <Label htmlFor="preferredDate">Preferred date</Label>
-                <Input
-                  id="preferredDate"
-                  type="date"
-                  value={preferredDate}
-                  onChange={(event) => setPreferredDate(event.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="preferredTime">Preferred time</Label>
-                <Input
-                  id="preferredTime"
-                  type="time"
-                  value={preferredTime}
-                  onChange={(event) => setPreferredTime(event.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Preferred branch</Label>
-                {branches.length ? (
-                  <>
-                    {branchSummary ? (
-                      <p className="text-sm text-muted-foreground">Selected: {branchSummary.name}</p>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">Choose a branch if you have a preferred location.</p>
-                    )}
-                    <div className="max-h-44 space-y-2 overflow-auto rounded-lg border p-3">
-                      {branches.map((branch, index) => (
+                <Label>Tests & services</Label>
+                {servicesQuery.isLoading ? (
+                  <p className="text-sm text-muted-foreground">Loading services…</p>
+                ) : servicesQuery.isError ? (
+                  <p className="text-sm text-destructive">{(servicesQuery.error as Error).message}</p>
+                ) : !services.length ? (
+                  <p className="text-sm text-muted-foreground">No services are available to book yet.</p>
+                ) : (
+                  <div className="max-h-48 space-y-1 overflow-y-auto rounded-lg border p-3">
+                    {services.map((service, index) => {
+                      const checked = serviceIds.includes(service.id);
+                      return (
                         <label
                           key={buildStableKey(
-                            [branch.id, branch.name, branch.address, branch.phone, index],
-                            `branch-choice-${index}`,
+                            [service.id, service.name, service.category, index],
+                            `lab-service-choice-${index}`,
                           )}
-                          className="flex cursor-pointer items-start gap-3 rounded-md p-2 hover:bg-muted/50"
+                          className={cn(
+                            "flex cursor-pointer items-start gap-3 rounded-md px-2 py-2 hover:bg-muted/60",
+                            checked && "bg-primary/5",
+                          )}
                         >
-                          <input
-                            type="radio"
-                            name="branch"
-                            className="mt-1"
-                            checked={branchId === branch.id}
-                            onChange={() => setBranchId(branch.id)}
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={(value) => handleServiceToggle(service.id, value === true)}
+                            className="mt-0.5"
                           />
-                          <span className="text-sm">
-                            <span className="block font-medium">{branch.name}</span>
-                            {branch.address ? (
-                              <span className="text-muted-foreground">{branch.address}</span>
+                          <span className="min-w-0 text-sm">
+                            <span className="block font-medium">{service.name}</span>
+                            {service.category || service.sampleType ? (
+                              <span className="text-xs text-muted-foreground">
+                                {[service.category, service.sampleType].filter(Boolean).join(" · ")}
+                              </span>
                             ) : null}
                           </span>
                         </label>
-                      ))}
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-sm text-muted-foreground">No branches have been published yet.</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label>Select services</Label>
-                {services.length ? (
-                  <div className="max-h-56 space-y-2 overflow-auto rounded-lg border p-3">
-                    {services.map((service, index) => (
-                      <label
-                        key={buildStableKey(
-                          [service.id, service.name, service.category, service.sampleType, index],
-                          `service-choice-${index}`,
-                        )}
-                        className="flex cursor-pointer items-start gap-3 rounded-md p-2 hover:bg-muted/50"
-                      >
-                        <Checkbox
-                          checked={serviceIds.includes(service.id)}
-                          onCheckedChange={(checked) => handleServiceToggle(service.id, Boolean(checked))}
-                        />
-                        <span className="text-sm">
-                          <span className="block font-medium">{service.name}</span>
-                          <span className="text-muted-foreground">
-                            {service.turnaroundTime || service.category || "No extra service details published yet."}
-                          </span>
-                        </span>
-                      </label>
-                    ))}
+                      );
+                    })}
                   </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    No services are available yet, so a lab request cannot be submitted from this page.
-                  </p>
                 )}
               </div>
-              <label className="flex items-start gap-3 rounded-lg border p-4">
-                <Checkbox checked={homeCollection} onCheckedChange={(checked) => setHomeCollection(Boolean(checked))} />
-                <span className="text-sm">
-                  <span className="block font-medium">Request home collection</span>
-                  <span className="text-muted-foreground">
-                    Select this if the lab supports sample collection at home.
-                  </span>
-                </span>
-              </label>
+
+              {branches.length ? (
+                <div className="space-y-2">
+                  <Label htmlFor="branch">Branch (optional)</Label>
+                  <Select
+                    value={branchId || "__none__"}
+                    onValueChange={(value) => setBranchId(value === "__none__" ? "" : value)}
+                  >
+                    <SelectTrigger id="branch">
+                      <SelectValue placeholder="Choose a branch" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">No preference</SelectItem>
+                      {branches.map((branch) => (
+                        <SelectItem key={branch.id} value={branch.id}>
+                          {branch.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : null}
+
+              {supportsHomeCollection ? (
+                <div className="flex items-start gap-3 rounded-lg border p-3">
+                  <Checkbox
+                    id="homeCollection"
+                    checked={homeCollection}
+                    onCheckedChange={(value) => setHomeCollection(value === true)}
+                    className="mt-0.5"
+                  />
+                  <div className="space-y-1">
+                    <Label htmlFor="homeCollection" className="text-sm font-medium">
+                      Request home sample collection
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      The lab offers home visits for sample collection when available.
+                    </p>
+                  </div>
+                </div>
+              ) : null}
+
               <div className="space-y-2">
-                <Label htmlFor="note">Extra note</Label>
+                <Label htmlFor="note">Additional note (optional)</Label>
                 <Textarea
                   id="note"
                   value={note}
@@ -334,19 +309,22 @@ const PatientLabDetailsPage = () => {
                   rows={3}
                 />
               </div>
+
               <Button
                 type="submit"
                 className="w-full"
                 disabled={
                   createRequestMutation.isPending ||
-                  services.length === 0 ||
-                  serviceIds.length === 0 ||
-                  !labQuery.data.labId
+                  !effectiveLabId ||
+                  !selectedSlotStart ||
+                  servicesQuery.isLoading ||
+                  !services.length ||
+                  serviceIds.length === 0
                 }
               >
-                {createRequestMutation.isPending ? "Submitting..." : "Submit lab request"}
+                {createRequestMutation.isPending ? "Submitting..." : "Request appointment"}
               </Button>
-              {!labQuery.data.labId ? (
+              {!effectiveLabId ? (
                 <p className="text-sm text-destructive">
                   This profile is missing the lab ID required for request submission.
                 </p>

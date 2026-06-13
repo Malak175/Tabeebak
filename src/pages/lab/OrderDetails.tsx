@@ -56,18 +56,11 @@ const getReviewPresentation = (status?: string | null) => {
   if (normalized === "PENDING") {
     return null;
   }
-  if (normalized === "REJECTED") {
+  if (normalized === "REJECTED" || normalized === "CANCELLED") {
     return {
       label: "Rejected",
       tone: "danger",
-      description: "The request was declined and is no longer active.",
-    };
-  }
-  if (normalized === "CANCELLED") {
-    return {
-      label: "Cancelled",
-      tone: "danger",
-      description: "The request has been cancelled and is no longer active.",
+      description: "The request has been rejected and is no longer active.",
     };
   }
   if (normalized) {
@@ -227,17 +220,17 @@ const LabOrderDetailsPage = () => {
       current.map((item, itemIndex) =>
         itemIndex === index
           ? (() => {
-              if (field !== "name") {
-                return { ...item, [field]: value };
-              }
-              const defaults = resolveHeartMeasurementDefaults(value);
-              return {
-                ...item,
-                name: value,
-                unit: defaults?.unit ?? item.unit,
-                referenceRange: defaults?.referenceRange ?? item.referenceRange,
-              };
-            })()
+            if (field !== "name") {
+              return { ...item, [field]: value };
+            }
+            const defaults = resolveHeartMeasurementDefaults(value);
+            return {
+              ...item,
+              name: value,
+              unit: defaults?.unit ?? item.unit,
+              referenceRange: defaults?.referenceRange ?? item.referenceRange,
+            };
+          })()
           : item,
       ),
     );
@@ -432,7 +425,7 @@ const LabOrderDetailsPage = () => {
                 </div>
                 <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                   <span>Requested: {formatDateTime(detail.orderedAt)}</span>
-                  <span>Preferred: {formatDateTime(detail.scheduledAt)}</span>
+                  <span>Scheduled: {formatDateTime(detail.scheduledAt)}</span>
                   <span>Collected: {formatDateTime(detail.collectedAt)}</span>
                 </div>
                 <p className="text-sm text-muted-foreground">
@@ -565,11 +558,10 @@ const LabOrderDetailsPage = () => {
                     </>
                   ) : reviewPresentation ? (
                     <div
-                      className={`flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 text-sm ${
-                        reviewPresentation.tone === "success"
+                      className={`flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 text-sm ${reviewPresentation.tone === "success"
                           ? "border-green-200 bg-green-50/80 text-green-800"
                           : "border-red-200 bg-red-50/80 text-red-700"
-                      }`}
+                        }`}
                     >
                       {reviewPresentation.tone === "success" ? (
                         <CheckCircle2 className="h-4 w-4" />
@@ -577,11 +569,10 @@ const LabOrderDetailsPage = () => {
                         <XCircle className="h-4 w-4" />
                       )}
                       <Badge
-                        className={`border-transparent ${
-                          reviewPresentation.tone === "success"
+                        className={`border-transparent ${reviewPresentation.tone === "success"
                             ? "bg-green-600 text-white"
                             : "bg-red-600 text-white"
-                        }`}
+                          }`}
                       >
                         {reviewPresentation.label}
                       </Badge>
@@ -685,172 +676,172 @@ const LabOrderDetailsPage = () => {
 
             {canUploadResultNow ? (
               <Card>
-              <CardHeader>
-                <CardTitle>Result Upload</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="summary">Summary</Label>
-                  <Textarea
-                    id="summary"
-                    value={summary}
-                    onChange={(event) => setSummary(event.target.value)}
-                    placeholder="Clinical summary or interpretation"
-                    disabled={isUploading}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="conclusion">Conclusion</Label>
-                  <Textarea
-                    id="conclusion"
-                    value={conclusion}
-                    onChange={(event) => setConclusion(event.target.value)}
-                    placeholder="Diagnostic conclusion"
-                    disabled={isUploading}
-                  />
-                </div>
-
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label>Measured values</Label>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setValues((current) => [...current, createEmptyValue()])}
+                <CardHeader>
+                  <CardTitle>Result Upload</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="summary">Summary</Label>
+                    <Textarea
+                      id="summary"
+                      value={summary}
+                      onChange={(event) => setSummary(event.target.value)}
+                      placeholder="Clinical summary or interpretation"
                       disabled={isUploading}
-                    >
-                      Add row
-                    </Button>
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="conclusion">Conclusion</Label>
+                    <Textarea
+                      id="conclusion"
+                      value={conclusion}
+                      onChange={(event) => setConclusion(event.target.value)}
+                      placeholder="Diagnostic conclusion"
+                      disabled={isUploading}
+                    />
                   </div>
 
                   <div className="space-y-3">
-                    {values.map((item, index) => (
-                      <div key={index} className="grid gap-3 rounded-lg border p-3">
-                        <div className="space-y-1">
-                          <Input
-                            value={item.name}
-                            onChange={(event) => handleValueChange(index, "name", event.target.value)}
-                            placeholder="Measurement name"
-                            disabled={isUploading}
-                          />
-                          {resolveHeartMeasurementDefaults(item.name) ? (
-                            <p className="text-xs text-muted-foreground">
-                              {resolveHeartMeasurementDefaults(item.name)?.schema.label} -{" "}
-                              {resolveHeartMeasurementDefaults(item.name)?.schema.description}
-                            </p>
-                          ) : null}
-                        </div>
-                        {(() => {
-                          const defaults = resolveHeartMeasurementDefaults(item.name);
-                          const unitValue = defaults?.unit ?? (item.unit ?? "");
-                          const referenceValue = defaults?.referenceRange ?? (item.referenceRange ?? "");
-                          const isSchemaRow = Boolean(defaults);
-                          const computedStatus = computeMeasurementStatus({
-                            value: item.value ?? null,
-                            referenceRange: defaults?.referenceRange ?? item.referenceRange ?? null,
-                            mode: defaults?.statusMode,
-                          });
-                          const statusLabel = computedStatus ?? "Not available";
+                    <div className="flex items-center justify-between">
+                      <Label>Measured values</Label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setValues((current) => [...current, createEmptyValue()])}
+                        disabled={isUploading}
+                      >
+                        Add row
+                      </Button>
+                    </div>
 
-                          return (
-                            <>
-                              <div className="grid gap-3 md:grid-cols-2">
-                                <Input
-                                  value={item.value ?? ""}
-                                  onChange={(event) => handleValueChange(index, "value", event.target.value)}
-                                  placeholder="Value"
-                                  disabled={isUploading}
-                                />
-                                <Input
-                                  value={unitValue}
-                                  onChange={(event) => handleValueChange(index, "unit", event.target.value)}
-                                  placeholder="Unit"
-                                  disabled={isUploading || isSchemaRow}
-                                  readOnly={isSchemaRow}
-                                />
-                              </div>
-                              <div className="grid gap-3 md:grid-cols-2">
-                                <Input
-                                  value={referenceValue}
-                                  onChange={(event) =>
-                                    handleValueChange(index, "referenceRange", event.target.value)
-                                  }
-                                  placeholder="Reference range"
-                                  disabled={isUploading || isSchemaRow}
-                                  readOnly={isSchemaRow}
-                                />
-                                {isSchemaRow ? (
-                                  <div className="space-y-1">
-                                    <Label className="text-xs text-muted-foreground">Status / flag</Label>
-                                    <div className="rounded-md border bg-muted/20 px-3 py-2 text-sm">
-                                      {statusLabel}
-                                    </div>
-                                  </div>
-                                ) : (
+                    <div className="space-y-3">
+                      {values.map((item, index) => (
+                        <div key={index} className="grid gap-3 rounded-lg border p-3">
+                          <div className="space-y-1">
+                            <Input
+                              value={item.name}
+                              onChange={(event) => handleValueChange(index, "name", event.target.value)}
+                              placeholder="Measurement name"
+                              disabled={isUploading}
+                            />
+                            {resolveHeartMeasurementDefaults(item.name) ? (
+                              <p className="text-xs text-muted-foreground">
+                                {resolveHeartMeasurementDefaults(item.name)?.schema.label} -{" "}
+                                {resolveHeartMeasurementDefaults(item.name)?.schema.description}
+                              </p>
+                            ) : null}
+                          </div>
+                          {(() => {
+                            const defaults = resolveHeartMeasurementDefaults(item.name);
+                            const unitValue = defaults?.unit ?? (item.unit ?? "");
+                            const referenceValue = defaults?.referenceRange ?? (item.referenceRange ?? "");
+                            const isSchemaRow = Boolean(defaults);
+                            const computedStatus = computeMeasurementStatus({
+                              value: item.value ?? null,
+                              referenceRange: defaults?.referenceRange ?? item.referenceRange ?? null,
+                              mode: defaults?.statusMode,
+                            });
+                            const statusLabel = computedStatus ?? "Not available";
+
+                            return (
+                              <>
+                                <div className="grid gap-3 md:grid-cols-2">
                                   <Input
-                                    value={item.status ?? ""}
-                                    onChange={(event) => handleValueChange(index, "status", event.target.value)}
-                                    placeholder="Status or flag"
+                                    value={item.value ?? ""}
+                                    onChange={(event) => handleValueChange(index, "value", event.target.value)}
+                                    placeholder="Value"
                                     disabled={isUploading}
                                   />
-                                )}
-                              </div>
-                            </>
-                          );
-                        })()}
-                        {values.length > 1 ? (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() =>
-                              setValues((current) => current.filter((_, itemIndex) => itemIndex !== index))
-                            }
-                            disabled={isUploading}
-                          >
-                            Remove row
-                          </Button>
-                        ) : null}
-                      </div>
-                    ))}
+                                  <Input
+                                    value={unitValue}
+                                    onChange={(event) => handleValueChange(index, "unit", event.target.value)}
+                                    placeholder="Unit"
+                                    disabled={isUploading || isSchemaRow}
+                                    readOnly={isSchemaRow}
+                                  />
+                                </div>
+                                <div className="grid gap-3 md:grid-cols-2">
+                                  <Input
+                                    value={referenceValue}
+                                    onChange={(event) =>
+                                      handleValueChange(index, "referenceRange", event.target.value)
+                                    }
+                                    placeholder="Reference range"
+                                    disabled={isUploading || isSchemaRow}
+                                    readOnly={isSchemaRow}
+                                  />
+                                  {isSchemaRow ? (
+                                    <div className="space-y-1">
+                                      <Label className="text-xs text-muted-foreground">Status / flag</Label>
+                                      <div className="rounded-md border bg-muted/20 px-3 py-2 text-sm">
+                                        {statusLabel}
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <Input
+                                      value={item.status ?? ""}
+                                      onChange={(event) => handleValueChange(index, "status", event.target.value)}
+                                      placeholder="Status or flag"
+                                      disabled={isUploading}
+                                    />
+                                  )}
+                                </div>
+                              </>
+                            );
+                          })()}
+                          {values.length > 1 ? (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() =>
+                                setValues((current) => current.filter((_, itemIndex) => itemIndex !== index))
+                              }
+                              disabled={isUploading}
+                            >
+                              Remove row
+                            </Button>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="resultNotes">Lab notes</Label>
-                  <Textarea
-                    id="resultNotes"
-                    value={resultNotes}
-                    onChange={(event) => setResultNotes(event.target.value)}
-                    placeholder="Optional result note"
-                    disabled={isUploading}
-                  />
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="resultNotes">Lab notes</Label>
+                    <Textarea
+                      id="resultNotes"
+                      value={resultNotes}
+                      onChange={(event) => setResultNotes(event.target.value)}
+                      placeholder="Optional result note"
+                      disabled={isUploading}
+                    />
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="resultFile">Result file (optional)</Label>
-                  <Input id="resultFile" type="file" onChange={handleFileChange} disabled={isUploading} />
-                  {resultFile ? <p className="text-sm text-muted-foreground">{resultFile.name}</p> : null}
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="resultFile">Result file (optional)</Label>
+                    <Input id="resultFile" type="file" onChange={handleFileChange} disabled={isUploading} />
+                    {resultFile ? <p className="text-sm text-muted-foreground">{resultFile.name}</p> : null}
+                  </div>
 
-                <Button onClick={submitResultUpload} disabled={isUploading}>
-                  <FileUp className="mr-2 h-4 w-4" />
-                  {isUploading ? "Uploading..." : "Upload result"}
-                </Button>
-                {isUploading ? (
-                  <p className="text-sm text-muted-foreground">Uploading result and measurements...</p>
-                ) : null}
-                {uploadSuccess ? (
-                  <Alert>
-                    <AlertTitle>Result uploaded</AlertTitle>
-                    <AlertDescription>
-                      This order is now in Results Ready. Move it to Completed after final hand-off.
-                    </AlertDescription>
-                  </Alert>
-                ) : null}
-              </CardContent>
+                  <Button onClick={submitResultUpload} disabled={isUploading}>
+                    <FileUp className="mr-2 h-4 w-4" />
+                    {isUploading ? "Uploading..." : "Upload result"}
+                  </Button>
+                  {isUploading ? (
+                    <p className="text-sm text-muted-foreground">Uploading result and measurements...</p>
+                  ) : null}
+                  {uploadSuccess ? (
+                    <Alert>
+                      <AlertTitle>Result uploaded</AlertTitle>
+                      <AlertDescription>
+                        This order is now in Results Ready. Move it to Completed after final hand-off.
+                      </AlertDescription>
+                    </Alert>
+                  ) : null}
+                </CardContent>
               </Card>
             ) : actionStatus === "RESULT_UPLOADED" || actionStatus === "COMPLETED" ? (
               <Alert>

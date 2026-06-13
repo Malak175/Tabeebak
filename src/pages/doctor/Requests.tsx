@@ -86,7 +86,6 @@ const DoctorRequestsPage = () => {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
-  const [consultationType, setConsultationType] = useState("all");
   const userName = getDisplayName(user ?? {});
 
   const filters = useMemo(
@@ -95,11 +94,10 @@ const DoctorRequestsPage = () => {
       limit: 6,
       search,
       status: status === "all" ? undefined : status,
-      consultationType: consultationType === "all" ? undefined : consultationType,
       sortBy: "createdAt",
       sortOrder: "desc" as const,
     }),
-    [consultationType, page, search, status],
+    [page, search, status],
   );
 
   const query = useDoctorAppointmentRequestsQuery(filters, Boolean(user));
@@ -158,31 +156,12 @@ const DoctorRequestsPage = () => {
               <SelectItem value="REJECTED">Rejected</SelectItem>
             </SelectContent>
           </Select>
-          <Select
-            value={consultationType}
-            onValueChange={(value) => {
-              setPage(1);
-              setConsultationType(value);
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Consultation type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All types</SelectItem>
-              <SelectItem value="Clinic">Clinic</SelectItem>
-              <SelectItem value="Video">Video</SelectItem>
-              <SelectItem value="Phone">Phone</SelectItem>
-              <SelectItem value="Home Visit">Home Visit</SelectItem>
-            </SelectContent>
-          </Select>
           <Button
             variant="outline"
             onClick={() => {
               setPage(1);
               setSearch("");
               setStatus("all");
-              setConsultationType("all");
             }}
           >
             Clear filters
@@ -208,7 +187,7 @@ const DoctorRequestsPage = () => {
               <CardContent className="p-5">
                 <p className="text-sm text-muted-foreground">Pending</p>
                 <p className="mt-2 text-3xl font-bold">
-                  {query.data.data.filter((item) => normalizeApiStatusKey(item.status) === "PENDING").length}
+                  {query.data?.counts?.pending ?? 0}
                 </p>
               </CardContent>
             </Card>
@@ -216,7 +195,7 @@ const DoctorRequestsPage = () => {
               <CardContent className="p-5">
                 <p className="text-sm text-muted-foreground">Approved</p>
                 <p className="mt-2 text-3xl font-bold">
-                  {query.data.data.filter((item) => normalizeApiStatusKey(item.status) === "APPROVED").length}
+                  {query.data?.counts?.approved ?? 0}
                 </p>
               </CardContent>
             </Card>
@@ -224,7 +203,7 @@ const DoctorRequestsPage = () => {
               <CardContent className="p-5">
                 <p className="text-sm text-muted-foreground">Rejected</p>
                 <p className="mt-2 text-3xl font-bold">
-                  {query.data.data.filter((item) => normalizeApiStatusKey(item.status) === "REJECTED").length}
+                  {query.data?.counts?.rejected ?? 0}
                 </p>
               </CardContent>
             </Card>

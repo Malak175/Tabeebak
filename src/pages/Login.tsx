@@ -3,12 +3,11 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { UserRound, Stethoscope, FlaskConical, Eye, EyeOff, ArrowLeft } from "lucide-react";
+import { CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { UserRound, Stethoscope, FlaskConical, Eye, EyeOff, ArrowLeft, Mail, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { FieldError } from "@/components/ui/field-error";
-import logo from "@/assets/logo.png";
+import AuthLayout from "@/components/auth/AuthLayout";
 import { routeByRole } from "@/lib/auth";
 import { useAuth, useSignInMutation } from "@/hooks/useAuth";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -123,172 +122,144 @@ const Login = () => {
     laboratory: FlaskConical,
   };
 
-  const roleColors = {
-    patient: "primary",
-    doctor: "secondary",
-    laboratory: "primary",
-  };
-
   return (
-    <div className="min-h-screen flex">
-      {/* Left Panel - Decorative */}
-      <div className="hidden lg:flex lg:w-1/2 gradient-hero relative overflow-hidden">
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0zNiAxOGMtNi42MjcgMC0xMiA1LjM3My0xMiAxMnM1LjM3MyAxMiAxMiAxMiAxMi01LjM3MyAxMi0xMi01LjM3My0xMi0xMi0xMnoiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLW9wYWNpdHk9Ii4xIi8+PC9nPjwvc3ZnPg==')] opacity-20" />
+    <AuthLayout backHref="/" backLabel="Back to Home">
+      <CardHeader className="text-center pb-2">
+        <CardTitle className="text-3xl font-bold tracking-tight">Sign in to TABEEBAK</CardTitle>
+        <CardDescription className="mx-auto max-w-xl text-sm text-muted-foreground">
+          Secure access for patients, doctors, and laboratories. Choose the right role and sign in to continue.
+        </CardDescription>
+      </CardHeader>
 
-        <div className="relative z-10 flex flex-col justify-center items-center w-full p-12 text-primary-foreground">
-          <img src={logo} alt="TABEEBAK" className="h-24 w-24 object-contain rounded-full mb-8" />
-          <h1 className="text-4xl font-bold mb-4">Welcome to TABEEBAK</h1>
-          <p className="text-xl text-primary-foreground/80 text-center max-w-md">
-            Your trusted healthcare platform connecting patients, doctors, and laboratories.
-          </p>
+      <div className="space-y-6">
+        <section>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-muted-foreground mb-3">Select your role</p>
+          <div role="tablist" aria-label="Role selection" className="grid gap-3 sm:grid-cols-3">
+            {([
+              { id: "patient", title: "Patient", subtitle: "Access appointments and health records", icon: UserRound },
+              { id: "doctor", title: "Doctor", subtitle: "Review patient requests and care plans", icon: Stethoscope },
+              { id: "laboratory", title: "Laboratory", subtitle: "Manage lab orders and results", icon: FlaskConical },
+            ] as const).map((option) => {
+              const Icon = option.icon;
+              const active = selectedRole === option.id;
 
-          <div className="mt-12 grid grid-cols-3 gap-8">
-            {[
-              { icon: UserRound, label: "Patients" },
-              { icon: Stethoscope, label: "Doctors" },
-              { icon: FlaskConical, label: "Labs" },
-            ].map((item) => (
-              <div key={item.label} className="text-center">
-                <div className="w-16 h-16 rounded-full bg-primary-foreground/20 flex items-center justify-center mx-auto mb-2">
-                  <item.icon className="h-8 w-8" />
-                </div>
-                <span className="text-sm">{item.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Right Panel - Login Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-background">
-        <div className="w-full max-w-md">
-          <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-8">
-            <ArrowLeft className="h-4 w-4" />
-            Back to Home
-          </Link>
-
-          <div className="lg:hidden flex items-center gap-3 mb-8">
-            <img src={logo} alt="TABEEBAK" className="h-10 w-10 object-contain rounded-full" />
-            <span className="text-2xl font-bold text-gradient">TABEEBAK</span>
-          </div>
-
-          <Card className="border-0 shadow-xl">
-            <CardHeader className="text-center pb-4">
-              <CardTitle className="text-2xl">Sign In</CardTitle>
-              <CardDescription>Choose your role and enter your credentials</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {/* Role Selection Tabs */}
-              <Tabs value={selectedRole} onValueChange={(v) => setSelectedRole(v as UserRole)} className="mb-6">
-                <TabsList className="grid grid-cols-3 w-full">
-                  {(["patient", "doctor", "laboratory"] as const).map((role) => {
-                    const Icon = roleIcons[role];
-                    return (
-                      <TabsTrigger
-                        key={role}
-                        value={role}
-                        className="flex flex-col gap-1 py-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-                      >
-                        <Icon className="h-4 w-4" />
-                        <span className="text-xs capitalize">{role}</span>
-                      </TabsTrigger>
-                    );
-                  })}
-                </TabsList>
-              </Tabs>
-
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {authBootstrapError && !isBootstrappingAuth && (
-                  <Alert variant="destructive">
-                    <AlertDescription>{authBootstrapError.message}</AlertDescription>
-                  </Alert>
-                )}
-
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="Enter your email"
-                    className={inputErrorClass("email")}
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    onBlur={() => handleBlur("email")}
-                    required
-                  />
-                  <FieldError message={errors.email} />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <div className="relative">
-                    <Input
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      placeholder="Enter your password"
-                      className={inputErrorClass("password")}
-                      value={formData.password}
-                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      onBlur={() => handleBlur("password")}
-                      required
-                    />
-                    <button
-                      type="button"
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                  <FieldError message={errors.password} />
-                </div>
-
-                <div className="flex items-center justify-between text-sm">
-                  <label className="flex items-center gap-3 cursor-pointer bg-muted/50 border border-input rounded-md px-3 py-2 hover:bg-muted transition-colors">
-                    <input type="checkbox" className="h-4 w-4 rounded-none border-2 border-primary accent-primary" />
-                    <span className="text-foreground">Remember me</span>
-                  </label>
-                  <Link to="/forgot-password" className="text-primary hover:underline">
-                    Forgot password?
-                  </Link>
-                </div>
-
-                <Button
-                  type="submit"
-                  variant="hero"
-                  className="w-full"
-                  size="lg"
-                  disabled={signInMutation.isPending || hasErrors}
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setSelectedRole(option.id)}
+                  className={`group flex min-h-[138px] flex-col justify-between rounded-[1.5rem] border p-4 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${active
+                    ? "border-primary bg-primary/10 shadow-lg shadow-primary/10 dark:bg-primary/15"
+                    : "border-border bg-card hover:border-primary/70 hover:bg-primary/5 dark:bg-slate-900/70 dark:hover:bg-slate-800/70"
+                    }`}
                 >
-                  {signInMutation.isPending
-                    ? "Signing in..."
-                    : `Sign In as ${selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1)}`}
-                </Button>
-              </form>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-sm dark:bg-primary/15">
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <span className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.35em] ${active ? "bg-primary text-primary-foreground" : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"}`}>
+                      {active ? "Active" : "Select"}
+                    </span>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground">{option.title}</h3>
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">{option.subtitle}</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </section>
 
-              {selectedRole === "patient" && (
-                <p className="text-center text-sm text-muted-foreground mt-6">
-                  Don't have an account?{" "}
-                  <Link to="/register" className="text-primary font-medium hover:underline">
-                    Register here
-                  </Link>
-                </p>
-              )}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {authBootstrapError && !isBootstrappingAuth && (
+            <Alert variant="destructive">
+              <AlertDescription>{authBootstrapError.message}</AlertDescription>
+            </Alert>
+          )}
 
-              {selectedRole !== "patient" && (
-                <p className="text-center text-sm text-muted-foreground mt-6">
-                  {selectedRole === "doctor" ? "Doctor" : "Laboratory"} accounts are created by administrators.
-                  <br />
-                  <Link to={`/contact?role=${selectedRole === "doctor" ? "Doctor" : "Lab"}`} className="text-primary hover:underline">
-                    Contact us for access
-                  </Link>
-                </p>
-              )}
-            </CardContent>
-          </Card>
+          <div className="space-y-3">
+            <Label htmlFor="email">Email</Label>
+            <div className="relative">
+              <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="email"
+                type="email"
+                placeholder="john.doe@example.com"
+                className={`pl-10 ${inputErrorClass("email")}`}
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                onBlur={() => handleBlur("email")}
+                required
+              />
+            </div>
+            <FieldError message={errors.email} />
+          </div>
+
+          <div className="space-y-3">
+            <Label htmlFor="password">Password</Label>
+            <div className="relative">
+              <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="Enter your password"
+                className={`pl-10 ${inputErrorClass("password")}`}
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                onBlur={() => handleBlur("password")}
+                required
+              />
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition hover:text-foreground"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+            <FieldError message={errors.password} />
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between text-sm">
+            <label className="inline-flex items-center gap-3 rounded-full border border-input bg-muted/60 px-3 py-2 transition hover:border-primary hover:bg-muted dark:bg-muted/30">
+              <input type="checkbox" className="h-4 w-4 rounded-sm border-2 border-primary accent-primary" />
+              <span className="text-sm">Remember me</span>
+            </label>
+            <Link to="/forgot-password" className="text-primary hover:underline">
+              Forgot password?
+            </Link>
+          </div>
+
+          <Button type="submit" variant="hero" className="w-full" size="lg" disabled={signInMutation.isPending || hasErrors}>
+            {signInMutation.isPending
+              ? "Signing in..."
+              : `Sign in as ${selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1)}`}
+          </Button>
+        </form>
+
+        <div className="border-t border-border/80 pt-4 text-center text-sm text-muted-foreground">
+          {selectedRole === "patient" ? (
+            <>
+              Don't have an account?{" "}
+              <Link to="/register" className="text-primary font-medium hover:underline">
+                Register here
+              </Link>
+            </>
+          ) : (
+            <>
+              {selectedRole === "doctor" ? "Doctor" : "Laboratory"} accounts are created by administrators.
+              <br />
+              <Link to={`/contact?role=${selectedRole === "doctor" ? "Doctor" : "Lab"}`} className="text-primary hover:underline">
+                Contact us for access
+              </Link>
+            </>
+          )}
         </div>
       </div>
-    </div>
+    </AuthLayout>
   );
 };
 

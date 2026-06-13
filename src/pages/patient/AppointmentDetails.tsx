@@ -12,29 +12,18 @@ import { usePatientAppointmentDetailsQuery } from "@/hooks/usePatientProfile";
 import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName } from "@/lib/auth";
 import { formatDisplayDateTime } from "@/lib/date-time";
-import { formatApiStatusLabel, normalizeApiStatusKey } from "@/lib/apiStatus";
+import {
+  getAppointmentStatusClassName,
+  getAppointmentStatusLabel,
+  normalizeAppointmentStatus,
+} from "@/lib/appointmentStatus";
 
 const formatDateTime = (value?: string | null) => formatDisplayDateTime(value);
 
-const statusClassName = (status?: string | null) => {
-  switch (normalizeApiStatusKey(status)) {
-    case "APPROVED":
-    case "CONFIRMED":
-    case "COMPLETED":
-      return "bg-green-100 text-green-700 border-green-200";
-    case "PENDING":
-      return "bg-yellow-100 text-yellow-700 border-yellow-200";
-    case "CANCELLED":
-    case "CANCELED":
-      return "bg-red-100 text-red-700 border-red-200";
-    default:
-      return "bg-muted text-muted-foreground border-border";
-  }
-};
 
 const getOutcomeExpectation = (status?: string | null) => {
-  const normalized = normalizeApiStatusKey(status);
-  if (["CANCELLED", "CANCELED"].includes(normalized)) {
+  const normalized = normalizeAppointmentStatus(status);
+  if (normalized === "CANCELLED") {
     return {
       kind: "cancelled",
       label: "Visit cancelled",
@@ -42,15 +31,15 @@ const getOutcomeExpectation = (status?: string | null) => {
       emptyMessage: "Outcomes are not expected for a cancelled visit.",
     };
   }
-  if (["NO_SHOW"].includes(normalized)) {
+  if (normalized === "REJECTED") {
     return {
-      kind: "no_show",
-      label: "Visit not attended",
-      message: "This appointment was marked as no-show, so outcomes are not expected.",
-      emptyMessage: "Outcomes are not expected when a visit is marked as no-show.",
+      kind: "cancelled",
+      label: "Visit rejected",
+      message: "This appointment request was rejected, so outcomes are not expected.",
+      emptyMessage: "Outcomes are not expected for a rejected visit.",
     };
   }
-  if (["SCHEDULED", "PENDING", "CONFIRMED", "BOOKED", "UPCOMING"].includes(normalized)) {
+  if (["REQUEST_SUBMITTED", "APPROVED", "SCHEDULED"].includes(normalized)) {
     return {
       kind: "upcoming",
       label: "Upcoming visit",
@@ -58,7 +47,15 @@ const getOutcomeExpectation = (status?: string | null) => {
       emptyMessage: "Outcomes will appear after this appointment is completed.",
     };
   }
-  if (["COMPLETED", "FINISHED", "DONE"].includes(normalized)) {
+  if (normalized === "IN_PROGRESS") {
+    return {
+      kind: "in_progress",
+      label: "Visit in progress",
+      message: "This visit is currently in progress. Outcomes will appear after the appointment is completed.",
+      emptyMessage: "Outcomes will appear after this appointment is completed.",
+    };
+  }
+  if (normalized === "COMPLETED") {
     return {
       kind: "completed",
       label: "Visit completed",
@@ -135,8 +132,8 @@ const PatientAppointmentDetails = () => {
             <CardHeader>
               <div className="flex flex-wrap items-center gap-3">
                 <CardTitle>{query.data.doctorName}</CardTitle>
-                <Badge className={statusClassName(query.data.status)}>
-                  {formatApiStatusLabel(query.data.status)}
+                <Badge className={getAppointmentStatusClassName(query.data.status)}>
+                  {getAppointmentStatusLabel(query.data.status)}
                 </Badge>
               </div>
             </CardHeader>
@@ -216,7 +213,9 @@ const PatientAppointmentDetails = () => {
                                 <p className="text-sm font-medium text-foreground">
                                   {prescription.medicationName}
                                 </p>
-                                <p className="text-xs text-muted-foreground">{prescription.status}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {prescription.appointmentStatus ?? "Status unavailable"}
+                                </p>
                               </div>
                               <Button asChild variant="outline" size="sm">
                                 <Link to={`/patient/prescriptions/${prescription.id}`}>View</Link>

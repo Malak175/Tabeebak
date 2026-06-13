@@ -18,7 +18,14 @@ import {
 } from "@/hooks/useDoctorWorkflow";
 import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName } from "@/lib/auth";
-import { formatApiStatusLabel, normalizeApiStatusKey } from "@/lib/apiStatus";
+import {
+  appointmentStatusFilterOptions,
+  appointmentWorkflowStatusOptions,
+  getAppointmentStatusClassName,
+  getAppointmentStatusLabel,
+  getAppointmentStatusOption,
+  normalizeAppointmentStatus,
+} from "@/lib/appointmentStatus";
 import { DoctorAppointment } from "@/types/doctor-workflow.types";
 
 const formatDateTime = (value?: string | null, dateOnly = false) => {
@@ -26,22 +33,6 @@ const formatDateTime = (value?: string | null, dateOnly = false) => {
   return formatDisplayDateTime(value);
 };
 
-const getStatusClassName = (status?: string | null) => {
-  switch (normalizeApiStatusKey(status)) {
-    case "CONFIRMED":
-    case "COMPLETED":
-      return "bg-green-100 text-green-700 border-green-200";
-    case "IN_PROGRESS":
-      return "bg-blue-100 text-blue-700 border-blue-200";
-    case "PENDING":
-      return "bg-yellow-100 text-yellow-700 border-yellow-200";
-    case "CANCELLED":
-    case "CANCELED":
-      return "bg-red-100 text-red-700 border-red-200";
-    default:
-      return "bg-muted text-muted-foreground border-border";
-  }
-};
 
 const AppointmentCard = ({
   appointment,
@@ -51,78 +42,81 @@ const AppointmentCard = ({
   queueNumber?: number;
 }) => {
   const hasAppointmentId = Boolean(appointment.id?.trim());
+  const statusOption = getAppointmentStatusOption(appointment.status);
+  const StatusIcon = statusOption?.icon;
 
   return (
     <Card>
       <CardContent className="flex flex-col gap-4 p-6 lg:flex-row lg:items-center">
-      <div className="flex items-center gap-4 lg:w-60">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-          {queueNumber ? <span className="font-semibold">{queueNumber}</span> : <Calendar className="h-5 w-5" />}
+        <div className="flex items-center gap-4 lg:w-60">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+            {queueNumber ? <span className="font-semibold">{queueNumber}</span> : <Calendar className="h-5 w-5" />}
+          </div>
+          <div>
+            <p className="font-semibold">{appointment.patientName}</p>
+            <p className="text-sm text-muted-foreground">
+              {[appointment.patientAge ? `${appointment.patientAge} yrs` : null, appointment.patientGender]
+                .filter(Boolean)
+                .join(" - ") || "Patient details pending"}
+            </p>
+          </div>
         </div>
-        <div>
-          <p className="font-semibold">{appointment.patientName}</p>
+
+        <div className="flex-1 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge className={getAppointmentStatusClassName(appointment.status)}>
+              {StatusIcon ? <StatusIcon className="mr-1 h-3.5 w-3.5" /> : null}
+              {statusOption?.label ?? getAppointmentStatusLabel(appointment.status)}
+            </Badge>
+            {appointment.type ? <Badge variant="outline">{appointment.type}</Badge> : null}
+            {appointment.mode ? <Badge variant="outline">{appointment.mode}</Badge> : null}
+          </div>
+          <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <Clock className="h-4 w-4" />
+              {formatDateTime(appointment.scheduledAt)}
+            </span>
+            <span className="flex items-center gap-1.5">
+              {appointment.canJoinOnline ? <Video className="h-4 w-4" /> : <MapPin className="h-4 w-4" />}
+              {appointment.location || appointment.mode || "Location pending"}
+            </span>
+          </div>
           <p className="text-sm text-muted-foreground">
-            {[appointment.patientAge ? `${appointment.patientAge} yrs` : null, appointment.patientGender]
-              .filter(Boolean)
-              .join(" - ") || "Patient details pending"}
+            {appointment.reason || appointment.complaint || "No visit reason was returned for this appointment."}
           </p>
         </div>
-      </div>
 
-      <div className="flex-1 space-y-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge className={getStatusClassName(appointment.status)}>
-            {formatApiStatusLabel(appointment.status)}
-          </Badge>
-          {appointment.type ? <Badge variant="outline">{appointment.type}</Badge> : null}
-          {appointment.mode ? <Badge variant="outline">{appointment.mode}</Badge> : null}
+        <div className="flex flex-wrap gap-2">
+          {appointment.joinUrl ? (
+            <Button asChild variant="outline">
+              <a href={appointment.joinUrl} target="_blank" rel="noreferrer">
+                Join
+              </a>
+            </Button>
+          ) : null}
+          {hasAppointmentId ? (
+            <Button asChild variant="outline">
+              <Link to={`/doctor/appointments/${appointment.id}`}>View details</Link>
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              disabled
+              onClick={() => {
+                console.warn("Doctor appointment is missing an id; details view is disabled.", {
+                  appointment,
+                });
+              }}
+            >
+              View details
+            </Button>
+          )}
+          {appointment.patientId ? (
+            <Button asChild>
+              <Link to={`/doctor/patients/${appointment.patientId}`}>Patient summary</Link>
+            </Button>
+          ) : null}
         </div>
-        <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-          <span className="flex items-center gap-1.5">
-            <Clock className="h-4 w-4" />
-            {formatDateTime(appointment.scheduledAt)}
-          </span>
-          <span className="flex items-center gap-1.5">
-            {appointment.canJoinOnline ? <Video className="h-4 w-4" /> : <MapPin className="h-4 w-4" />}
-            {appointment.location || appointment.mode || "Location pending"}
-          </span>
-        </div>
-        <p className="text-sm text-muted-foreground">
-          {appointment.reason || appointment.complaint || "No visit reason was returned for this appointment."}
-        </p>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        {appointment.joinUrl ? (
-          <Button asChild variant="outline">
-            <a href={appointment.joinUrl} target="_blank" rel="noreferrer">
-              Join
-            </a>
-          </Button>
-        ) : null}
-        {hasAppointmentId ? (
-          <Button asChild variant="outline">
-            <Link to={`/doctor/appointments/${appointment.id}`}>View details</Link>
-          </Button>
-        ) : (
-          <Button
-            variant="outline"
-            disabled
-            onClick={() => {
-              console.warn("Doctor appointment is missing an id; details view is disabled.", {
-                appointment,
-              });
-            }}
-          >
-            View details
-          </Button>
-        )}
-        {appointment.patientId ? (
-          <Button asChild>
-            <Link to={`/doctor/patients/${appointment.patientId}`}>Patient summary</Link>
-          </Button>
-        ) : null}
-      </div>
       </CardContent>
     </Card>
   );
@@ -196,71 +190,97 @@ const DoctorAppointments = () => {
         </div>
       </div>
 
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="text-lg">Filters</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              className="pl-9"
-              value={search}
-              onChange={(event) => {
+      <Card className="mb-6 overflow-hidden">
+        <CardHeader className="border-b px-6 py-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle className="text-lg">Filters</CardTitle>
+              <p className="text-sm text-muted-foreground">Search and filter appointments by status.</p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
                 setPage(1);
-                setSearch(event.target.value);
+                setSearch("");
+                setStatus("all");
+                setType("all");
               }}
-              placeholder="Search patient or reason"
-            />
+            >
+              All Appointments
+            </Button>
           </div>
-          <Select
-            value={status}
-            onValueChange={(value) => {
-              setPage(1);
-              setStatus(value);
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              <SelectItem value="CONFIRMED">Confirmed</SelectItem>
-              <SelectItem value="PENDING">Pending</SelectItem>
-              <SelectItem value="IN_PROGRESS">In progress</SelectItem>
-              <SelectItem value="COMPLETED">Completed</SelectItem>
-              <SelectItem value="CANCELLED">Cancelled</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select
-            value={type}
-            onValueChange={(value) => {
-              setPage(1);
-              setType(value);
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Visit type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All types</SelectItem>
-              <SelectItem value="consultation">Consultation</SelectItem>
-              <SelectItem value="follow-up">Follow-up</SelectItem>
-              <SelectItem value="check-up">Check-up</SelectItem>
-              <SelectItem value="video">Video</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button
-            variant="outline"
-            onClick={() => {
-              setPage(1);
-              setSearch("");
-              setStatus("all");
-              setType("all");
-            }}
-          >
-            Clear filters
-          </Button>
+        </CardHeader>
+        <CardContent className="space-y-4 px-6 py-5">
+          <div className="grid gap-4 xl:grid-cols-[1.8fr_1fr]">
+            <div className="relative min-w-0">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                className="pl-10"
+                value={search}
+                onChange={(event) => {
+                  setPage(1);
+                  setSearch(event.target.value);
+                }}
+                placeholder="Search patient, reason, location, or status"
+              />
+            </div>
+            <Select
+              value={status}
+              onValueChange={(value) => {
+                setPage(1);
+                setStatus(value);
+              }}
+            >
+              <SelectTrigger className="min-w-[12rem]">
+                <SelectValue placeholder="Appointment status" />
+              </SelectTrigger>
+              <SelectContent>
+                {appointmentStatusFilterOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 overflow-x-auto py-1">
+            {appointmentWorkflowStatusOptions.map((option) => {
+              const isActive = status === option.value;
+              const StatusIcon = option.icon;
+
+              return (
+                <Button
+                  key={option.value}
+                  variant={isActive ? "secondary" : "outline"}
+                  size="sm"
+                  className="rounded-full px-3 py-2 text-sm font-medium transition"
+                  onClick={() => {
+                    setPage(1);
+                    setStatus(option.value);
+                  }}
+                >
+                  <StatusIcon className="mr-1 h-4 w-4" />
+                  {option.label}
+                </Button>
+              );
+            })}
+
+            <Button
+              variant="ghost"
+              size="sm"
+              className="rounded-full px-3 py-2 text-sm text-muted-foreground hover:bg-muted/80"
+              onClick={() => {
+                setPage(1);
+                setSearch("");
+                setStatus("all");
+                setType("all");
+              }}
+            >
+              Reset filters
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -296,8 +316,8 @@ const DoctorAppointments = () => {
                     <p className="mt-2 text-3xl font-bold">
                       {
                         todayQuery.data.data.filter((item) =>
-                          ["CONFIRMED", "PENDING", "IN_PROGRESS", "SCHEDULED"].includes(
-                            normalizeApiStatusKey(item.status),
+                          ["APPROVED", "SCHEDULED", "IN_PROGRESS"].includes(
+                            normalizeAppointmentStatus(item.status),
                           ),
                         ).length
                       }
@@ -310,7 +330,7 @@ const DoctorAppointments = () => {
                     <p className="mt-2 text-3xl font-bold">
                       {
                         todayQuery.data.data.filter(
-                          (item) => normalizeApiStatusKey(item.status) === "COMPLETED",
+                          (item) => normalizeAppointmentStatus(item.status) === "COMPLETED",
                         ).length
                       }
                     </p>

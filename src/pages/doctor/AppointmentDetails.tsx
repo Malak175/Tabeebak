@@ -20,30 +20,17 @@ import {
 } from "@/hooks/useDoctorWorkflow";
 import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName } from "@/lib/auth";
-import { formatApiStatusLabel, normalizeApiStatusKey } from "@/lib/apiStatus";
+import {
+  getAppointmentStatusClassName,
+  getAppointmentStatusLabel,
+  normalizeAppointmentStatus,
+} from "@/lib/appointmentStatus";
 import { toast } from "sonner";
 
 const formatDateTime = (value?: string | null) => formatDisplayDateTime(value);
 
 const formatDateOnly = (value?: string | null) => formatDisplayDate(value);
 
-const getStatusClassName = (status?: string | null) => {
-  switch (normalizeApiStatusKey(status)) {
-    case "APPROVED":
-    case "CONFIRMED":
-    case "COMPLETED":
-      return "bg-green-100 text-green-700 border-green-200";
-    case "IN_PROGRESS":
-      return "bg-blue-100 text-blue-700 border-blue-200";
-    case "PENDING":
-      return "bg-yellow-100 text-yellow-700 border-yellow-200";
-    case "CANCELLED":
-    case "CANCELED":
-      return "bg-red-100 text-red-700 border-red-200";
-    default:
-      return "bg-muted text-muted-foreground border-border";
-  }
-};
 
 const DetailRow = ({ label, value }: { label: string; value: string }) => (
   <div className="rounded-lg border bg-muted/20 p-4">
@@ -67,11 +54,11 @@ const DoctorAppointmentDetails = () => {
   const requestNote = appointmentRequest?.notes ?? appointmentRequest?.providerMessage ?? null;
   const visitNote = query.data?.notes ?? null;
   const showRequestNote = Boolean(requestNote && (!visitNote || requestNote !== visitNote));
-  const appointmentStatusKey = normalizeApiStatusKey(query.data?.status);
-  const appointmentStatusLabel = formatApiStatusLabel(appointmentStatusKey);
+  const appointmentStatusKey = normalizeAppointmentStatus(query.data?.status);
+  const appointmentStatusLabel = getAppointmentStatusLabel(query.data?.status);
   const isCompleted = appointmentStatusKey === "COMPLETED";
   const isInProgress = appointmentStatusKey === "IN_PROGRESS";
-  const isReadyToStart = ["SCHEDULED", "CONFIRMED", "BOOKED", "UPCOMING"].includes(appointmentStatusKey);
+  const isReadyToStart = ["SCHEDULED", "APPROVED"].includes(appointmentStatusKey);
   const prescriptionInfo = query.data?.prescription ?? null;
   const prescriptionExists = prescriptionInfo?.exists === true;
   const prescriptionLatestId = prescriptionInfo?.latestId
@@ -91,37 +78,37 @@ const DoctorAppointmentDetails = () => {
 
   const detailRows = query.data
     ? ([
-        query.data.scheduledAt
-          ? { label: "Scheduled for", value: formatDateTime(query.data.scheduledAt) }
-          : { label: "Scheduled for", value: "Not recorded yet" },
-        query.data.endAt ? { label: "Ends at", value: formatDateTime(query.data.endAt) } : null,
-        query.data.type ? { label: "Visit type", value: query.data.type } : null,
-        query.data.mode ? { label: "Consultation mode", value: query.data.mode } : null,
-        query.data.location ? { label: "Location", value: query.data.location } : null,
-        query.data.patientName ? { label: "Patient", value: query.data.patientName } : null,
-        query.data.patientGender ? { label: "Gender", value: query.data.patientGender } : null,
-        query.data.patientAge !== null && query.data.patientAge !== undefined
-          ? { label: "Age", value: `${query.data.patientAge} yrs` }
-          : query.data.patientDateOfBirth
-            ? { label: "Date of birth", value: formatDateOnly(query.data.patientDateOfBirth) }
-            : null,
-        query.data.patientPhone ? { label: "Phone", value: query.data.patientPhone } : null,
-        query.data.patientEmail ? { label: "Email", value: query.data.patientEmail } : null,
-        reason ? { label: "Reason for visit", value: reason } : null,
-        query.data.complaint ? { label: "Complaint", value: query.data.complaint } : null,
-        showRequestNote ? { label: "Request note", value: requestNote } : null,
-        visitNote ? { label: "Visit note", value: visitNote } : null,
-        query.data.diagnosis ? { label: "Diagnosis", value: query.data.diagnosis } : null,
-        query.data.updatedAt
-          ? { label: "Last updated", value: formatDateTime(query.data.updatedAt) }
+      query.data.scheduledAt
+        ? { label: "Scheduled for", value: formatDateTime(query.data.scheduledAt) }
+        : { label: "Scheduled for", value: "Not recorded yet" },
+      query.data.endAt ? { label: "Ends at", value: formatDateTime(query.data.endAt) } : null,
+      query.data.type ? { label: "Visit type", value: query.data.type } : null,
+      query.data.mode ? { label: "Consultation mode", value: query.data.mode } : null,
+      query.data.location ? { label: "Location", value: query.data.location } : null,
+      query.data.patientName ? { label: "Patient", value: query.data.patientName } : null,
+      query.data.patientGender ? { label: "Gender", value: query.data.patientGender } : null,
+      query.data.patientAge !== null && query.data.patientAge !== undefined
+        ? { label: "Age", value: `${query.data.patientAge} yrs` }
+        : query.data.patientDateOfBirth
+          ? { label: "Date of birth", value: formatDateOnly(query.data.patientDateOfBirth) }
           : null,
-        prescriptionInfo?.exists !== undefined
-          ? {
-              label: "Prescription",
-              value: prescriptionExists ? "Available" : "Not recorded yet",
-            }
-          : null,
-      ] as { label: string; value: string }[]).filter(Boolean)
+      query.data.patientPhone ? { label: "Phone", value: query.data.patientPhone } : null,
+      query.data.patientEmail ? { label: "Email", value: query.data.patientEmail } : null,
+      reason ? { label: "Reason for visit", value: reason } : null,
+      query.data.complaint ? { label: "Complaint", value: query.data.complaint } : null,
+      showRequestNote ? { label: "Request note", value: requestNote } : null,
+      visitNote ? { label: "Visit note", value: visitNote } : null,
+      query.data.diagnosis ? { label: "Diagnosis", value: query.data.diagnosis } : null,
+      query.data.updatedAt
+        ? { label: "Last updated", value: formatDateTime(query.data.updatedAt) }
+        : null,
+      prescriptionInfo?.exists !== undefined
+        ? {
+          label: "Prescription",
+          value: prescriptionExists ? "Available" : "Not recorded yet",
+        }
+        : null,
+    ] as { label: string; value: string }[]).filter(Boolean)
     : [];
 
   const hasSnapshot = detailRows.length > 0;
@@ -246,7 +233,7 @@ const DoctorAppointmentDetails = () => {
             <div className="space-y-2">
               <div className="flex flex-wrap items-center gap-3">
                 <h2 className="text-2xl font-semibold">{query.data.patientName}</h2>
-                <Badge className={getStatusClassName(appointmentStatusKey)}>{appointmentStatusLabel}</Badge>
+                <Badge className={getAppointmentStatusClassName(appointmentStatusKey)}>{appointmentStatusLabel}</Badge>
               </div>
               <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                 {query.data.scheduledAt ? (
@@ -440,30 +427,30 @@ const DoctorAppointmentDetails = () => {
                 <Button asChild className="w-full" variant="outline">
                   <Link to="/doctor/appointments">Back to appointments</Link>
                 </Button>
-              {prescriptionExists ? (
-                <Button asChild className="w-full" variant="outline">
-                  <Link
-                    to={
-                      prescriptionLatestId
-                        ? `/doctor/prescriptions/${prescriptionLatestId}`
-                        : "/doctor/prescriptions"
-                    }
+                {prescriptionExists ? (
+                  <Button asChild className="w-full" variant="outline">
+                    <Link
+                      to={
+                        prescriptionLatestId
+                          ? `/doctor/prescriptions/${prescriptionLatestId}`
+                          : "/doctor/prescriptions"
+                      }
+                    >
+                      View prescriptions
+                    </Link>
+                  </Button>
+                ) : (
+                  <Button
+                    asChild
+                    className="w-full"
+                    variant="outline"
+                    disabled={!appointmentId || prescriptionInfo?.exists !== false}
                   >
-                    View prescriptions
-                  </Link>
-                </Button>
-              ) : (
-                <Button
-                  asChild
-                  className="w-full"
-                  variant="outline"
-                  disabled={!appointmentId || prescriptionInfo?.exists !== false}
-                >
-                  <Link to={`/doctor/appointments/${appointmentId}/prescription/new`}>
-                    Write prescription
-                  </Link>
-                </Button>
-              )}
+                    <Link to={`/doctor/appointments/${appointmentId}/prescription/new`}>
+                      Write prescription
+                    </Link>
+                  </Button>
+                )}
                 <Button asChild className="w-full" variant="outline">
                   <Link to="/doctor/reviews">View reviews</Link>
                 </Button>

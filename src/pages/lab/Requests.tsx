@@ -140,7 +140,7 @@ const LabRequestsPage = () => {
                     </div>
                     <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                       <span>Created {formatDateTime(order.orderedAt)}</span>
-                      <span>Preferred {formatDateTime(order.scheduledAt)}</span>
+                      <span>Scheduled {formatDateTime(order.scheduledAt)}</span>
                     </div>
                   </div>
 

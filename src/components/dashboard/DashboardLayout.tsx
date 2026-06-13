@@ -34,6 +34,7 @@ import {
   LucideIcon,
   ChevronDown,
 } from "lucide-react";
+import { MouseEvent } from "react";
 import ThemeToggle from "@/components/ThemeToggle";
 import logo from "@/assets/logo.png";
 import { useAuth } from "@/hooks/useAuth";
@@ -149,27 +150,40 @@ const DashboardLayout = ({
                             onOpenChange={setAppointmentsOpen}
                           >
                             <SidebarMenuItem>
-                              <CollapsibleTrigger asChild>
-                                <SidebarMenuButton
-                                  isActive={isAppointmentsActive}
-                                  className={cn(
-                                    "flex items-center justify-between",
-                                    isAppointmentsActive && "bg-primary/10 text-primary font-medium",
-                                  )}
-                                  tooltip="Appointments"
-                                >
-                                  <span className="flex items-center gap-3">
+                              <div
+                                className={cn(
+                                  "flex items-center rounded-md",
+                                  isAppointmentsActive && "bg-primary/10 text-primary",
+                                )}
+                              >
+                                <SidebarMenuButton asChild isActive={isAppointmentsActive} tooltip="Appointments">
+                                  <NavLink
+                                    to={appointmentsParent?.url ?? "/patient/appointments"}
+                                    className="flex flex-1 items-center gap-3"
+                                    activeClassName="bg-primary/10 text-primary font-medium"
+                                  >
                                     <CalendarDays className="h-4 w-4" />
                                     <span>Appointments</span>
-                                  </span>
-                                  <ChevronDown
-                                    className={cn(
-                                      "h-4 w-4 transition-transform duration-200",
-                                      appointmentsOpen && "rotate-180",
-                                    )}
-                                  />
+                                  </NavLink>
                                 </SidebarMenuButton>
-                              </CollapsibleTrigger>
+                                <CollapsibleTrigger asChild>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    aria-label={appointmentsOpen ? "Collapse appointments menu" : "Expand appointments menu"}
+                                    className="mr-1 h-7 w-7 shrink-0 rounded-md"
+                                    onClick={(event: MouseEvent<HTMLButtonElement>) => event.stopPropagation()}
+                                  >
+                                    <ChevronDown
+                                      className={cn(
+                                        "h-4 w-4 transition-transform duration-200",
+                                        appointmentsOpen && "rotate-180",
+                                      )}
+                                    />
+                                  </Button>
+                                </CollapsibleTrigger>
+                              </div>
                               <CollapsibleContent className="mt-1 overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
                                 <SidebarMenuSub>
                                   {appointmentChildItems.map((child) => (

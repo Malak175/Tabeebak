@@ -564,8 +564,8 @@ export const RequestDetailsGrid = ({
             ) : null}
           </div>
           <div className="grid gap-3 md:grid-cols-2">
-            <DetailItem label="Preferred date" value={date} />
-            <DetailItem label="Preferred time" value={timeLabel} />
+            <DetailItem label="Scheduled date" value={date} />
+            <DetailItem label="Scheduled time" value={timeLabel} />
             <DetailItem label="Created" value={formatDateTime(createdAt)} />
             <DetailItem label="Reference" value={requestNumber} />
           </div>

@@ -51,26 +51,26 @@ const SummaryStat = ({
   actionTo: string;
   badge?: { text: string; variant?: "default" | "secondary" | "destructive" | "outline" };
 }) => (
-  <Card className="h-full min-h-[260px]">
-    <CardContent className="flex h-full flex-col p-5">
-      <div className="mb-4 flex items-start justify-between">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+  <Card className="h-full min-h-[260px] rounded-2xl border-slate-200/80 bg-white/95 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-900/80">
+    <CardContent className="flex h-full flex-col p-5 sm:p-6">
+      <div className="mb-5 flex items-start justify-between">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">
           <Icon className="h-6 w-6" />
         </div>
         {badge ? (
-          <Badge variant={badge.variant ?? "secondary"} className="h-fit">
+          <Badge variant={badge.variant ?? "secondary"} className="h-fit rounded-full">
             {badge.text}
           </Badge>
         ) : null}
       </div>
-      <div className="space-y-1">
-        <div className={cn("text-2xl font-bold", !value && "text-muted-foreground")}>
+      <div className="space-y-1.5">
+        <div className={cn("text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-100", !value && "text-muted-foreground")}>
           {value ?? emptyLabel}
         </div>
-        <div className="text-sm font-medium text-muted-foreground">{title}</div>
-        <div className="text-xs text-muted-foreground">{helper}</div>
+        <div className="text-sm font-medium text-slate-600 dark:text-slate-300">{title}</div>
+        <div className="text-xs leading-relaxed text-muted-foreground">{helper}</div>
       </div>
-      <Button asChild size="sm" variant="outline" className="mt-auto w-full">
+      <Button asChild size="sm" variant="outline" className="mt-auto w-full rounded-xl border-slate-200 bg-white/80 transition-colors hover:bg-sky-50 hover:text-sky-700 dark:border-slate-700 dark:bg-slate-900/60 dark:hover:bg-slate-800">
         <Link to={actionTo}>{actionLabel}</Link>
       </Button>
     </CardContent>
@@ -78,8 +78,8 @@ const SummaryStat = ({
 );
 
 const SummaryStatSkeleton = () => (
-  <Card className="min-h-[260px]">
-    <CardContent className="space-y-3 p-5">
+  <Card className="min-h-[260px] rounded-2xl border-slate-200/80 bg-white/95 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
+    <CardContent className="space-y-3 p-5 sm:p-6">
       <Skeleton className="h-12 w-12 rounded-2xl" />
       <Skeleton className="h-8 w-24" />
       <Skeleton className="h-4 w-32" />
@@ -89,9 +89,9 @@ const SummaryStatSkeleton = () => (
 );
 
 const HistoryList = ({ title, items }: { title: string; items: string[] }) => (
-  <Card>
+  <Card className="rounded-2xl border-slate-200/80 bg-white/95 shadow-sm transition-shadow duration-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900/80">
     <CardHeader className="pb-3">
-      <CardTitle className="text-base">{title}</CardTitle>
+      <CardTitle className="text-base font-semibold tracking-tight">{title}</CardTitle>
     </CardHeader>
     <CardContent>
       {items.length === 0 ? (
@@ -101,7 +101,7 @@ const HistoryList = ({ title, items }: { title: string; items: string[] }) => (
           {items.map((item) => (
             <span
               key={`${title}-${item}`}
-              className="rounded-full border bg-muted px-3 py-1 text-xs font-medium"
+              className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-200"
             >
               {item}
             </span>
@@ -267,11 +267,11 @@ const PatientDashboard = () => {
 
   return (
     <DashboardLayout userRole="patient" userName={userName} navItems={patientNavItems} userIcon={User}>
-      <div className="mb-6">
-        <h1 className="mb-2 text-2xl font-bold md:text-3xl">
+      <div className="mb-8 rounded-2xl border border-slate-200/70 bg-gradient-to-r from-sky-50 via-white to-slate-50 px-5 py-6 shadow-sm sm:px-6 dark:border-slate-800 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800">
+        <h1 className="mb-2 text-2xl font-semibold tracking-tight text-slate-900 md:text-3xl dark:text-slate-100">
           Welcome back, {userName.split(" ")[0]}!
         </h1>
-        <p className="text-muted-foreground">
+        <p className="max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base dark:text-slate-300">
           Here is a clear snapshot of your health and care in one place.
         </p>
       </div>
@@ -285,10 +285,10 @@ const PatientDashboard = () => {
         </Alert>
       )}
 
-      <div className="mb-6 grid gap-6 lg:grid-cols-[1.35fr_1fr]">
-        <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-transparent">
+      <div className="mb-8 grid gap-6 xl:grid-cols-[1.35fr_1fr]">
+        <Card className="rounded-2xl border border-sky-200/60 bg-gradient-to-r from-sky-50/80 via-white to-transparent shadow-sm dark:border-sky-900/40 dark:from-sky-950/30 dark:via-slate-900">
           <CardHeader className="pb-3">
-            <CardTitle className="flex items-center justify-between text-lg">
+            <CardTitle className="flex items-center justify-between text-lg font-semibold tracking-tight">
               Profile Completion
               <Badge variant={completionPercent === 100 ? "secondary" : "outline"}>
                 {completionPercent}%
@@ -317,7 +317,7 @@ const PatientDashboard = () => {
                   {completedItems} of {completionItems.length} profile items complete
                 </div>
                 {missingItems.length === 0 ? (
-                  <div className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">
+                  <div className="rounded-xl bg-slate-100/80 p-3 text-sm text-muted-foreground dark:bg-slate-800/80">
                     You are all set. Keep your information up to date as things change.
                   </div>
                 ) : (
@@ -330,7 +330,7 @@ const PatientDashboard = () => {
                   </div>
                 )}
                 {missingItems.length > 0 ? (
-                  <Button asChild className="w-full" variant="outline">
+                  <Button asChild className="w-full rounded-xl border-slate-200 bg-white/90 transition-colors hover:bg-sky-50 hover:text-sky-700 dark:border-slate-700 dark:bg-slate-900/70 dark:hover:bg-slate-800" variant="outline">
                     <Link to="/patient/settings">Complete Missing Info</Link>
                   </Button>
                 ) : null}
@@ -339,27 +339,27 @@ const PatientDashboard = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="rounded-2xl border border-slate-200/80 bg-white/95 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
           <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <ClipboardList className="h-5 w-5 text-primary" />
+            <CardTitle className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+              <ClipboardList className="h-5 w-5 text-sky-600 dark:text-sky-300" />
               Snapshot
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
             {snapshotRows.length === 0 ? (
-              <div className="rounded-lg bg-muted p-3 text-muted-foreground">
+              <div className="rounded-xl bg-slate-100/80 p-3 text-muted-foreground dark:bg-slate-800/80">
                 No snapshot data yet. Add medical details to see your key metrics.
               </div>
             ) : (
               snapshotRows.map((row) => (
-                <div key={row.label} className="flex items-center justify-between gap-4">
+                <div key={row.label} className="flex items-center justify-between gap-4 rounded-xl border border-slate-200/70 bg-white/70 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900/50">
                   <span className="text-muted-foreground">{row.label}</span>
-                  <span className="font-medium">{row.value}</span>
+                  <span className="font-medium text-slate-800 dark:text-slate-100">{row.value}</span>
                 </div>
               ))
             )}
-            <div className="rounded-lg bg-muted p-3 text-muted-foreground">
+            <div className="rounded-xl bg-sky-50/80 p-3 text-muted-foreground dark:bg-sky-950/30">
               {summary?.healthTip?.trim()
                 ? summary.healthTip
                 : "Personalized health tips will appear here when they are available."}
@@ -368,7 +368,7 @@ const PatientDashboard = () => {
         </Card>
       </div>
 
-      <div className="mb-8 grid items-stretch gap-6 md:grid-cols-2 xl:grid-cols-5">
+      <div className="mb-8 grid items-stretch gap-5 sm:gap-6 md:grid-cols-2 xl:grid-cols-5">
         {dashboardSummaryQuery.isLoading ? (
           <>
             <SummaryStatSkeleton />
@@ -470,11 +470,11 @@ const PatientDashboard = () => {
         )}
       </div>
 
-        <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+        <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
           <div className="space-y-6">
-            <Card>
+            <Card className="rounded-2xl border-slate-200/80 bg-white/95 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
               <CardHeader>
-                <CardTitle>Medical History Summary</CardTitle>
+                <CardTitle className="font-semibold tracking-tight">Medical History Summary</CardTitle>
                 <CardDescription>
                   Summary of your recorded medical history.
               </CardDescription>
@@ -513,13 +513,13 @@ const PatientDashboard = () => {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="rounded-2xl border-slate-200/80 bg-white/95 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
               <CardHeader className="flex flex-row items-center justify-between gap-3">
                 <div>
-                  <CardTitle>Recent Lab Results</CardTitle>
+                  <CardTitle className="font-semibold tracking-tight">Recent Lab Results</CardTitle>
                   <CardDescription>Preview of your latest lab reports.</CardDescription>
                 </div>
-                <Button asChild variant="outline" size="sm">
+                <Button asChild variant="outline" size="sm" className="rounded-xl transition-colors hover:bg-sky-50 hover:text-sky-700 dark:hover:bg-slate-800">
                   <Link to="/patient/lab-results">View All</Link>
                 </Button>
               </CardHeader>
@@ -536,7 +536,7 @@ const PatientDashboard = () => {
                   </Alert>
                 ) : recentLabResults.length ? (
                   recentLabResults.map((result) => (
-                    <div key={result.id} className="flex items-start justify-between gap-4 rounded-lg border p-3">
+                    <div key={result.id} className="flex items-start justify-between gap-4 rounded-xl border border-slate-200/80 bg-white/70 p-3 transition-colors hover:bg-sky-50/60 dark:border-slate-700 dark:bg-slate-900/50 dark:hover:bg-slate-800/80">
                       <div>
                         <p className="text-sm font-medium">{result.testName}</p>
                         <p className="text-xs text-muted-foreground">
@@ -557,20 +557,20 @@ const PatientDashboard = () => {
                     </div>
                   ))
                 ) : (
-                  <div className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">
+                  <div className="rounded-xl bg-slate-100/80 p-3 text-sm text-muted-foreground dark:bg-slate-800/80">
                     No lab results yet.
                   </div>
                 )}
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="rounded-2xl border-slate-200/80 bg-white/95 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
               <CardHeader className="flex flex-row items-center justify-between gap-3">
                 <div>
-                  <CardTitle>Recent Appointments</CardTitle>
+                  <CardTitle className="font-semibold tracking-tight">Recent Appointments</CardTitle>
                   <CardDescription>Your latest visits and bookings.</CardDescription>
                 </div>
-                <Button asChild variant="outline" size="sm">
+                <Button asChild variant="outline" size="sm" className="rounded-xl transition-colors hover:bg-sky-50 hover:text-sky-700 dark:hover:bg-slate-800">
                   <Link to="/patient/appointments">View All</Link>
                 </Button>
               </CardHeader>
@@ -587,7 +587,7 @@ const PatientDashboard = () => {
                   </Alert>
                 ) : recentAppointments.length ? (
                   recentAppointments.map((appointment) => (
-                    <div key={appointment.id} className="flex items-start justify-between gap-4 rounded-lg border p-3">
+                    <div key={appointment.id} className="flex items-start justify-between gap-4 rounded-xl border border-slate-200/80 bg-white/70 p-3 transition-colors hover:bg-sky-50/60 dark:border-slate-700 dark:bg-slate-900/50 dark:hover:bg-slate-800/80">
                       <div>
                         <p className="text-sm font-medium">{appointment.doctorName}</p>
                         <p className="text-xs text-muted-foreground">
@@ -601,20 +601,20 @@ const PatientDashboard = () => {
                     </div>
                   ))
                 ) : (
-                  <div className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">
+                  <div className="rounded-xl bg-slate-100/80 p-3 text-sm text-muted-foreground dark:bg-slate-800/80">
                     No appointments yet.
                   </div>
                 )}
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="rounded-2xl border-slate-200/80 bg-white/95 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
               <CardHeader className="flex flex-row items-center justify-between gap-3">
                 <div>
-                  <CardTitle>Recent Prescriptions</CardTitle>
+                  <CardTitle className="font-semibold tracking-tight">Recent Prescriptions</CardTitle>
                   <CardDescription>Latest medications added to your record.</CardDescription>
                 </div>
-                <Button asChild variant="outline" size="sm">
+                <Button asChild variant="outline" size="sm" className="rounded-xl transition-colors hover:bg-sky-50 hover:text-sky-700 dark:hover:bg-slate-800">
                   <Link to="/patient/prescriptions">View All</Link>
                 </Button>
               </CardHeader>
@@ -633,7 +633,7 @@ const PatientDashboard = () => {
                   recentPrescriptions.map((prescription) => (
                     <div
                       key={prescription.id}
-                      className="flex items-start justify-between gap-4 rounded-lg border p-3"
+                      className="flex items-start justify-between gap-4 rounded-xl border border-slate-200/80 bg-white/70 p-3 transition-colors hover:bg-sky-50/60 dark:border-slate-700 dark:bg-slate-900/50 dark:hover:bg-slate-800/80"
                     >
                       <div>
                         <p className="text-sm font-medium">{prescription.medicationName}</p>
@@ -643,25 +643,25 @@ const PatientDashboard = () => {
                         </p>
                       </div>
                       <Badge variant="outline" className="capitalize">
-                        {prescription.status}
+                        {(prescription as { status?: string }).status}
                       </Badge>
                     </div>
                   ))
                 ) : (
-                  <div className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">
+                  <div className="rounded-xl bg-slate-100/80 p-3 text-sm text-muted-foreground dark:bg-slate-800/80">
                     No prescriptions yet.
                   </div>
                 )}
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="rounded-2xl border-slate-200/80 bg-white/95 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
               <CardHeader className="flex flex-row items-center justify-between gap-3">
                 <div>
-                  <CardTitle>Recent Lab Insights</CardTitle>
+                  <CardTitle className="font-semibold tracking-tight">Recent Lab Insights</CardTitle>
                   <CardDescription>Highlights from recent lab interpretations.</CardDescription>
                 </div>
-                <Button asChild variant="outline" size="sm">
+                <Button asChild variant="outline" size="sm" className="rounded-xl transition-colors hover:bg-sky-50 hover:text-sky-700 dark:hover:bg-slate-800">
                   <Link to="/patient/lab-results">View Lab Results</Link>
                 </Button>
               </CardHeader>
@@ -678,7 +678,7 @@ const PatientDashboard = () => {
                   </Alert>
                 ) : recentAnalyses.length ? (
                   recentAnalyses.map((result) => (
-                    <div key={`${result.id}-analysis`} className="rounded-lg border p-3">
+                    <div key={`${result.id}-analysis`} className="rounded-xl border border-slate-200/80 bg-white/70 p-3 transition-colors hover:bg-sky-50/60 dark:border-slate-700 dark:bg-slate-900/50 dark:hover:bg-slate-800/80">
                       <p className="text-sm font-medium">{result.testName}</p>
                       <p className="text-xs text-muted-foreground">
                         {formatDate(result.reportedAt)} • {result.laboratoryName || "Lab pending"}
@@ -689,7 +689,7 @@ const PatientDashboard = () => {
                     </div>
                   ))
                 ) : (
-                  <div className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">
+                  <div className="rounded-xl bg-slate-100/80 p-3 text-sm text-muted-foreground dark:bg-slate-800/80">
                     No lab insights are available yet.
                   </div>
                 )}
@@ -698,24 +698,24 @@ const PatientDashboard = () => {
           </div>
 
           <div className="space-y-6">
-          <Card>
+          <Card className="rounded-2xl border-slate-200/80 bg-white/95 shadow-sm dark:border-slate-800 dark:bg-slate-900/80 xl:sticky xl:top-6">
             <CardHeader>
-              <CardTitle>Next Steps</CardTitle>
+              <CardTitle className="font-semibold tracking-tight">Next Steps</CardTitle>
               <CardDescription>
                 Recommended actions based on what is missing in your profile.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {nextSteps.length === 0 ? (
-                <div className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">
+                <div className="rounded-xl bg-slate-100/80 p-3 text-sm text-muted-foreground dark:bg-slate-800/80">
                   You are all caught up. Explore appointments, labs, or health tips anytime.
                 </div>
               ) : (
                 nextSteps.slice(0, 4).map((step) => (
-                  <div key={step.label} className="rounded-lg border p-3">
-                    <div className="mb-2 text-sm font-medium">{step.label}</div>
+                  <div key={step.label} className="rounded-xl border border-slate-200/80 bg-white/70 p-3 transition-colors hover:bg-sky-50/60 dark:border-slate-700 dark:bg-slate-900/50 dark:hover:bg-slate-800/80">
+                    <div className="mb-2 text-sm font-medium text-slate-800 dark:text-slate-100">{step.label}</div>
                     <div className="mb-3 text-xs text-muted-foreground">{step.helper}</div>
-                    <Button asChild className="w-full justify-start" variant="outline">
+                    <Button asChild className="w-full justify-start rounded-xl border-slate-200 bg-white/90 transition-colors hover:bg-sky-50 hover:text-sky-700 dark:border-slate-700 dark:bg-slate-900/70 dark:hover:bg-slate-800" variant="outline">
                       <Link to={step.to}>{step.label}</Link>
                     </Button>
                   </div>

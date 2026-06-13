@@ -208,6 +208,7 @@ export const labNavItems = [
   { title: "Inbox", url: "/lab/requests", icon: Bell },
   { title: "Active Work", url: "/lab/pending", icon: Clock },
   { title: "Results Ready & Archive", url: "/lab/completed", icon: CheckCircle },
+  { title: "Schedule", url: "/lab/schedule", icon: Clock },
   { title: "Settings", url: "/lab/settings", icon: Settings },
   { title: "Help", url: "/lab/help", icon: HelpCircle },
 ];

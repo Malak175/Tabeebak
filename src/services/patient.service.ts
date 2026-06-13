@@ -715,7 +715,19 @@ const normalizeLabOrder = (payload: unknown): LabOrder => {
     category:
       pickNullableString(raw, ["category", "testCategory", "test_category"]) ??
       pickNullableString(test, ["category"]),
-    status: normalizeApiStatusKey(pickString(raw, ["status", "orderStatus", "order_status"])) || "PENDING",
+    // Prefer explicit order/workflow status so a generic `status` field cannot mask `orderStatus`.
+    status:
+      normalizeApiStatusKey(
+        pickString(raw, [
+          "orderStatus",
+          "order_status",
+          "labOrderStatus",
+          "lab_order_status",
+          "workflowStatus",
+          "workflow_status",
+          "status",
+        ]),
+      ) || "PENDING",
     orderedAt: pickNullableString(raw, ["orderedAt", "createdAt", "dateOrdered", "date"]),
     scheduledAt: pickNullableString(raw, ["scheduledAt", "scheduledFor", "appointmentDate"]),
     laboratoryName:

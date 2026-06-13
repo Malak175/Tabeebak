@@ -46,12 +46,12 @@ const faqs = [
   {
     question: "When should I move an order to Completed?",
     answer:
-      "Move an order from Results Ready to Completed once result hand-off is confirmed. Completed, Rejected, and Cancelled orders are listed in Archive."
+      "Move an order from Results Ready to Completed once result hand-off is confirmed. Completed and Rejected orders are listed in Archive."
   },
   {
     question: "Why are replies disabled on some orders?",
     answer:
-      "Shared replies are disabled after a workflow reaches terminal states (Completed, Rejected, or Cancelled). Use active workflow stages for patient communication."
+      "Shared replies are disabled after a workflow reaches terminal states (Completed or Rejected). Use active workflow stages for patient communication."
   },
 ];
 

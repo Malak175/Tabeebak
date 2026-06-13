@@ -1,5 +1,5 @@
 import { Link, useParams } from "react-router-dom";
-import { Activity, Mail, Phone, Stethoscope } from "lucide-react";
+import { Mail, Phone, Stethoscope } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { doctorNavItems } from "@/components/settings/AccountSettingsContent";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -12,7 +12,11 @@ import { useDoctorLabResultsQuery, useDoctorPatientSummaryQuery } from "@/hooks/
 import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName, getInitials } from "@/lib/auth";
 import { formatDisplayDate } from "@/lib/date-time";
-import { formatLabStatusLabel, getLabStatusBadgeClassName } from "@/lib/labStatus";
+import {
+  getDoctorLabWorkflowBadgeClassName,
+  getDoctorLabWorkflowLabel,
+  resolveLabResultTitle,
+} from "@/lib/labResultDisplay";
 
 const formatDateValue = (value?: string | null) => formatDisplayDate(value);
 
@@ -51,6 +55,19 @@ const DoctorPatientSummary = () => {
     },
     Boolean(user) && Boolean(patientId),
   );
+  const recentLabResults = (labResultsQuery.data?.data ?? [])
+    .map((result) => ({
+      result,
+      title: resolveLabResultTitle({
+        testName: result.testName,
+        fileName: result.fileName,
+      }),
+    }))
+    .filter((entry): entry is { result: (typeof entry)["result"]; title: string } =>
+      Boolean(entry.result.id && entry.title),
+    );
+  const showRecentLabResultsCard =
+    labResultsQuery.isLoading || labResultsQuery.isError || recentLabResults.length > 0;
   const userName = getDisplayName(user ?? {});
 
   return (
@@ -120,72 +137,29 @@ const DoctorPatientSummary = () => {
             </CardContent>
           </Card>
 
-          <div className="grid gap-6 lg:grid-cols-3">
-            <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle>Clinical Snapshot</CardTitle>
-              </CardHeader>
-              <CardContent className="grid gap-4 md:grid-cols-2">
-                <div className="rounded-lg border bg-muted/20 p-4">
-                  <p className="text-sm text-muted-foreground">Date of birth</p>
-                  <p className="mt-1 font-medium">{formatDateValue(query.data.dateOfBirth)}</p>
-                </div>
-                <div className="rounded-lg border bg-muted/20 p-4">
-                  <p className="text-sm text-muted-foreground">Blood type</p>
-                  <p className="mt-1 font-medium">{query.data.bloodType || "Not available"}</p>
-                </div>
-                <div className="rounded-lg border bg-muted/20 p-4">
-                  <p className="text-sm text-muted-foreground">Last visit</p>
-                  <p className="mt-1 font-medium">{formatDateValue(query.data.lastVisitAt)}</p>
-                </div>
-                <div className="rounded-lg border bg-muted/20 p-4">
-                  <p className="text-sm text-muted-foreground">Latest diagnoses</p>
-                  <p className="mt-1 font-medium">
-                    {query.data.recentDiagnoses.join(", ") || "No diagnoses returned"}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Activity className="h-5 w-5" />
-                  Latest Vitals
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Blood pressure</span>
-                  <span>{query.data.latestVitals?.bloodPressure || "N/A"}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Heart rate</span>
-                  <span>
-                    {query.data.latestVitals?.heartRate != null
-                      ? `${query.data.latestVitals.heartRate} bpm`
-                      : "N/A"}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Temperature</span>
-                  <span>
-                    {query.data.latestVitals?.temperatureC != null
-                      ? `${query.data.latestVitals.temperatureC} C`
-                      : "N/A"}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Weight</span>
-                  <span>
-                    {query.data.latestVitals?.weightKg != null
-                      ? `${query.data.latestVitals.weightKg} kg`
-                      : "N/A"}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Clinical Snapshot</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-4 md:grid-cols-2">
+              <div className="rounded-lg border bg-muted/20 p-4">
+                <p className="text-sm text-muted-foreground">Date of birth</p>
+                <p className="mt-1 font-medium">{formatDateValue(query.data.dateOfBirth)}</p>
+              </div>
+              <div className="rounded-lg border bg-muted/20 p-4">
+                <p className="text-sm text-muted-foreground">Blood type</p>
+                <p className="mt-1 font-medium">{query.data.bloodType || "Not available"}</p>
+              </div>
+              <div className="rounded-lg border bg-muted/20 p-4">
+                <p className="text-sm text-muted-foreground">Last visit</p>
+                <p className="mt-1 font-medium">{formatDateValue(query.data.lastVisitAt)}</p>
+              </div>
+              <div className="rounded-lg border bg-muted/20 p-4">
+                <p className="text-sm text-muted-foreground">Latest diagnoses</p>
+                <p className="mt-1 font-medium">{query.data.recentDiagnoses.join(", ") || "No diagnoses returned"}</p>
+              </div>
+            </CardContent>
+          </Card>
 
           <div className="grid gap-6 lg:grid-cols-3">
             <SummaryList title="Allergies" items={query.data.allergies} />
@@ -204,37 +178,57 @@ const DoctorPatientSummary = () => {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Lab Results</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {labResultsQuery.isLoading ? (
-                <div className="space-y-2">
-                  <Skeleton className="h-12 w-full" />
-                  <Skeleton className="h-12 w-full" />
-                </div>
-              ) : labResultsQuery.isError ? (
-                <p className="text-sm text-destructive">{(labResultsQuery.error as Error).message}</p>
-              ) : labResultsQuery.data?.data.length ? (
-                <div className="space-y-2">
-                  {labResultsQuery.data.data.map((result) => (
-                    <div key={result.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3">
-                      <div>
-                        <p className="font-medium">{result.testName}</p>
-                        <p className="text-xs text-muted-foreground">{formatDateValue(result.reportedAt)}</p>
-                      </div>
-                      <Badge className={getLabStatusBadgeClassName(result.status)}>
-                        {formatLabStatusLabel(result.status)}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">No lab results returned for this patient yet.</p>
-              )}
-            </CardContent>
-          </Card>
+          {showRecentLabResultsCard ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Lab Results</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {labResultsQuery.isLoading ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                  </div>
+                ) : labResultsQuery.isError ? (
+                  <p className="text-sm text-destructive">{(labResultsQuery.error as Error).message}</p>
+                ) : (
+                  <div className="space-y-2">
+                    {recentLabResults.map(({ result, title }) => (
+                      <Link
+                        key={result.id}
+                        to={`/doctor/lab-results/${result.id}`}
+                        className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 transition-colors hover:bg-muted/40"
+                      >
+                        <div>
+                          <p className="font-medium">{title}</p>
+                          {result.reportedAt ? (
+                            <p className="text-xs text-muted-foreground">{formatDateValue(result.reportedAt)}</p>
+                          ) : null}
+                          {result.laboratoryName ? (
+                            <p className="text-xs text-muted-foreground">{result.laboratoryName}</p>
+                          ) : null}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge
+                            className={getDoctorLabWorkflowBadgeClassName({
+                              orderStatus: result.orderStatus,
+                              resultStatus: result.resultStatus ?? result.status,
+                            })}
+                          >
+                            {getDoctorLabWorkflowLabel({
+                              orderStatus: result.orderStatus,
+                              resultStatus: result.resultStatus ?? result.status,
+                            })}
+                          </Badge>
+                          <span className="text-sm font-medium text-primary">View result</span>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ) : null}
         </div>
       ) : (
         <Card>

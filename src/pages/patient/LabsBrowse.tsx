@@ -163,12 +163,6 @@ const PatientLabsBrowsePage = () => {
                     <Button onClick={() => handleLabNavigation(lab.id, lab.labId)}>
                       Open details
                     </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => handleLabNavigation(lab.id, lab.labId)}
-                    >
-                      Request lab test
-                    </Button>
                   </div>
                 </CardContent>
               </Card>

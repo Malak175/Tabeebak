@@ -30,6 +30,21 @@ import {
 } from "@/lib/patientLabStatus";
 
 const formatDate = (value?: string | null) => formatDisplayDate(value);
+const normalizeSearchValue = (value?: string | null) => (value ?? "").toLowerCase().trim();
+const STATUS_OPTIONS = [
+  "PENDING",
+  "SAMPLE_COLLECTION_REQUESTED",
+  "SAMPLE_COLLECTED",
+  "IN_PROGRESS",
+  "RESULT_UPLOADED",
+  "COMPLETED",
+  "REJECTED",
+  "CANCELLED",
+] as const;
+type StatusFilterValue = (typeof STATUS_OPTIONS)[number] | "all";
+const isKnownStatus = (value: string): value is (typeof STATUS_OPTIONS)[number] =>
+  STATUS_OPTIONS.includes(value as (typeof STATUS_OPTIONS)[number]);
+const normalizeStatusValue = (value?: string | null) => (value ?? "").trim().toUpperCase();
 
 const RecordCardSkeleton = () => (
   <Card>
@@ -48,7 +63,7 @@ const PatientLabResults = () => {
   const [resultsPage, setResultsPage] = useState(1);
   const [ordersPage, setOrdersPage] = useState(1);
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("all");
+  const [status, setStatus] = useState<StatusFilterValue>("all");
 
   const resultsFilters = useMemo(
     () => ({
@@ -90,6 +105,51 @@ const PatientLabResults = () => {
       ),
     [resultsQuery.data?.data],
   );
+  const filteredVisibleResults = useMemo(() => {
+    const queryText = normalizeSearchValue(search);
+    return visibleResults.filter((result) => {
+      const resolvedWorkflowStatus = normalizeStatusValue(
+        resolvePatientLabWorkflowStatus({
+          orderStatus: result.orderStatus ?? null,
+          status: result.status ?? null,
+        }),
+      );
+      const normalizedOrderStatus = normalizeStatusValue(result.orderStatus);
+      const normalizedResultStatus = normalizeStatusValue(result.status);
+      const normalizedSelectedStatus = normalizeStatusValue(status);
+
+      const matchesStatus =
+        status === "all" ||
+        normalizedSelectedStatus === resolvedWorkflowStatus ||
+        normalizedSelectedStatus === normalizedOrderStatus ||
+        normalizedSelectedStatus === normalizedResultStatus;
+      if (!matchesStatus) return false;
+
+      if (!queryText) return true;
+
+      const workflowLabel = getPatientLabWorkflowLabel({
+        orderStatus: result.orderStatus ?? null,
+        status: result.status ?? null,
+      });
+
+      const searchableFields = [
+        result.testName,
+        result.patientName,
+        result.orderingDoctorName,
+        result.status,
+        result.orderStatus,
+        workflowLabel,
+        getPatientLabDocumentStatusLabel(result.status),
+        formatDate(result.reportedAt),
+        formatDate(result.collectedAt),
+        formatDate(result.orderedAt),
+      ]
+        .map((field) => normalizeSearchValue(field))
+        .filter(Boolean);
+
+      return searchableFields.some((field) => field.includes(queryText));
+    });
+  }, [search, status, visibleResults]);
   const hiddenResultsCount = (resultsQuery.data?.data.length ?? 0) - visibleResults.length;
 
   return (
@@ -118,14 +178,15 @@ const PatientLabResults = () => {
               setOrdersPage(1);
               setSearch(event.target.value);
             }}
-            placeholder="Search test name"
+            placeholder="Search test, lab, status, or date"
           />
           <Select
             value={status}
             onValueChange={(value) => {
               setResultsPage(1);
               setOrdersPage(1);
-              setStatus(value);
+              const normalizedValue = normalizeStatusValue(value);
+              setStatus(normalizedValue === "ALL" ? "all" : isKnownStatus(normalizedValue) ? normalizedValue : "all");
             }}
           >
             <SelectTrigger>
@@ -182,7 +243,7 @@ const PatientLabResults = () => {
                 </Button>
               </AlertDescription>
             </Alert>
-          ) : visibleResults.length ? (
+          ) : filteredVisibleResults.length ? (
             <>
               {hiddenResultsCount > 0 ? (
                 <Alert>
@@ -193,7 +254,7 @@ const PatientLabResults = () => {
                 </Alert>
               ) : null}
               <div className="grid gap-4">
-                {visibleResults.map((result) => {
+                {filteredVisibleResults.map((result) => {
                   const resolvedId = String(result.id ?? "").trim();
                   const route = `/patient/lab-results/${resolvedId}`;
 
@@ -259,7 +320,7 @@ const PatientLabResults = () => {
               <div className="flex flex-col gap-3 rounded-lg border bg-card p-4 md:flex-row md:items-center md:justify-between">
                 <p className="text-sm text-muted-foreground">
                   Page {resultsQuery.data.page} of {resultsQuery.data.totalPages} with{" "}
-                  {visibleResults.length} visible published result(s)
+                  {filteredVisibleResults.length} matching visible result(s)
                 </p>
                 <div className="flex gap-2">
                   <Button
@@ -282,7 +343,7 @@ const PatientLabResults = () => {
           ) : (
               <Card>
                 <CardContent className="p-8 text-center text-muted-foreground">
-                No visible lab results matched your current filters.
+                No matching lab results found.
                 </CardContent>
               </Card>
           )}

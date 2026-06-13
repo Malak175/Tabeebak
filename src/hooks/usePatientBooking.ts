@@ -7,6 +7,7 @@ import {
   CreateTestRequestPayload,
   DiscoveryLocationParams,
   DoctorAvailableSlotsParams,
+  LabAvailableSlotsParams,
   DoctorRequestListParams,
   DoctorSearchParams,
   LabRequestListParams,
@@ -41,6 +42,8 @@ export const patientBookingQueryKeys = {
   labDetail: (labId: string) => ["patient-booking", "labs", "detail", labId] as const,
   labBranches: (labId: string) => ["patient-booking", "labs", "branches", labId] as const,
   labServices: (labId: string) => ["patient-booking", "labs", "services", labId] as const,
+  labAvailableSlots: (labId: string, params?: LabAvailableSlotsParams) =>
+    ["patient-booking", "labs", "available-slots", labId, normalizeListParams(params)] as const,
   appointmentRequests: (params?: DoctorRequestListParams) =>
     ["patient-booking", "appointment-requests", normalizeListParams(params)] as const,
   appointmentRequestDetail: (requestId: string) =>
@@ -106,6 +109,17 @@ export const useLabBookingDetailQuery = (labId: string | undefined) =>
     queryKey: patientBookingQueryKeys.labDetail(labId ?? ""),
     queryFn: () => patientBookingService.getLabById(labId ?? ""),
     enabled: Boolean(labId),
+  });
+
+export const useLabAvailableSlotsQuery = (
+  labId: string | undefined,
+  params: LabAvailableSlotsParams | undefined,
+) =>
+  useQuery({
+    queryKey: patientBookingQueryKeys.labAvailableSlots(labId ?? "", params),
+    queryFn: () =>
+      patientBookingService.getLabAvailableSlots(labId ?? "", params as LabAvailableSlotsParams),
+    enabled: Boolean(labId) && Boolean(params?.startDate) && Boolean(params?.endDate),
   });
 
 export const useLabBranchesDetailQuery = (labId: string | undefined) =>
@@ -207,6 +221,13 @@ export const useCreateTestRequestMutation = () => {
       });
       queryClient.invalidateQueries({ queryKey: patientQueryKeys.labOrders() });
       queryClient.invalidateQueries({ queryKey: patientQueryKeys.labResults() });
+    },
+    onSettled: (_data, _error, variables) => {
+      if (variables?.labId) {
+        queryClient.invalidateQueries({
+          queryKey: ["patient-booking", "labs", "available-slots", variables.labId],
+        });
+      }
     },
   });
 };

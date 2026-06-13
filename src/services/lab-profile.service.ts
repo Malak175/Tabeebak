@@ -1,4 +1,9 @@
 import { apiRequest } from "@/services/api";
+import { normalizeDoctorAvailability } from "@/services/doctor-profile.service";
+import type {
+  DoctorAvailability,
+  UpdateDoctorAvailabilityRequest,
+} from "@/types/doctor-profile.types";
 import {
   CreateLabBranchRequest,
   CreateLabServiceRequest,
@@ -483,5 +488,26 @@ export const labProfileService = {
       method: "DELETE",
       auth: true,
     });
+  },
+
+  getAvailability: async (): Promise<DoctorAvailability> => {
+    const response = await apiRequest<unknown>("/api/v1/labs/me/availability", {
+      method: "GET",
+      auth: true,
+    });
+
+    return normalizeDoctorAvailability(response);
+  },
+
+  updateAvailability: async (
+    payload: UpdateDoctorAvailabilityRequest,
+  ): Promise<DoctorAvailability> => {
+    const response = await apiRequest<unknown>("/api/v1/labs/me/availability", {
+      method: "PUT",
+      body: payload,
+      auth: true,
+    });
+
+    return normalizeDoctorAvailability(response);
   },
 };

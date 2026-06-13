@@ -29,7 +29,7 @@ import {
   useDoctorTodayAppointmentsQuery,
 } from "@/hooks/useDoctorWorkflow";
 import { getDisplayName } from "@/lib/auth";
-import { normalizeApiStatusKey } from "@/lib/apiStatus";
+import { normalizeApiStatusKey, isRejectedApiStatus } from "@/lib/apiStatus";
 
 const getUpcomingAppointmentsCount = (appointments: { scheduledAt?: string | null; status?: string }[]) => {
   const now = new Date();
@@ -39,7 +39,10 @@ const getUpcomingAppointmentsCount = (appointments: { scheduledAt?: string | nul
     const parsed = parseISO(appointment.scheduledAt);
     if (!isValid(parsed)) return false;
     const status = normalizeApiStatusKey(appointment.status);
-    if (["COMPLETED", "CANCELLED", "CANCELED", "NO_SHOW"].includes(status)) {
+    if (
+      ["COMPLETED", "CANCELLED", "CANCELED", "NO_SHOW", "IN_PROGRESS"].includes(status) ||
+      isRejectedApiStatus(status)
+    ) {
       return false;
     }
     return isAfter(parsed, now);
@@ -93,12 +96,12 @@ const DoctorDashboard = () => {
     ) ?? false;
   const hasClinicInfo = Boolean(
     professionalProfile?.clinicName ||
-      professionalProfile?.clinicAddress ||
-      summary?.clinicName ||
-      profile?.addressLine1 ||
-      profile?.city ||
-      profile?.state ||
-      profile?.country,
+    professionalProfile?.clinicAddress ||
+    summary?.clinicName ||
+    profile?.addressLine1 ||
+    profile?.city ||
+    profile?.state ||
+    profile?.country,
   );
   const hasSpecialty = Boolean(professionalProfile?.specialty || summary?.specialty);
   const hasConsultationFee =
@@ -110,10 +113,10 @@ const DoctorDashboard = () => {
       label: "Basic profile info",
       complete: Boolean(
         profile?.firstName ||
-          profile?.lastName ||
-          profile?.displayName ||
-          summary?.displayName ||
-          summary?.firstName,
+        profile?.lastName ||
+        profile?.displayName ||
+        summary?.displayName ||
+        summary?.firstName,
       ),
     },
     { label: "Specialization", complete: hasSpecialty },
@@ -268,11 +271,10 @@ const DoctorDashboard = () => {
                     </div>
                   </div>
                   <div
-                    className={`text-2xl font-bold ${
-                      stat.status === "error" || stat.value === null || stat.value === undefined
-                        ? "text-muted-foreground"
-                        : ""
-                    }`}
+                    className={`text-2xl font-bold ${stat.status === "error" || stat.value === null || stat.value === undefined
+                      ? "text-muted-foreground"
+                      : ""
+                      }`}
                   >
                     {stat.status === "error" || stat.value === null || stat.value === undefined
                       ? "-"

@@ -320,6 +320,7 @@ const normalizePaginatedResponse = <T>(
     pickBoolean(normalizedMeta, ["hasNextPage", "hasMore", "has_next_page"]) ?? page < totalPages;
   const hasPreviousPage =
     pickBoolean(normalizedMeta, ["hasPreviousPage", "hasPrevPage", "has_previous_page"]) ?? page > 1;
+  const counts = normalizedMeta.counts as Record<string, number> | undefined;
 
   return {
     data: items.map(mapItem),
@@ -329,6 +330,7 @@ const normalizePaginatedResponse = <T>(
     totalPages,
     hasNextPage,
     hasPreviousPage,
+    ...(counts ? { counts } : {}),
   };
 };
 
@@ -447,9 +449,9 @@ const normalizeDoctorAppointment = (payload: unknown): DoctorAppointment => {
     prescription:
       prescriptionExists !== null || prescriptionLatestId
         ? {
-            exists: prescriptionExists ?? Boolean(prescriptionLatestId),
-            latestId: prescriptionLatestId ?? null,
-          }
+          exists: prescriptionExists ?? Boolean(prescriptionLatestId),
+          latestId: prescriptionLatestId ?? null,
+        }
         : null,
     joinUrl: pickNullableString(raw, ["joinUrl", "meetingUrl", "videoCallUrl"]),
     canJoinOnline:
@@ -798,11 +800,46 @@ const normalizeDoctorReview = (payload: unknown): DoctorReview => {
   };
 };
 
+const normalizeDoctorLabResultMeasurements = (payload: unknown) => {
+  const raw = asRecord(payload);
+  const observations = asRecord(raw.observations);
+  const measurementsRecord = asRecord(observations.measurements);
+  const entries = Object.entries(measurementsRecord);
+
+  if (!entries.length) return [];
+
+  return entries.map(([name, value]) => {
+    const measurement = asRecord(value);
+    return {
+      name: pickString(measurement, ["name", "parameter", "label"]) ?? name,
+      value:
+        pickNullableString(measurement, ["value", "result"]) ??
+        (typeof value === "string" || typeof value === "number" ? String(value) : null),
+      unit: pickNullableString(measurement, ["unit"]),
+      referenceRange: pickNullableString(measurement, ["referenceRange", "range", "normalRange"]),
+      status: pickNullableString(measurement, ["status", "flag"]),
+    };
+  });
+};
+
 const normalizeDoctorLabResult = (payload: unknown): DoctorLabResult => {
   const raw = unwrapPayload(payload);
   const patient = mergeRecords(pickRecord(raw, ["patient", "patientProfile"]));
   const doctor = mergeRecords(pickRecord(raw, ["doctor", "orderingDoctor", "provider"]));
   const laboratory = mergeRecords(pickRecord(raw, ["laboratory", "lab"]));
+  const file = mergeRecords(pickRecord(raw, ["file", "report", "document"]));
+  const observations = mergeRecords(pickRecord(raw, ["observations"]));
+
+  const orderStatus =
+    normalizeApiStatusKey(
+      pickNullableString(raw, ["orderStatus", "order_status"]) ??
+        pickNullableString(raw, ["requestStatus", "request_status"]),
+    ) || null;
+  const resultStatus =
+    normalizeApiStatusKey(
+      pickNullableString(raw, ["resultStatus", "result_status"]) ??
+        pickNullableString(raw, ["status", "resultStatus"]),
+    ) || null;
 
   return {
     id: pickString(raw, ["id", "_id", "resultId", "result_id", "labResultId", "lab_result_id"]) ?? "",
@@ -813,13 +850,19 @@ const normalizeDoctorLabResult = (payload: unknown): DoctorLabResult => {
       pickNullableString(raw, ["patientId", "patient_id"]) ??
       pickNullableString(patient, ["id", "_id", "patientId", "patient_id"]),
     patientName:
-      pickString(raw, ["patientName", "patient_name"]) ??
-      pickString(patient, ["displayName", "name", "fullName", "full_name"]) ??
-      "Patient",
-    testName: pickString(raw, ["testName", "test_name", "name"]) ?? "Lab result",
+      pickNullableString(raw, ["patientName", "patient_name"]) ??
+      pickNullableString(patient, ["displayName", "name", "fullName", "full_name"]),
+    testName:
+      pickNullableString(raw, ["testName", "test_name"]) ??
+      pickNullableString(raw, ["primaryServiceName", "primary_service_name"]) ??
+      pickNullableString(raw, ["serviceNames", "service_names"]) ??
+      null,
     category: pickNullableString(raw, ["category", "testCategory", "test_category"]),
-    status: normalizeApiStatusKey(pickString(raw, ["status", "resultStatus", "result_status"])) || "UNKNOWN",
-    reportedAt: pickNullableString(raw, ["reportedAt", "completedAt", "issuedAt", "date"]),
+    orderStatus,
+    resultStatus,
+    status: resultStatus,
+    reportedAt:
+      pickNullableString(raw, ["reportedAt", "reported_at", "completedAt", "issuedAt", "date"]) ?? null,
     collectedAt: pickNullableString(raw, ["collectedAt", "sampleCollectedAt", "collected_at"]),
     orderedAt: pickNullableString(raw, ["orderedAt", "createdAt", "dateOrdered"]),
     laboratoryName:
@@ -828,10 +871,21 @@ const normalizeDoctorLabResult = (payload: unknown): DoctorLabResult => {
     orderingDoctorName:
       pickNullableString(raw, ["orderingDoctorName", "doctorName", "doctor_name"]) ??
       pickNullableString(doctor, ["fullName", "full_name", "displayName", "name"]),
-    summary: pickNullableString(raw, ["summary", "interpretation"]),
-    conclusion: pickNullableString(raw, ["conclusion", "impression"]),
-    notes: pickNullableString(raw, ["notes", "comment"]),
-    reportUrl: pickNullableString(raw, ["reportUrl", "pdfUrl", "downloadUrl"]),
+    summary:
+      pickNullableString(raw, ["summary", "interpretation"]) ??
+      pickNullableString(observations, ["summary", "interpretation"]),
+    conclusion:
+      pickNullableString(raw, ["conclusion", "impression"]) ??
+      pickNullableString(observations, ["conclusion"]),
+    notes:
+      pickNullableString(raw, ["notes", "comment"]) ?? pickNullableString(observations, ["notes", "comment"]),
+    reportUrl:
+      pickNullableString(raw, ["reportUrl", "report_url", "pdfUrl", "downloadUrl"]) ??
+      pickNullableString(file, ["url", "path", "href"]),
+    fileName: pickNullableString(file, ["name", "fileName", "file_name"]) ?? pickNullableString(raw, ["fileName", "file_name"]),
+    fileMimeType:
+      pickNullableString(file, ["mimeType", "mime_type"]) ?? pickNullableString(raw, ["fileMimeType", "file_mime_type"]),
+    measurements: normalizeDoctorLabResultMeasurements(raw),
   };
 };
 
@@ -896,13 +950,13 @@ export const doctorWorkflowService = {
           status: payload.status,
           ...(payload.message?.trim()
             ? {
-                message: payload.message.trim(),
-              }
+              message: payload.message.trim(),
+            }
             : {}),
           ...(payload.scheduledAt
             ? {
-                scheduled_at: payload.scheduledAt,
-              }
+              scheduled_at: payload.scheduledAt,
+            }
             : {}),
         },
         auth: true,

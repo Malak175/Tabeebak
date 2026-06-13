@@ -10,6 +10,7 @@ export interface PaginatedResponse<T> {
   totalPages: number;
   hasNextPage: boolean;
   hasPreviousPage: boolean;
+  counts?: Record<string, number>;
 }
 
 export interface DoctorAppointmentFilterParams {
@@ -230,10 +231,12 @@ export interface DoctorLabResult {
   orderId?: string | null;
   orderNumber?: string | null;
   patientId?: string | null;
-  patientName: string;
-  testName: string;
+  patientName?: string | null;
+  testName?: string | null;
   category?: string | null;
-  status: string;
+  orderStatus?: string | null;
+  resultStatus?: string | null;
+  status?: string | null;
   reportedAt?: string | null;
   collectedAt?: string | null;
   orderedAt?: string | null;
@@ -243,6 +246,15 @@ export interface DoctorLabResult {
   conclusion?: string | null;
   notes?: string | null;
   reportUrl?: string | null;
+  fileName?: string | null;
+  fileMimeType?: string | null;
+  measurements?: Array<{
+    name: string;
+    value?: string | null;
+    unit?: string | null;
+    referenceRange?: string | null;
+    status?: string | null;
+  }>;
 }
 
 export interface CreatePrescriptionMedication {

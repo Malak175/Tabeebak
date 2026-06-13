@@ -796,3 +796,5 @@ export const doctorProfileService = {
     return normalizeDoctorAvailability(response);
   },
 };
+
+export { normalizeDoctorAvailability };

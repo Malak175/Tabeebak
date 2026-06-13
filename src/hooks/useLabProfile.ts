@@ -8,6 +8,7 @@ import {
   UpdateLabProfileRequest,
   UpdateLabServiceRequest,
 } from "@/types/lab-profile.types";
+import type { UpdateDoctorAvailabilityRequest } from "@/types/doctor-profile.types";
 
 export const labQueryKeys = {
   all: ["lab"] as const,
@@ -15,6 +16,7 @@ export const labQueryKeys = {
   profile: () => ["lab", "profile"] as const,
   branches: () => ["lab", "branches"] as const,
   services: () => ["lab", "services"] as const,
+  availability: () => ["lab", "availability"] as const,
 };
 
 export const useLabDashboardSummaryQuery = (enabled = true) =>
@@ -115,6 +117,26 @@ export const useUpdateLabServiceMutation = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: labQueryKeys.services() });
       queryClient.invalidateQueries({ queryKey: labQueryKeys.dashboardSummary() });
+    },
+  });
+};
+
+export const useLabAvailabilityQuery = (enabled = true) =>
+  useQuery({
+    queryKey: labQueryKeys.availability(),
+    queryFn: labProfileService.getAvailability,
+    enabled,
+  });
+
+export const useUpdateLabAvailabilityMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: UpdateDoctorAvailabilityRequest) => labProfileService.updateAvailability(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: labQueryKeys.availability() });
+      queryClient.invalidateQueries({ queryKey: labQueryKeys.dashboardSummary() });
+      queryClient.invalidateQueries({ queryKey: ["patient-booking", "labs", "available-slots"] });
     },
   });
 };

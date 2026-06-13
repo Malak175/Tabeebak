@@ -693,69 +693,16 @@ const PatientLabResultDetails = () => {
                   </Table>
                 </div>
 
-                <div ref={analysisRef} className="rounded-lg border bg-muted/10 p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-medium">AI Analysis</p>
-                      <p className="text-xs text-muted-foreground">Generated from this published lab result.</p>
-                    </div>
-                    {predictionLoading || predicting ? (
-                      <Badge variant="outline">Analyzing...</Badge>
-                    ) : null}
-                  </div>
-
-                  {prediction ? (
-                    <div className="mt-4 grid gap-3 md:grid-cols-3">
-                      <div
-                        className={`rounded-lg border px-3 py-2 text-sm ${
-                          getRiskTone(prediction.riskLevel).className
-                        }`}
-                      >
-                        <p className="text-xs uppercase tracking-wide">Risk level</p>
-                        <p className="mt-1 text-base font-semibold">
-                          {getRiskTone(prediction.riskLevel).label}
-                        </p>
-                      </div>
-                      <div className="rounded-lg border px-3 py-2 text-sm">
-                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Probability</p>
-                        <p className="mt-1 text-base font-semibold">
-                          {formatProbability(prediction.probability)}
-                        </p>
-                      </div>
-                      <div className="rounded-lg border px-3 py-2 text-sm">
-                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Threshold used</p>
-                        <p className="mt-1 text-base font-semibold">
-                          {prediction.thresholdUsed != null ? prediction.thresholdUsed : "Not available"}
-                        </p>
-                      </div>
-                      <div className="rounded-lg border px-3 py-2 text-sm md:col-span-3">
-                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Explanation</p>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          {prediction.explanation || "No explanation provided."}
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="mt-3 text-sm text-muted-foreground">
-                      {predictionLoading || predicting
-                        ? "Generating analysis for this lab result."
-                        : "No AI analysis is available for this result yet."}
-                    </p>
-                  )}
-                  {predictionError ? (
-                    <p className="mt-3 text-sm text-destructive">{predictionError}</p>
-                  ) : null}
-                </div>
               </CardContent>
             </Card>
           </div>
 
-          <div className="space-y-6">
+          <div className="space-y-5 lg:space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Result Summary</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-3 pt-0">
                 <DetailRow label="Result ID" value={query.data.id} />
                 {query.data.resultNumber ? (
                   <DetailRow label="Reference" value={query.data.resultNumber} />
@@ -795,6 +742,67 @@ const PatientLabResultDetails = () => {
                     AI analysis is available after the result reaches Result Uploaded.
                   </p>
                 )}
+              </CardContent>
+            </Card>
+
+            <Card ref={analysisRef}>
+              <CardHeader className="pb-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <CardTitle className="text-lg">AI Analysis</CardTitle>
+                    <p className="text-xs text-muted-foreground">Generated from this published lab result.</p>
+                  </div>
+                  {predictionLoading || predicting ? <Badge variant="outline">Analyzing...</Badge> : null}
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3 pt-0">
+                {prediction ? (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div
+                      className={`rounded-lg border px-3 py-2 text-sm ${
+                        getRiskTone(prediction.riskLevel).className
+                      }`}
+                    >
+                      <p className="text-xs uppercase tracking-wide">Risk level</p>
+                      <p className="mt-1 text-base font-semibold">
+                        {getRiskTone(prediction.riskLevel).label}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border px-3 py-2 text-sm">
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Probability</p>
+                      <p className="mt-1 text-base font-semibold">
+                        {formatProbability(prediction.probability)}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border px-3 py-2 text-sm">
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Threshold used</p>
+                      <p className="mt-1 text-base font-semibold">
+                        {prediction.thresholdUsed != null ? prediction.thresholdUsed : "Not available"}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border px-3 py-2 text-sm sm:col-span-2">
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Explanation</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {prediction.explanation || "No explanation provided."}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    {predictionLoading || predicting
+                      ? "Generating analysis for this lab result."
+                      : "No AI analysis is available for this result yet."}
+                  </p>
+                )}
+                {predictionError ? <p className="text-sm text-destructive">{predictionError}</p> : null}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg">Follow-up Details</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 pt-0">
                 {hasDoctorFollowUp ? (
                   <div className="rounded-lg border border-green-200 bg-green-50 p-4">
                     <div className="space-y-3">
@@ -853,6 +861,11 @@ const PatientLabResultDetails = () => {
                   >
                     Book an appointment
                   </Button>
+                ) : null}
+                {!hasDoctorFollowUp && !showBookFollowUpAction ? (
+                  <p className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                    No follow-up actions are required at this time.
+                  </p>
                 ) : null}
               </CardContent>
             </Card>

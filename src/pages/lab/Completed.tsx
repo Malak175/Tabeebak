@@ -133,7 +133,7 @@ const LabCompleted = () => {
               <SelectItem value="all">All archive statuses</SelectItem>
               <SelectItem value="COMPLETED">Completed</SelectItem>
               <SelectItem value="REJECTED">Rejected</SelectItem>
-              <SelectItem value="CANCELLED">Cancelled</SelectItem>
+              <SelectItem value="CANCELLED">Rejected</SelectItem>
             </SelectContent>
           </Select>
           <Button
