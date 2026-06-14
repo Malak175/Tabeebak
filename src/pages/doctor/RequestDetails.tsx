@@ -42,6 +42,7 @@ const getStatusClassName = (status?: string | null) => {
     case "PENDING":
       return "bg-yellow-100 text-yellow-700 border-yellow-200";
     case "REJECTED":
+      return "bg-rose-100 text-rose-700 border-rose-200";
     case "CANCELLED":
     case "CANCELED":
       return "bg-red-100 text-red-700 border-red-200";
@@ -410,9 +411,8 @@ const DoctorRequestDetailsPage = () => {
                     </>
                   ) : (
                     <div
-                      className={`flex flex-col gap-3 rounded-lg border p-4 ${
-                        "border-red-200 bg-red-50 text-red-800"
-                      }`}
+                      className={`flex flex-col gap-3 rounded-lg border p-4 ${"border-red-200 bg-red-50 text-red-800"
+                        }`}
                     >
                       <div className="flex items-center gap-2 text-sm font-semibold">
                         <XCircle className="h-5 w-5" />

@@ -8,7 +8,6 @@ export const normalizeApiStatusKey = (value?: string | null) =>
 export const normalizeApiStatusDisplayKey = (value?: string | null) => {
   const normalized = normalizeApiStatusKey(value);
   if (!normalized) return "";
-  if (normalized === "CANCELLED" || normalized === "CANCELED") return "REJECTED";
   return normalized;
 };
 
@@ -22,7 +21,7 @@ export const isApiStatus = (
 
 export const isRejectedApiStatus = (value?: string | null) => {
   const normalized = normalizeApiStatusKey(value);
-  return ["REJECTED", "CANCELLED", "CANCELED"].includes(normalized);
+  return ["REJECTED"].includes(normalized);
 };
 
 export const formatApiStatusLabel = (value?: string | null) => {

@@ -493,7 +493,7 @@ const sentenceCase = (value: string) => {
 
 const normalizeGenericRequestStatus = (normalized: string): RequestStatus => {
   if (!normalized) return "unknown";
-  if (normalized === "canceled" || normalized === "cancelled") return "rejected";
+  if (normalized === "canceled" || normalized === "cancelled") return "cancelled";
   if (["accepted", "approve", "approved", "confirmed", "ready", "reported"].includes(normalized)) {
     return "approved";
   }
@@ -503,7 +503,7 @@ const normalizeGenericRequestStatus = (normalized: string): RequestStatus => {
   if (["requested", "request_submitted", "under_review", "in_review", "review"].includes(normalized)) {
     return "pending";
   }
-  if (normalized === "pending" || normalized === "rejected" || normalized === "completed") {
+  if (normalized === "pending" || normalized === "rejected" || normalized === "completed" || normalized === "cancelled") {
     return normalized;
   }
   return "unknown";
@@ -530,8 +530,8 @@ const normalizeRequestStatus = (
       RESULT_UPLOADED: { status: "pending", label: "Result uploaded" },
       ASSIGNED_TO_DOCTOR: { status: "pending", label: "Result uploaded" },
       COMPLETED: { status: "completed", label: "Completed" },
-      CANCELLED: { status: "rejected", label: "Rejected" },
-      CANCELED: { status: "rejected", label: "Rejected" },
+      CANCELLED: { status: "cancelled", label: "Cancelled" },
+      CANCELED: { status: "cancelled", label: "Cancelled" },
     };
 
     const mapped = labStatusMap[normalizedKey];

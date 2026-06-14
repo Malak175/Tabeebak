@@ -28,13 +28,24 @@ export const resolveLabOrderTimelineState = (status?: string | null): LabOrderTi
   const rawKey = normalizeLabStatusKey(status);
   const canonical = normalizeLabOrderStatus(status);
 
-  if (canonical === "REJECTED" || rawKey === "REJECTED" || rawKey === "CANCELLED" || rawKey === "CANCELED") {
+  if (canonical === "REJECTED" || rawKey === "REJECTED") {
     return {
       completedIndex: -1,
       currentIndex: null,
       terminal: {
         label: "Rejected",
         message: "This order was rejected and will not proceed.",
+      },
+    };
+  }
+
+  if (canonical === "CANCELLED" || rawKey === "CANCELLED" || rawKey === "CANCELED") {
+    return {
+      completedIndex: -1,
+      currentIndex: null,
+      terminal: {
+        label: "Cancelled",
+        message: "This order was cancelled and will not proceed.",
       },
     };
   }

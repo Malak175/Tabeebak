@@ -197,6 +197,13 @@ export interface DoctorPatientSummary {
   currentMedications: string[];
   recentDiagnoses: string[];
   latestVitals?: DoctorPatientSummaryVitals;
+  latestLabResult?: {
+    laboratoryName?: string | null;
+    testName?: string | null;
+    resultStatus?: string | null;
+    summary?: string | null;
+    notes?: string | null;
+  } | null;
   lastVisitAt?: string | null;
   notes?: string | null;
   firstAppointmentAt?: string | null;

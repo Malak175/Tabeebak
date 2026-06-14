@@ -732,6 +732,25 @@ const normalizeDoctorPatientSummary = (payload: unknown): DoctorPatientSummary =
       "totalConsultations",
       "total_consultations",
     ]),
+    latestLabResult: (() => {
+      const lab = pickRecord(raw, [
+        "latestLabResult",
+        "latest_lab_result",
+        "latestLab",
+        "labResult",
+        "lab_result",
+      ]);
+
+      if (Object.keys(lab).length === 0) return null;
+
+      return {
+        laboratoryName: pickNullableString(lab, ["laboratoryName", "laboratory_name", "labName", "lab_name"]),
+        testName: pickNullableString(lab, ["testName", "test_name", "name"]),
+        resultStatus: pickNullableString(lab, ["resultStatus", "result_status", "status"]),
+        summary: pickNullableString(lab, ["summary", "reportSummary", "conclusion"]),
+        notes: pickNullableString(lab, ["notes", "note"]),
+      };
+    })(),
   };
 };
 
@@ -833,12 +852,12 @@ const normalizeDoctorLabResult = (payload: unknown): DoctorLabResult => {
   const orderStatus =
     normalizeApiStatusKey(
       pickNullableString(raw, ["orderStatus", "order_status"]) ??
-        pickNullableString(raw, ["requestStatus", "request_status"]),
+      pickNullableString(raw, ["requestStatus", "request_status"]),
     ) || null;
   const resultStatus =
     normalizeApiStatusKey(
       pickNullableString(raw, ["resultStatus", "result_status"]) ??
-        pickNullableString(raw, ["status", "resultStatus"]),
+      pickNullableString(raw, ["status", "resultStatus"]),
     ) || null;
 
   return {

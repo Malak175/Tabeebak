@@ -37,6 +37,7 @@ export const requestStatusClassName = (status?: RequestStatus) => {
     case "pending":
       return "bg-amber-100 text-amber-700 border-amber-200";
     case "rejected":
+      return "bg-rose-100 text-rose-700 border-rose-200";
     case "cancelled":
     case "canceled":
       return "bg-red-100 text-red-700 border-red-200";
@@ -324,9 +325,8 @@ export const MessageThread = ({
                   <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     <span className="font-medium text-foreground/80">{group.displayName}</span>
                     <span
-                      className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                        getRoleAccentClassName(group.senderRole, group.isCurrentUser)
-                      }`}
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${getRoleAccentClassName(group.senderRole, group.isCurrentUser)
+                        }`}
                     >
                       {group.displayRole}
                     </span>
@@ -338,11 +338,10 @@ export const MessageThread = ({
                           [message.id, message.createdAt, message.message, messageIndex],
                           `message-${groupIndex}-${messageIndex}`,
                         )}
-                        className={`rounded-2xl px-4 py-3 shadow-sm ${
-                          group.isCurrentUser
+                        className={`rounded-2xl px-4 py-3 shadow-sm ${group.isCurrentUser
                             ? "bg-primary text-primary-foreground"
                             : "bg-muted text-foreground"
-                        }`}
+                          }`}
                       >
                         <p className="text-sm leading-relaxed">{message.message}</p>
                         <p className="mt-2 text-[11px] opacity-75">{formatDateTime(message.createdAt)}</p>

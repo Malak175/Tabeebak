@@ -188,52 +188,54 @@ const LabDashboard = () => {
           </AlertDescription>
         </Alert>
       ) : (
-        <div className="space-y-6">
-          <Card className="border-primary/20 bg-gradient-to-br from-primary/5 via-transparent to-background">
-            <CardHeader className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-              <div>
-                <CardTitle className="text-2xl md:text-3xl">Welcome back, {labName}</CardTitle>
-                <CardDescription className="mt-2">
+        <div className="space-y-8">
+          <Card className="border border-primary/15 bg-gradient-to-br from-primary/8 via-primary/3 to-transparent shadow-sm hover:shadow-md transition-shadow duration-300">
+            <CardHeader className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between pb-4">
+              <div className="flex-1">
+                <CardTitle className="text-3xl md:text-4xl font-bold tracking-tight">Welcome back, {labName}</CardTitle>
+                <CardDescription className="mt-3 text-base">
                   A focused snapshot of Inbox, Active Work, Results Ready, and Archive.
                 </CardDescription>
               </div>
-              <Button asChild variant="outline">
+              <Button asChild variant="default" className="mt-2 md:mt-0">
                 <Link to="/lab/settings">Manage Lab</Link>
               </Button>
             </CardHeader>
-            <CardContent className="flex flex-wrap items-center gap-2">
-              {subtitle && <Badge variant="secondary">{subtitle}</Badge>}
+            <CardContent className="flex flex-wrap items-center gap-3 pt-2">
+              {subtitle && <Badge variant="secondary" className="text-xs font-medium px-3 py-1">{subtitle}</Badge>}
               {completionPercent != null && (
-                <Badge variant={completionPercent === 100 ? "secondary" : "outline"}>
+                <Badge variant={completionPercent === 100 ? "secondary" : "outline"} className="text-xs font-medium px-3 py-1">
                   {completionPercent}% profile complete
                 </Badge>
               )}
               {homeCollectionAvailable && (
-                <Badge variant="outline" className="text-green-700">
+                <Badge variant="outline" className="text-green-700 text-xs font-medium px-3 py-1">
                   Home collection active
                 </Badge>
               )}
               {summary?.rating != null && (
-                <Badge variant="outline">Rating {summary.rating.toFixed(1)}</Badge>
+                <Badge variant="outline" className="text-xs font-medium px-3 py-1">Rating {summary.rating.toFixed(1)}</Badge>
               )}
             </CardContent>
           </Card>
 
           <div>
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Primary KPIs</h2>
-              <span className="text-sm text-muted-foreground">Operational highlights</span>
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold tracking-tight">Primary KPIs</h2>
+                <p className="text-sm text-muted-foreground mt-1">Operational highlights</p>
+              </div>
             </div>
-            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-5 lg:grid-cols-3">
               {primaryKpis.map((stat) => (
-                <Card key={stat.label}>
-                  <CardContent className="p-4">
-                    <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-                      <stat.icon className="h-5 w-5 text-primary" />
+                <Card key={stat.label} className="border border-border/50 shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-300 group">
+                  <CardContent className="p-6">
+                    <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br from-primary/15 to-primary/10 group-hover:from-primary/20 group-hover:to-primary/15 transition-colors duration-300 border border-primary/20">
+                      <stat.icon className="h-6 w-6 text-primary" />
                     </div>
-                    <div className="text-2xl font-bold">{stat.value}</div>
-                    <div className="text-sm font-medium">{stat.label}</div>
-                    <div className="text-xs text-muted-foreground">{stat.helper}</div>
+                    <div className="text-3xl font-bold tracking-tight">{stat.value}</div>
+                    <div className="text-sm font-semibold text-foreground mt-2">{stat.label}</div>
+                    <div className="text-xs text-muted-foreground mt-2 leading-relaxed">{stat.helper}</div>
                   </CardContent>
                 </Card>
               ))}
@@ -241,150 +243,159 @@ const LabDashboard = () => {
           </div>
 
           <div>
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Secondary KPIs</h2>
-              <span className="text-sm text-muted-foreground">Catalog & coverage</span>
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold tracking-tight">Secondary KPIs</h2>
+                <p className="text-sm text-muted-foreground mt-1">Catalog & coverage</p>
+              </div>
             </div>
-            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-5 lg:grid-cols-4">
               {secondaryKpis.map((stat) => (
-                <Card key={stat.label}>
-                  <CardContent className="p-4">
-                    <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-secondary/20">
-                      <stat.icon className="h-5 w-5 text-secondary" />
+                <Card key={stat.label} className="border border-border/50 shadow-sm hover:shadow-md hover:border-secondary/30 transition-all duration-300 group">
+                  <CardContent className="p-6">
+                    <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br from-secondary/15 to-secondary/10 group-hover:from-secondary/20 group-hover:to-secondary/15 transition-colors duration-300 border border-secondary/20">
+                      <stat.icon className="h-6 w-6 text-secondary" />
                     </div>
-                    <div className="text-2xl font-bold">{stat.value}</div>
-                    <div className="text-sm font-medium">{stat.label}</div>
-                    <div className="text-xs text-muted-foreground">{stat.helper}</div>
+                    <div className="text-3xl font-bold tracking-tight">{stat.value}</div>
+                    <div className="text-sm font-semibold text-foreground mt-2">{stat.label}</div>
+                    <div className="text-xs text-muted-foreground mt-2 leading-relaxed">{stat.helper}</div>
                   </CardContent>
                 </Card>
               ))}
             </div>
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-3">
-            <Card className="lg:col-span-2">
-              <CardHeader className="flex flex-row items-start justify-between gap-4">
+          <div className="grid gap-8 lg:grid-cols-3">
+            <Card className="lg:col-span-2 border border-border/50 shadow-sm">
+              <CardHeader className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 pb-5">
                 <div>
-                  <CardTitle>Workflow Snapshot</CardTitle>
-                  <CardDescription>Latest orders across the official workflow.</CardDescription>
+                  <CardTitle className="text-xl font-bold">Workflow Snapshot</CardTitle>
+                  <CardDescription className="mt-1">Latest orders across the official workflow.</CardDescription>
                 </div>
-                <Link to="/lab/requests" className="text-sm text-primary hover:underline">
-                  Open Inbox
+                <Link to="/lab/requests" className="text-sm font-semibold text-primary hover:text-primary/80 hover:underline transition-colors whitespace-nowrap">
+                  Open Inbox →
                 </Link>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-4">
                 {!hasRecentOrders ? (
-                  <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                  <div className="rounded-lg border border-dashed border-border/50 bg-muted/30 p-6 text-sm text-muted-foreground text-center">
                     No recent lab orders yet. New requests will appear here as they arrive.
                   </div>
                 ) : (
-                  <div className="space-y-2 text-sm">
-                    <div className="grid grid-cols-5 gap-2 text-xs font-semibold text-muted-foreground">
+                  <div className="space-y-3 text-sm">
+                    <div className="grid grid-cols-5 gap-2 px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                       <span>Order</span>
                       <span>Patient</span>
                       <span>Test</span>
                       <span>Status</span>
                       <span>Date</span>
                     </div>
-                    {recentOrders.map((order, index) => {
-                      const orderLabel =
-                        order.orderDisplayId ??
-                        (order.requestId ? `#${order.requestId}` : null) ??
-                        "Not available";
-                      const testLabel = order.testName ?? "Not specified";
-                      const statusLabel = formatLabStatusLabel(order.status);
-                      const patientLabel = order.patientName ?? "Not available";
+                    <div className="space-y-2">
+                      {recentOrders.map((order, index) => {
+                        const orderLabel =
+                          order.orderDisplayId ??
+                          (order.requestId ? `#${order.requestId}` : null) ??
+                          "Not available";
+                        const testLabel = order.testName ?? "Not specified";
+                        const statusLabel = formatLabStatusLabel(order.status);
+                        const patientLabel = order.patientName ?? "Not available";
 
-                      return (
-                        <div
-                          key={order.id ?? order.referenceNumber ?? `${order.patientName}-${index}`}
-                          className="grid grid-cols-5 gap-2 rounded-lg border p-3"
-                        >
-                          <span className="font-medium">{orderLabel}</span>
-                          <span>{patientLabel}</span>
-                          <span>{testLabel}</span>
-                          <span>{statusLabel}</span>
-                          <span>{formatDateLabel(order.requestedAt)}</span>
-                        </div>
-                      );
-                    })}
+                        return (
+                          <div
+                            key={order.id ?? order.referenceNumber ?? `${order.patientName}-${index}`}
+                            className="grid grid-cols-5 gap-2 rounded-lg border border-border/30 bg-muted/20 px-4 py-3 hover:bg-muted/40 hover:border-border/50 transition-all duration-200 group"
+                          >
+                            <span className="font-semibold text-foreground group-hover:text-primary transition-colors">{orderLabel}</span>
+                            <span className="text-foreground/80">{patientLabel}</span>
+                            <span className="text-foreground/80">{testLabel}</span>
+                            <span className="font-medium">{statusLabel}</span>
+                            <span className="text-muted-foreground">{formatDateLabel(order.requestedAt)}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </CardContent>
             </Card>
 
-            <div className="space-y-6">
-              <Card className="bg-gradient-to-br from-secondary/10 to-primary/5">
-                <CardHeader>
-                  <CardTitle>Lab Identity</CardTitle>
-                  <CardDescription>Profile and accreditation details.</CardDescription>
+            <div className="space-y-8">
+              <Card className="border border-border/50 bg-gradient-to-br from-secondary/8 via-transparent to-primary/5 shadow-sm">
+                <CardHeader className="pb-5">
+                  <CardTitle className="text-xl font-bold">Lab Identity</CardTitle>
+                  <CardDescription className="mt-1">Profile and accreditation details.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm">
-                  <div className="rounded-lg bg-background/70 p-3">
-                    <div className="font-medium">Name</div>
-                    <div className="text-muted-foreground">{labName}</div>
+                  <div className="rounded-lg bg-gradient-to-br from-muted/50 to-muted/30 border border-border/40 p-4 shadow-xs hover:shadow-sm transition-shadow duration-200">
+                    <div className="font-semibold text-foreground text-xs uppercase tracking-wider text-muted-foreground mb-1">Name</div>
+                    <div className="text-base font-medium text-foreground">{labName}</div>
                   </div>
-                  <div className="rounded-lg bg-background/70 p-3">
-                    <div className="font-medium">Email</div>
-                    <div className="text-muted-foreground">
+                  <div className="rounded-lg bg-gradient-to-br from-muted/50 to-muted/30 border border-border/40 p-4 shadow-xs hover:shadow-sm transition-shadow duration-200">
+                    <div className="font-semibold text-foreground text-xs uppercase tracking-wider text-muted-foreground mb-1">Email</div>
+                    <div className="text-sm text-foreground break-all">
                       {summary?.email ?? profile?.email ?? "Not provided"}
                     </div>
                   </div>
-                  <div className="rounded-lg bg-background/70 p-3">
-                    <div className="font-medium">Phone</div>
-                    <div className="text-muted-foreground">
+                  <div className="rounded-lg bg-gradient-to-br from-muted/50 to-muted/30 border border-border/40 p-4 shadow-xs hover:shadow-sm transition-shadow duration-200">
+                    <div className="font-semibold text-foreground text-xs uppercase tracking-wider text-muted-foreground mb-1">Phone</div>
+                    <div className="text-sm text-foreground">
                       {summary?.phone ?? profile?.phone ?? "Not provided"}
                     </div>
                   </div>
-                  <div className="rounded-lg bg-background/70 p-3">
-                    <div className="font-medium">Address</div>
-                    <div className="text-muted-foreground">
+                  <div className="rounded-lg bg-gradient-to-br from-muted/50 to-muted/30 border border-border/40 p-4 shadow-xs hover:shadow-sm transition-shadow duration-200">
+                    <div className="font-semibold text-foreground text-xs uppercase tracking-wider text-muted-foreground mb-1">Address</div>
+                    <div className="text-sm text-foreground">
                       {summary?.addressSummary ?? fallbackAddress ?? "No address details returned yet"}
                     </div>
                   </div>
-                  <div className="rounded-lg bg-background/70 p-3">
-                    <div className="font-medium">Accreditation</div>
-                    <div className="text-muted-foreground">
+                  <div className="rounded-lg bg-gradient-to-br from-muted/50 to-muted/30 border border-border/40 p-4 shadow-xs hover:shadow-sm transition-shadow duration-200">
+                    <div className="font-semibold text-foreground text-xs uppercase tracking-wider text-muted-foreground mb-1">Accreditation</div>
+                    <div className="text-sm text-foreground">
                       {accreditationLabel}
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Profile Health</CardTitle>
-                  <CardDescription>Setup completeness and readiness.</CardDescription>
+              <Card className="border border-border/50 shadow-sm">
+                <CardHeader className="pb-5">
+                  <CardTitle className="text-xl font-bold">Profile Health</CardTitle>
+                  <CardDescription className="mt-1">Setup completeness and readiness.</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-5">
                   {completionPercent != null ? (
-                    <>
+                    <div className="space-y-3">
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Completion</span>
-                        <span className="font-medium">{completionPercent}%</span>
+                        <span className="text-muted-foreground font-medium">Completion Status</span>
+                        <span className="font-bold text-lg text-primary">{completionPercent}%</span>
                       </div>
-                      <Progress value={completionPercent} />
-                    </>
+                      <div className="rounded-lg overflow-hidden bg-muted/20 p-1">
+                        <Progress value={completionPercent} className="h-2" />
+                      </div>
+                    </div>
                   ) : (
-                    <div className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">
+                    <div className="rounded-lg bg-muted/40 border border-border/40 p-4 text-sm text-muted-foreground">
                       Completion data is not available yet.
                     </div>
                   )}
                   {profileHealthFlags.length === 0 ? (
-                    <div className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">
-                      Your lab profile is fully set up.
+                    <div className="rounded-lg bg-green-50 border border-green-200/50 dark:bg-green-950/20 dark:border-green-900/50 p-4 text-sm text-green-700 dark:text-green-400 font-medium">
+                      ✓ Your lab profile is fully set up.
                     </div>
                   ) : (
-                    <div className="space-y-2">
-                      <div className="text-sm font-medium">Missing setup items</div>
-                      <ul className="space-y-1 text-sm text-muted-foreground">
+                    <div className="space-y-3">
+                      <div className="text-sm font-bold">Missing setup items</div>
+                      <ul className="space-y-2 text-sm">
                         {profileHealthFlags.map((item) => (
-                          <li key={item}>{item}</li>
+                          <li key={item} className="flex items-start gap-2 text-muted-foreground">
+                            <span className="text-amber-500 font-bold mt-0.5">•</span>
+                            <span>{item}</span>
+                          </li>
                         ))}
                       </ul>
                     </div>
                   )}
-                  <Button asChild variant="outline" className="w-full">
+                  <Button asChild variant="default" className="w-full font-semibold">
                     <Link to="/lab/settings">Review Profile</Link>
                   </Button>
                 </CardContent>

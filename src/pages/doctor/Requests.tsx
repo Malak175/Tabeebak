@@ -27,6 +27,7 @@ const getStatusClassName = (status?: string | null) => {
     case "PENDING":
       return "bg-yellow-100 text-yellow-700 border-yellow-200";
     case "REJECTED":
+      return "bg-rose-100 text-rose-700 border-rose-200";
     case "CANCELLED":
     case "CANCELED":
       return "bg-red-100 text-red-700 border-red-200";
@@ -154,6 +155,7 @@ const DoctorRequestsPage = () => {
               <SelectItem value="PENDING">Pending</SelectItem>
               <SelectItem value="APPROVED">Approved</SelectItem>
               <SelectItem value="REJECTED">Rejected</SelectItem>
+              <SelectItem value="CANCELLED">Cancelled</SelectItem>
             </SelectContent>
           </Select>
           <Button
@@ -182,7 +184,7 @@ const DoctorRequestsPage = () => {
         </Alert>
       ) : query.data?.data.length ? (
         <div className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-4">
             <Card>
               <CardContent className="p-5">
                 <p className="text-sm text-muted-foreground">Pending</p>
@@ -204,6 +206,14 @@ const DoctorRequestsPage = () => {
                 <p className="text-sm text-muted-foreground">Rejected</p>
                 <p className="mt-2 text-3xl font-bold">
                   {query.data?.counts?.rejected ?? 0}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-5">
+                <p className="text-sm text-muted-foreground">Cancelled</p>
+                <p className="mt-2 text-3xl font-bold">
+                  {query.data?.counts?.cancelled ?? 0}
                 </p>
               </CardContent>
             </Card>

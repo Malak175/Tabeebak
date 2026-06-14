@@ -16,6 +16,8 @@ const resolveProgress = (status?: string | null) => {
       return { completedIndex: 1, currentIndex: null };
     case "REJECTED":
       return { completedIndex: 0, currentIndex: null };
+    case "CANCELLED":
+      return { completedIndex: 0, currentIndex: null };
     default:
       return { completedIndex: -1, currentIndex: 0 };
   }
@@ -27,6 +29,12 @@ const getTerminalState = (status?: string | null) => {
     return {
       label: "Rejected",
       message: "This request was rejected.",
+    };
+  }
+  if (key === "CANCELLED") {
+    return {
+      label: "Cancelled",
+      message: "This request was cancelled.",
     };
   }
   return null;

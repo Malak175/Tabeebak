@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useDoctorLabResultsQuery, useDoctorPatientSummaryQuery } from "@/hooks/useDoctorWorkflow";
 import { useAuth } from "@/hooks/useAuth";
 import { getDisplayName, getInitials } from "@/lib/auth";
+import { ArrowLeft, CalendarClock, CheckCircle2, FileUp, FlaskConical, XCircle, Plus, Trash2, Beaker, ClipboardList } from "lucide-react";
 import { formatDisplayDate } from "@/lib/date-time";
 import {
   getDoctorLabWorkflowBadgeClassName,
@@ -69,6 +70,9 @@ const DoctorPatientSummary = () => {
   const showRecentLabResultsCard =
     labResultsQuery.isLoading || labResultsQuery.isError || recentLabResults.length > 0;
   const userName = getDisplayName(user ?? {});
+
+  // Use normalized field from service: `query.data.latestLabResult`
+  const latestLabResult = query.data?.latestLabResult ?? null;
 
   return (
     <DashboardLayout
@@ -166,6 +170,89 @@ const DoctorPatientSummary = () => {
             <SummaryList title="Chronic Conditions" items={query.data.chronicConditions} />
             <SummaryList title="Current Medications" items={query.data.currentMedications} />
           </div>
+
+          <Card className="shadow-sm border-primary/20">
+            <CardHeader className="border-b bg-muted/30">
+              <CardTitle className="flex items-center gap-2">
+                <FlaskConical className="h-5 w-5 text-primary" />
+                Laboratory Results
+              </CardTitle>
+            </CardHeader>
+
+            <CardContent className="pt-6">
+              {latestLabResult ? (
+                <div className="space-y-5">
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="rounded-lg border p-4 bg-muted/20">
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                        Laboratory
+                      </p>
+                      <p className="mt-1 font-semibold">
+                        {latestLabResult.laboratoryName}
+                      </p>
+                    </div>
+
+                    <div className="rounded-lg border p-4 bg-muted/20">
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                        Test Name
+                      </p>
+                      <p className="mt-1 font-semibold">
+                        {latestLabResult.testName}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border p-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">
+                        Result Status
+                      </span>
+
+                      <Badge
+                        variant={
+                          latestLabResult.resultStatus === "Normal"
+                            ? "default"
+                            : "destructive"
+                        }
+                      >
+                        {latestLabResult.resultStatus}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border p-4">
+                    <h4 className="font-medium mb-2">Summary</h4>
+
+                    <p className="text-sm text-muted-foreground leading-6 whitespace-pre-wrap">
+                      {latestLabResult.summary || "No summary provided"}
+                    </p>
+                  </div>
+
+                  <div className="rounded-lg border p-4">
+                    <h4 className="font-medium mb-2">Notes</h4>
+
+                    <p className="text-sm text-muted-foreground leading-6 whitespace-pre-wrap">
+                      {latestLabResult.notes || "No notes available"}
+                    </p>
+                  </div>
+
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-10 text-center">
+                  <FlaskConical className="h-10 w-10 text-muted-foreground mb-3" />
+
+                  <p className="font-medium">
+                    No laboratory results available
+                  </p>
+
+                  <p className="text-sm text-muted-foreground">
+                    Results will appear here once uploaded by the laboratory.
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader>
