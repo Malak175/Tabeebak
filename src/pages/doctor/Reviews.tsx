@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { MessageSquareQuote, Star, Stethoscope, ThumbsUp } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import { StarRating } from "@/components/reviews/StarRating";
 import { doctorNavItems } from "@/components/settings/AccountSettingsContent";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -173,16 +174,7 @@ const DoctorReviews = () => {
                       </p>
                     </div>
                     <div className="flex items-center gap-1">
-                      {Array.from({ length: 5 }).map((_, index) => (
-                        <Star
-                          key={index}
-                          className={`h-4 w-4 ${
-                            index < Math.round(review.rating)
-                              ? "fill-yellow-400 text-yellow-400"
-                              : "text-muted-foreground"
-                          }`}
-                        />
-                      ))}
+                      <StarRating rating={review.rating} size="sm" />
                     </div>
                   </div>
                   <p className="text-sm leading-6 text-muted-foreground">

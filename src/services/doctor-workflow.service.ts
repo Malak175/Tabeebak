@@ -155,9 +155,11 @@ const pickStringArray = (record: Record<string, unknown>, keys: string[]) => {
   return [];
 };
 
-const pickRecord = (record: Record<string, unknown>, keys: string[]) => {
+const pickRecord = (record: Record<string, unknown> | unknown, keys: string[]) => {
+  const source = asRecord(record);
+
   for (const key of keys) {
-    const value = record[key];
+    const value = source[key];
     if (value && typeof value === "object" && !Array.isArray(value)) {
       return asRecord(value);
     }

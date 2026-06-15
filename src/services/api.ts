@@ -125,10 +125,27 @@ apiClient.interceptors.response.use(
       });
     }
 
-    const errorCode = error.response.data?.error ?? "REQUEST_FAILED";
-    const message =
-      error.response.data?.message ??
-      `Request failed with status ${error.response.status}`;
+    const responseData = error.response.data as
+      | { error?: string; code?: string; message?: string }
+      | string
+      | undefined;
+    const errorCode =
+      typeof responseData === "object" && responseData
+        ? responseData.code ?? responseData.error ?? "REQUEST_FAILED"
+        : "REQUEST_FAILED";
+
+    let message =
+      typeof responseData === "object" && responseData?.message
+        ? responseData.message
+        : `Request failed with status ${error.response.status}`;
+
+    if (
+      error.response.status === 404
+      && typeof responseData === "string"
+      && /Cannot (GET|POST|PATCH|PUT|DELETE)/i.test(responseData)
+    ) {
+      message = `API route not found (${requestUrl}). Restart the backend with the latest code.`;
+    }
 
     debugError("[API ERROR]", {
       url: requestUrl,

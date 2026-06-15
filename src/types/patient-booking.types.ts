@@ -53,6 +53,15 @@ export interface DoctorDirectoryItem {
   distanceKm?: number | null;
 }
 
+export interface DoctorPublicReview {
+  id?: string | null;
+  patientName: string;
+  patientAvatarUrl?: string | null;
+  rating: number;
+  comment?: string | null;
+  createdAt?: string | null;
+}
+
 export interface DoctorDetail extends DoctorDirectoryItem {
   phone?: string | null;
   email?: string | null;
@@ -60,6 +69,7 @@ export interface DoctorDetail extends DoctorDirectoryItem {
   education: string[];
   certifications: string[];
   servicesOffered: string[];
+  recentReviews?: DoctorPublicReview[];
 }
 
 export interface LabDirectoryItem {

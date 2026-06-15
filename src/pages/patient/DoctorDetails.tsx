@@ -5,6 +5,7 @@ import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import AvailableTimeSlotsPicker from "@/components/booking/AvailableTimeSlotsPicker";
 import { EmptyCard, ErrorCard, LoadingCard, SectionCard } from "@/components/patient/BookingFlowSection";
+import { DoctorRecentReviewsSection } from "@/components/reviews/DoctorRecentReviewsSection";
 import { patientBookingNavItems } from "@/components/patient/patientNavigation";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -207,6 +208,12 @@ const PatientDoctorDetailsPage = () => {
                 </div>
               </div>
             </SectionCard>
+
+            {doctor.recentReviews?.length ? (
+              <SectionCard title="Patient reviews" description="Recent feedback from completed visits.">
+                <DoctorRecentReviewsSection reviews={doctor.recentReviews} />
+              </SectionCard>
+            ) : null}
           </div>
 
           <SectionCard title="Book an appointment" description="Choose a time and share a quick note.">

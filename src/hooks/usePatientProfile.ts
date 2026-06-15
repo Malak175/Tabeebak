@@ -1,11 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { myAccountQueryKeys } from "@/hooks/useMyAccount";
+import { formatAppointmentActionError } from "@/lib/appointmentMutationErrors";
 import { patientService } from "@/services/patient.service";
 import {
   AppointmentFilterParams,
   LabOrderFilterParams,
   LabResultFilterParams,
   PrescriptionFilterParams,
+  RescheduleAppointmentPayload,
+  SubmitAppointmentReviewPayload,
 } from "@/types/patient-records.types";
 import {
   UpdateEmergencyContactRequest,
@@ -36,6 +40,8 @@ export const patientQueryKeys = {
   upcomingAppointments: () => ["patient", "appointments", "upcoming"] as const,
   appointmentDetails: (appointmentId: string) =>
     ["patient", "appointments", "detail", appointmentId] as const,
+  appointmentReview: (appointmentId: string) =>
+    ["patient", "appointments", "review", appointmentId] as const,
   prescriptions: (params?: PrescriptionFilterParams) =>
     ["patient", "prescriptions", normalizeListParams(params)] as const,
   prescriptionDetails: (prescriptionId: string) =>
@@ -167,6 +173,81 @@ export const usePatientAppointmentDetailsQuery = (
     queryFn: () => patientService.getPatientAppointmentById(appointmentId ?? ""),
     enabled: enabled && Boolean(appointmentId),
   });
+
+export const usePatientAppointmentReviewQuery = (
+  appointmentId: string | undefined,
+  enabled = true,
+) =>
+  useQuery({
+    queryKey: patientQueryKeys.appointmentReview(appointmentId ?? ""),
+    queryFn: () => patientService.getPatientAppointmentReview(appointmentId ?? ""),
+    enabled: enabled && Boolean(appointmentId),
+  });
+
+const invalidateAppointmentQueries = (
+  queryClient: ReturnType<typeof useQueryClient>,
+  appointmentId: string,
+) => {
+  queryClient.invalidateQueries({ queryKey: patientQueryKeys.appointmentDetails(appointmentId) });
+  queryClient.invalidateQueries({ queryKey: patientQueryKeys.appointments() });
+  queryClient.invalidateQueries({ queryKey: patientQueryKeys.upcomingAppointments() });
+};
+
+const invalidateAppointmentReviewQueries = (
+  queryClient: ReturnType<typeof useQueryClient>,
+  appointmentId: string,
+) => {
+  invalidateAppointmentQueries(queryClient, appointmentId);
+  queryClient.invalidateQueries({ queryKey: patientQueryKeys.appointmentReview(appointmentId) });
+};
+
+export const useCancelAppointmentMutation = (appointmentId: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => patientService.cancelAppointment(appointmentId),
+    onSuccess: () => {
+      invalidateAppointmentQueries(queryClient, appointmentId);
+      toast.success("Appointment cancelled.");
+    },
+    onError: (error: Error) => {
+      toast.error(formatAppointmentActionError(error));
+    },
+  });
+};
+
+export const useRescheduleAppointmentMutation = (appointmentId: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: RescheduleAppointmentPayload) =>
+      patientService.rescheduleAppointment(appointmentId, payload),
+    onSuccess: () => {
+      invalidateAppointmentQueries(queryClient, appointmentId);
+      toast.success("Appointment rescheduled.");
+    },
+  });
+};
+
+export const useCreatePatientAppointmentReviewMutation = (appointmentId: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: SubmitAppointmentReviewPayload) =>
+      patientService.createPatientAppointmentReview(appointmentId, payload),
+    onSuccess: () => invalidateAppointmentReviewQueries(queryClient, appointmentId),
+  });
+};
+
+export const useUpdatePatientAppointmentReviewMutation = (appointmentId: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: SubmitAppointmentReviewPayload) =>
+      patientService.updatePatientAppointmentReview(appointmentId, payload),
+    onSuccess: () => invalidateAppointmentReviewQueries(queryClient, appointmentId),
+  });
+};
 
 export const usePatientPrescriptionsQuery = (
   params?: PrescriptionFilterParams,

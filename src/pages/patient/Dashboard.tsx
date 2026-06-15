@@ -183,8 +183,8 @@ const PatientDashboard = () => {
 
   const hasEmergencyContact = Boolean(
     emergencyContact?.fullName ||
-      emergencyContact?.phone ||
-      historyQuery.data?.highlights?.hasEmergencyContact,
+    emergencyContact?.phone ||
+    historyQuery.data?.highlights?.hasEmergencyContact,
   );
   const hasInsurance = Boolean(
     insurance?.providerName || insurance?.memberId || historyQuery.data?.highlights?.hasInsurance,
@@ -195,11 +195,11 @@ const PatientDashboard = () => {
       label: "Add full name",
       complete: Boolean(
         profile?.firstName ||
-          profile?.lastName ||
-          profile?.displayName ||
-          summary?.displayName ||
-          summary?.name ||
-          user?.name,
+        profile?.lastName ||
+        profile?.displayName ||
+        summary?.displayName ||
+        summary?.name ||
+        user?.name,
       ),
     },
     { label: "Add phone number", complete: Boolean(profile?.phone) },
@@ -368,7 +368,7 @@ const PatientDashboard = () => {
         </Card>
       </div>
 
-      <div className="mb-8 grid items-stretch gap-5 sm:gap-6 md:grid-cols-2 xl:grid-cols-5">
+      <div className="mb-8 grid items-stretch gap-5 sm:gap-6 md:grid-cols-3">
         {dashboardSummaryQuery.isLoading ? (
           <>
             <SummaryStatSkeleton />
@@ -432,51 +432,17 @@ const PatientDashboard = () => {
               actionLabel={hasActiveMedications ? "Update Medical Profile" : "Add Medications"}
               actionTo="/patient/settings"
             />
-            <SummaryStat
-              title="Emergency Contact"
-              value={hasEmergencyContact ? "On file" : undefined}
-              emptyLabel="No emergency contact"
-              helper={
-                hasEmergencyContact
-                  ? emergencyContact?.fullName ?? "Emergency contact saved"
-                  : "Add someone we can reach in an emergency"
-              }
-              icon={Phone}
-              actionLabel={hasEmergencyContact ? "Review Contact" : "Add Emergency Contact"}
-              actionTo="/patient/settings"
-              badge={{
-                text: hasEmergencyContact ? "Complete" : "Missing",
-                variant: hasEmergencyContact ? "secondary" : "outline",
-              }}
-            />
-            <SummaryStat
-              title="Insurance Status"
-              value={hasInsurance ? "On file" : undefined}
-              emptyLabel="No insurance details"
-              helper={
-                hasInsurance
-                  ? insurance?.providerName ?? "Insurance details saved"
-                  : "Add insurance to speed up visits"
-              }
-              icon={ShieldCheck}
-              actionLabel={hasInsurance ? "Review Insurance" : "Add Insurance"}
-              actionTo="/patient/settings"
-              badge={{
-                text: hasInsurance ? "Complete" : "Missing",
-                variant: hasInsurance ? "secondary" : "outline",
-              }}
-            />
           </>
         )}
       </div>
 
-        <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
-          <div className="space-y-6">
-            <Card className="rounded-2xl border-slate-200/80 bg-white/95 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
-              <CardHeader>
-                <CardTitle className="font-semibold tracking-tight">Medical History Summary</CardTitle>
-                <CardDescription>
-                  Summary of your recorded medical history.
+      <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
+        <div className="space-y-6">
+          <Card className="rounded-2xl border-slate-200/80 bg-white/95 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
+            <CardHeader>
+              <CardTitle className="font-semibold tracking-tight">Medical History Summary</CardTitle>
+              <CardDescription>
+                Summary of your recorded medical history.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -510,194 +476,194 @@ const PatientDashboard = () => {
                   ))}
                 </div>
               )}
-              </CardContent>
-            </Card>
+            </CardContent>
+          </Card>
 
-            <Card className="rounded-2xl border-slate-200/80 bg-white/95 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
-              <CardHeader className="flex flex-row items-center justify-between gap-3">
-                <div>
-                  <CardTitle className="font-semibold tracking-tight">Recent Lab Results</CardTitle>
-                  <CardDescription>Preview of your latest lab reports.</CardDescription>
-                </div>
-                <Button asChild variant="outline" size="sm" className="rounded-xl transition-colors hover:bg-sky-50 hover:text-sky-700 dark:hover:bg-slate-800">
-                  <Link to="/patient/lab-results">View All</Link>
-                </Button>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {recentLabResultsQuery.isLoading ? (
-                  <>
-                    <Skeleton className="h-12 w-full" />
-                    <Skeleton className="h-12 w-full" />
-                  </>
-                ) : recentLabResultsQuery.isError ? (
-                  <Alert variant="destructive">
-                    <AlertTitle>Unable to load lab results</AlertTitle>
-                    <AlertDescription>{(recentLabResultsQuery.error as Error).message}</AlertDescription>
-                  </Alert>
-                ) : recentLabResults.length ? (
-                  recentLabResults.map((result) => (
-                    <div key={result.id} className="flex items-start justify-between gap-4 rounded-xl border border-slate-200/80 bg-white/70 p-3 transition-colors hover:bg-sky-50/60 dark:border-slate-700 dark:bg-slate-900/50 dark:hover:bg-slate-800/80">
-                      <div>
-                        <p className="text-sm font-medium">{result.testName}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {result.laboratoryName || "Lab pending"} • {formatDate(result.reportedAt)}
-                        </p>
-                      </div>
-                      <Badge
-                        className={getPatientLabWorkflowBadgeClassName({
-                          orderStatus: result.orderStatus ?? null,
-                          status: result.status ?? null,
-                        })}
-                      >
-                        {getPatientLabWorkflowLabel({
-                          orderStatus: result.orderStatus ?? null,
-                          status: result.status ?? null,
-                        })}
-                      </Badge>
-                    </div>
-                  ))
-                ) : (
-                  <div className="rounded-xl bg-slate-100/80 p-3 text-sm text-muted-foreground dark:bg-slate-800/80">
-                    No lab results yet.
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-2xl border-slate-200/80 bg-white/95 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
-              <CardHeader className="flex flex-row items-center justify-between gap-3">
-                <div>
-                  <CardTitle className="font-semibold tracking-tight">Recent Appointments</CardTitle>
-                  <CardDescription>Your latest visits and bookings.</CardDescription>
-                </div>
-                <Button asChild variant="outline" size="sm" className="rounded-xl transition-colors hover:bg-sky-50 hover:text-sky-700 dark:hover:bg-slate-800">
-                  <Link to="/patient/appointments">View All</Link>
-                </Button>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {recentAppointmentsQuery.isLoading ? (
-                  <>
-                    <Skeleton className="h-12 w-full" />
-                    <Skeleton className="h-12 w-full" />
-                  </>
-                ) : recentAppointmentsQuery.isError ? (
-                  <Alert variant="destructive">
-                    <AlertTitle>Unable to load appointments</AlertTitle>
-                    <AlertDescription>{(recentAppointmentsQuery.error as Error).message}</AlertDescription>
-                  </Alert>
-                ) : recentAppointments.length ? (
-                  recentAppointments.map((appointment) => (
-                    <div key={appointment.id} className="flex items-start justify-between gap-4 rounded-xl border border-slate-200/80 bg-white/70 p-3 transition-colors hover:bg-sky-50/60 dark:border-slate-700 dark:bg-slate-900/50 dark:hover:bg-slate-800/80">
-                      <div>
-                        <p className="text-sm font-medium">{appointment.doctorName}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {appointment.doctorSpecialty || "Specialty not available"} •{" "}
-                          {formatDate(appointment.scheduledAt)}
-                        </p>
-                      </div>
-                      <Badge variant="outline" className="capitalize">
-                        {appointment.status}
-                      </Badge>
-                    </div>
-                  ))
-                ) : (
-                  <div className="rounded-xl bg-slate-100/80 p-3 text-sm text-muted-foreground dark:bg-slate-800/80">
-                    No appointments yet.
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-2xl border-slate-200/80 bg-white/95 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
-              <CardHeader className="flex flex-row items-center justify-between gap-3">
-                <div>
-                  <CardTitle className="font-semibold tracking-tight">Recent Prescriptions</CardTitle>
-                  <CardDescription>Latest medications added to your record.</CardDescription>
-                </div>
-                <Button asChild variant="outline" size="sm" className="rounded-xl transition-colors hover:bg-sky-50 hover:text-sky-700 dark:hover:bg-slate-800">
-                  <Link to="/patient/prescriptions">View All</Link>
-                </Button>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {recentPrescriptionsQuery.isLoading ? (
-                  <>
-                    <Skeleton className="h-12 w-full" />
-                    <Skeleton className="h-12 w-full" />
-                  </>
-                ) : recentPrescriptionsQuery.isError ? (
-                  <Alert variant="destructive">
-                    <AlertTitle>Unable to load prescriptions</AlertTitle>
-                    <AlertDescription>{(recentPrescriptionsQuery.error as Error).message}</AlertDescription>
-                  </Alert>
-                ) : recentPrescriptions.length ? (
-                  recentPrescriptions.map((prescription) => (
-                    <div
-                      key={prescription.id}
-                      className="flex items-start justify-between gap-4 rounded-xl border border-slate-200/80 bg-white/70 p-3 transition-colors hover:bg-sky-50/60 dark:border-slate-700 dark:bg-slate-900/50 dark:hover:bg-slate-800/80"
-                    >
-                      <div>
-                        <p className="text-sm font-medium">{prescription.medicationName}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {prescription.prescriberName || "Prescriber pending"} •{" "}
-                          {formatDate(prescription.prescribedAt)}
-                        </p>
-                      </div>
-                      <Badge variant="outline" className="capitalize">
-                        {(prescription as { status?: string }).status}
-                      </Badge>
-                    </div>
-                  ))
-                ) : (
-                  <div className="rounded-xl bg-slate-100/80 p-3 text-sm text-muted-foreground dark:bg-slate-800/80">
-                    No prescriptions yet.
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-2xl border-slate-200/80 bg-white/95 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
-              <CardHeader className="flex flex-row items-center justify-between gap-3">
-                <div>
-                  <CardTitle className="font-semibold tracking-tight">Recent Lab Insights</CardTitle>
-                  <CardDescription>Highlights from recent lab interpretations.</CardDescription>
-                </div>
-                <Button asChild variant="outline" size="sm" className="rounded-xl transition-colors hover:bg-sky-50 hover:text-sky-700 dark:hover:bg-slate-800">
-                  <Link to="/patient/lab-results">View Lab Results</Link>
-                </Button>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {recentLabResultsQuery.isLoading ? (
-                  <>
-                    <Skeleton className="h-12 w-full" />
-                    <Skeleton className="h-12 w-full" />
-                  </>
-                ) : recentLabResultsQuery.isError ? (
-                  <Alert variant="destructive">
-                    <AlertTitle>Unable to load lab insights</AlertTitle>
-                    <AlertDescription>{(recentLabResultsQuery.error as Error).message}</AlertDescription>
-                  </Alert>
-                ) : recentAnalyses.length ? (
-                  recentAnalyses.map((result) => (
-                    <div key={`${result.id}-analysis`} className="rounded-xl border border-slate-200/80 bg-white/70 p-3 transition-colors hover:bg-sky-50/60 dark:border-slate-700 dark:bg-slate-900/50 dark:hover:bg-slate-800/80">
+          <Card className="rounded-2xl border-slate-200/80 bg-white/95 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
+            <CardHeader className="flex flex-row items-center justify-between gap-3">
+              <div>
+                <CardTitle className="font-semibold tracking-tight">Recent Lab Results</CardTitle>
+                <CardDescription>Preview of your latest lab reports.</CardDescription>
+              </div>
+              <Button asChild variant="outline" size="sm" className="rounded-xl transition-colors hover:bg-sky-50 hover:text-sky-700 dark:hover:bg-slate-800">
+                <Link to="/patient/lab-results">View All</Link>
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {recentLabResultsQuery.isLoading ? (
+                <>
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                </>
+              ) : recentLabResultsQuery.isError ? (
+                <Alert variant="destructive">
+                  <AlertTitle>Unable to load lab results</AlertTitle>
+                  <AlertDescription>{(recentLabResultsQuery.error as Error).message}</AlertDescription>
+                </Alert>
+              ) : recentLabResults.length ? (
+                recentLabResults.map((result) => (
+                  <div key={result.id} className="flex items-start justify-between gap-4 rounded-xl border border-slate-200/80 bg-white/70 p-3 transition-colors hover:bg-sky-50/60 dark:border-slate-700 dark:bg-slate-900/50 dark:hover:bg-slate-800/80">
+                    <div>
                       <p className="text-sm font-medium">{result.testName}</p>
                       <p className="text-xs text-muted-foreground">
-                        {formatDate(result.reportedAt)} • {result.laboratoryName || "Lab pending"}
-                      </p>
-                      <p className="mt-2 text-sm text-muted-foreground line-clamp-2">
-                        {result.interpretation || result.conclusion}
+                        {result.laboratoryName || "Lab pending"} • {formatDate(result.reportedAt)}
                       </p>
                     </div>
-                  ))
-                ) : (
-                  <div className="rounded-xl bg-slate-100/80 p-3 text-sm text-muted-foreground dark:bg-slate-800/80">
-                    No lab insights are available yet.
+                    <Badge
+                      className={getPatientLabWorkflowBadgeClassName({
+                        orderStatus: result.orderStatus ?? null,
+                        status: result.status ?? null,
+                      })}
+                    >
+                      {getPatientLabWorkflowLabel({
+                        orderStatus: result.orderStatus ?? null,
+                        status: result.status ?? null,
+                      })}
+                    </Badge>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+                ))
+              ) : (
+                <div className="rounded-xl bg-slate-100/80 p-3 text-sm text-muted-foreground dark:bg-slate-800/80">
+                  No lab results yet.
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-          <div className="space-y-6">
+          <Card className="rounded-2xl border-slate-200/80 bg-white/95 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
+            <CardHeader className="flex flex-row items-center justify-between gap-3">
+              <div>
+                <CardTitle className="font-semibold tracking-tight">Recent Appointments</CardTitle>
+                <CardDescription>Your latest visits and bookings.</CardDescription>
+              </div>
+              <Button asChild variant="outline" size="sm" className="rounded-xl transition-colors hover:bg-sky-50 hover:text-sky-700 dark:hover:bg-slate-800">
+                <Link to="/patient/appointments">View All</Link>
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {recentAppointmentsQuery.isLoading ? (
+                <>
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                </>
+              ) : recentAppointmentsQuery.isError ? (
+                <Alert variant="destructive">
+                  <AlertTitle>Unable to load appointments</AlertTitle>
+                  <AlertDescription>{(recentAppointmentsQuery.error as Error).message}</AlertDescription>
+                </Alert>
+              ) : recentAppointments.length ? (
+                recentAppointments.map((appointment) => (
+                  <div key={appointment.id} className="flex items-start justify-between gap-4 rounded-xl border border-slate-200/80 bg-white/70 p-3 transition-colors hover:bg-sky-50/60 dark:border-slate-700 dark:bg-slate-900/50 dark:hover:bg-slate-800/80">
+                    <div>
+                      <p className="text-sm font-medium">{appointment.doctorName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {appointment.doctorSpecialty || "Specialty not available"} •{" "}
+                        {formatDate(appointment.scheduledAt)}
+                      </p>
+                    </div>
+                    <Badge variant="outline" className="capitalize">
+                      {appointment.status}
+                    </Badge>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-xl bg-slate-100/80 p-3 text-sm text-muted-foreground dark:bg-slate-800/80">
+                  No appointments yet.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-2xl border-slate-200/80 bg-white/95 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
+            <CardHeader className="flex flex-row items-center justify-between gap-3">
+              <div>
+                <CardTitle className="font-semibold tracking-tight">Recent Prescriptions</CardTitle>
+                <CardDescription>Latest medications added to your record.</CardDescription>
+              </div>
+              <Button asChild variant="outline" size="sm" className="rounded-xl transition-colors hover:bg-sky-50 hover:text-sky-700 dark:hover:bg-slate-800">
+                <Link to="/patient/prescriptions">View All</Link>
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {recentPrescriptionsQuery.isLoading ? (
+                <>
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                </>
+              ) : recentPrescriptionsQuery.isError ? (
+                <Alert variant="destructive">
+                  <AlertTitle>Unable to load prescriptions</AlertTitle>
+                  <AlertDescription>{(recentPrescriptionsQuery.error as Error).message}</AlertDescription>
+                </Alert>
+              ) : recentPrescriptions.length ? (
+                recentPrescriptions.map((prescription) => (
+                  <div
+                    key={prescription.id}
+                    className="flex items-start justify-between gap-4 rounded-xl border border-slate-200/80 bg-white/70 p-3 transition-colors hover:bg-sky-50/60 dark:border-slate-700 dark:bg-slate-900/50 dark:hover:bg-slate-800/80"
+                  >
+                    <div>
+                      <p className="text-sm font-medium">{prescription.medicationName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {prescription.prescriberName || "Prescriber pending"} •{" "}
+                        {formatDate(prescription.prescribedAt)}
+                      </p>
+                    </div>
+                    <Badge variant="outline" className="capitalize">
+                      {(prescription as { status?: string }).status}
+                    </Badge>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-xl bg-slate-100/80 p-3 text-sm text-muted-foreground dark:bg-slate-800/80">
+                  No prescriptions yet.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-2xl border-slate-200/80 bg-white/95 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
+            <CardHeader className="flex flex-row items-center justify-between gap-3">
+              <div>
+                <CardTitle className="font-semibold tracking-tight">Recent Lab Insights</CardTitle>
+                <CardDescription>Highlights from recent lab interpretations.</CardDescription>
+              </div>
+              <Button asChild variant="outline" size="sm" className="rounded-xl transition-colors hover:bg-sky-50 hover:text-sky-700 dark:hover:bg-slate-800">
+                <Link to="/patient/lab-results">View Lab Results</Link>
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {recentLabResultsQuery.isLoading ? (
+                <>
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                </>
+              ) : recentLabResultsQuery.isError ? (
+                <Alert variant="destructive">
+                  <AlertTitle>Unable to load lab insights</AlertTitle>
+                  <AlertDescription>{(recentLabResultsQuery.error as Error).message}</AlertDescription>
+                </Alert>
+              ) : recentAnalyses.length ? (
+                recentAnalyses.map((result) => (
+                  <div key={`${result.id}-analysis`} className="rounded-xl border border-slate-200/80 bg-white/70 p-3 transition-colors hover:bg-sky-50/60 dark:border-slate-700 dark:bg-slate-900/50 dark:hover:bg-slate-800/80">
+                    <p className="text-sm font-medium">{result.testName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatDate(result.reportedAt)} • {result.laboratoryName || "Lab pending"}
+                    </p>
+                    <p className="mt-2 text-sm text-muted-foreground line-clamp-2">
+                      {result.interpretation || result.conclusion}
+                    </p>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-xl bg-slate-100/80 p-3 text-sm text-muted-foreground dark:bg-slate-800/80">
+                  No lab insights are available yet.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="space-y-6">
           <Card className="rounded-2xl border-slate-200/80 bg-white/95 shadow-sm dark:border-slate-800 dark:bg-slate-900/80 xl:sticky xl:top-6">
             <CardHeader>
               <CardTitle className="font-semibold tracking-tight">Next Steps</CardTitle>

@@ -1,7 +1,12 @@
 import { apiRequest } from "@/services/api";
+import { patientBookingService } from "@/services/patient-booking.service";
 import {
   Appointment,
+  AppointmentDoctor,
   AppointmentFilterParams,
+  AppointmentReview,
+  AppointmentReviewSummary,
+  AvailableSlotsResponse,
   LabOrder,
   LabOrderFilterParams,
   LabResult,
@@ -10,6 +15,8 @@ import {
   PaginatedResponse,
   Prescription,
   PrescriptionFilterParams,
+  RescheduleAppointmentPayload,
+  SubmitAppointmentReviewPayload,
 } from "@/types/patient-records.types";
 import {
   EmergencyContact,
@@ -124,6 +131,14 @@ const pickIdValue = (record: Record<string, unknown>, keys: string[]) => {
   return undefined;
 };
 
+const resolveNumericAppointmentId = (raw: Record<string, unknown>): string => {
+  const idValue = pickIdValue(raw, ["id", "_id", "appointmentId", "appointment_id"]);
+  if (idValue === undefined || idValue === null) return "";
+
+  const normalized = String(idValue).trim();
+  return /^\d+$/.test(normalized) ? normalized : "";
+};
+
 const pickNullableNumber = (record: Record<string, unknown>, keys: string[]) => {
   const value = pickNumber(record, keys);
   return value ?? null;
@@ -172,15 +187,27 @@ const pickStringArray = (record: Record<string, unknown>, keys: string[]) => {
   return [];
 };
 
-const pickRecord = (record: Record<string, unknown>, keys: string[]) => {
+const pickRecord = (record: Record<string, unknown> | unknown, keys: string[]) => {
+  const source = asRecord(record);
+
   for (const key of keys) {
-    const value = record[key];
+    const value = source[key];
     if (value && typeof value === "object" && !Array.isArray(value)) {
       return asRecord(value);
     }
   }
 
   return {};
+};
+
+const EMPTY_APPOINTMENT_REVIEW_SUMMARY: AppointmentReviewSummary = {
+  submitted: false,
+  canEdit: false,
+  id: null,
+  rating: null,
+  comment: null,
+  createdAt: null,
+  editableUntil: null,
 };
 
 const normalizeAddress = (addressRecord: Record<string, unknown>) => {
@@ -483,6 +510,55 @@ const normalizeMedicalHistorySummary = (payload: unknown): MedicalHistorySummary
   };
 };
 
+const normalizeAppointmentReviewSummary = (payload: unknown): AppointmentReviewSummary => {
+  const nestedReview = pickRecord(payload, ["review", "appointmentReview", "appointment_review"]);
+  const raw = Object.keys(nestedReview).length
+    ? nestedReview
+    : mergeRecords(asRecord(payload));
+
+  if (!Object.keys(raw).length) {
+    return { ...EMPTY_APPOINTMENT_REVIEW_SUMMARY };
+  }
+
+  const submitted =
+    pickBoolean(raw, ["submitted", "isSubmitted", "is_submitted"]) ??
+    Boolean(pickNumber(raw, ["rating", "stars", "score"]));
+
+  return {
+    submitted,
+    canEdit: pickBoolean(raw, ["canEdit", "can_edit", "editable"]) ?? false,
+    id: pickNullableString(raw, ["id", "_id", "reviewId", "review_id"]),
+    rating: pickNullableNumber(raw, ["rating", "stars", "score"]),
+    comment: pickNullableString(raw, ["comment", "review", "message", "feedback"]),
+    createdAt: pickNullableString(raw, ["createdAt", "created_at", "reviewedAt", "submittedAt"]),
+    editableUntil: pickNullableString(raw, ["editableUntil", "editable_until"]),
+  };
+};
+
+const normalizeAppointmentReview = (payload: unknown): AppointmentReview => {
+  const raw = unwrapPayload(payload);
+  const summary = normalizeAppointmentReviewSummary(raw) ?? { submitted: true, rating: 0 };
+
+  return {
+    ...summary,
+    id: pickNullableString(raw, ["id", "_id", "reviewId", "review_id"]),
+    appointmentId: pickNullableString(raw, ["appointmentId", "appointment_id"]),
+    rating: pickNumber(raw, ["rating", "stars", "score"]) ?? summary.rating ?? 0,
+    submitted: summary.submitted,
+    canEdit: summary.canEdit,
+    comment: summary.comment,
+    createdAt: summary.createdAt,
+  };
+};
+
+const normalizeAppointmentDoctor = (doctor: Record<string, unknown>): AppointmentDoctor => ({
+  id: String(pickIdValue(doctor, ["id", "_id", "doctorId", "doctor_id"]) ?? ""),
+  fullName:
+    pickString(doctor, ["fullName", "full_name", "name", "displayName"]) ?? "Doctor not assigned",
+  specialty: pickNullableString(doctor, ["specialty", "specialization"]),
+  avatarUrl: pickNullableString(doctor, ["avatarUrl", "avatar_url", "avatar"]),
+});
+
 const normalizeAppointment = (payload: unknown): Appointment => {
   const raw = unwrapPayload(payload);
   const doctor = mergeRecords(
@@ -534,7 +610,24 @@ const normalizeAppointment = (payload: unknown): Appointment => {
   ];
   const labResults = labResultCandidates.map(normalizeLabResult).filter((item) => item.id);
 
-  const idValue = pickIdValue(raw, ["id", "_id", "appointmentId", "appointment_id"]);
+  const idValue = resolveNumericAppointmentId(raw);
+  const doctorRecord = Object.keys(doctor).length > 0 ? doctor : {};
+  const normalizedDoctor =
+    Object.keys(doctorRecord).length > 0
+      ? normalizeAppointmentDoctor(doctorRecord)
+      : {
+          id: pickNullableString(raw, ["doctorId", "doctor_id"]) ?? "",
+          fullName:
+            pickString(raw, ["doctorName", "doctor_name", "providerName"]) ??
+            pickString(doctor, ["displayName", "name", "fullName", "full_name"]) ??
+            "Doctor not assigned",
+          specialty:
+            pickNullableString(raw, ["doctorSpecialty", "specialty", "doctor_specialty"]) ??
+            pickNullableString(doctor, ["specialty", "specialization"]),
+          avatarUrl:
+            pickNullableString(doctor, ["avatarUrl", "avatar", "profileImageUrl"]) ??
+            pickNullableString(raw, ["doctorAvatarUrl", "doctor_avatar_url"]),
+        };
 
   return {
     id: idValue !== undefined && idValue !== null ? String(idValue) : "",
@@ -544,17 +637,11 @@ const normalizeAppointment = (payload: unknown): Appointment => {
       "referenceNumber",
     ]),
     reference: pickNullableString(raw, ["reference", "appointmentReference", "appointment_reference"]),
-    doctorId: pickNullableString(doctor, ["id", "_id", "doctorId", "doctor_id"]),
-    doctorName:
-      pickString(raw, ["doctorName", "doctor_name", "providerName"]) ??
-      pickString(doctor, ["displayName", "name", "fullName", "full_name"]) ??
-      "Doctor not assigned",
-    doctorSpecialty:
-      pickNullableString(raw, ["doctorSpecialty", "specialty", "doctor_specialty"]) ??
-      pickNullableString(doctor, ["specialty", "specialization"]),
-    doctorAvatarUrl:
-      pickNullableString(doctor, ["avatarUrl", "avatar", "profileImageUrl"]) ??
-      pickNullableString(raw, ["doctorAvatarUrl", "doctor_avatar_url"]),
+    doctorId: normalizedDoctor.id || pickNullableString(raw, ["doctorId", "doctor_id"]),
+    doctor: normalizedDoctor,
+    doctorName: normalizedDoctor.fullName,
+    doctorSpecialty: normalizedDoctor.specialty,
+    doctorAvatarUrl: normalizedDoctor.avatarUrl,
     scheduledAt: buildDateTime(
       raw,
       ["scheduledAt", "appointmentDate", "appointment_date", "date", "startDate", "start_date"],
@@ -591,6 +678,7 @@ const normalizeAppointment = (payload: unknown): Appointment => {
     requestReason:
       pickNullableString(raw, ["requestReason"]) ??
       pickNullableString(request, ["reason", "chiefComplaint", "chief_complaint"]),
+    review: normalizeAppointmentReviewSummary(raw.review ?? raw.appointmentReview ?? raw.appointment_review ?? raw),
     prescription:
       prescriptionExists !== null || prescriptionLatestId
         ? {
@@ -1066,6 +1154,115 @@ export const patientService = {
     });
 
     return normalizeAppointment(response);
+  },
+
+  getPatientAppointmentReview: async (appointmentId: string): Promise<AppointmentReview> => {
+    const response = await apiRequest<unknown>(
+      `/api/v1/patients/me/appointments/${appointmentId}/review`,
+      {
+        method: "GET",
+        auth: true,
+      },
+    );
+
+    return normalizeAppointmentReview(response);
+  },
+
+  createPatientAppointmentReview: async (
+    appointmentId: string,
+    payload: SubmitAppointmentReviewPayload,
+  ): Promise<AppointmentReview> => {
+    const response = await apiRequest<unknown>(
+      `/api/v1/patients/me/appointments/${appointmentId}/review`,
+      {
+        method: "POST",
+        body: payload,
+        auth: true,
+      },
+    );
+
+    return normalizeAppointmentReview(response);
+  },
+
+  updatePatientAppointmentReview: async (
+    appointmentId: string,
+    payload: SubmitAppointmentReviewPayload,
+  ): Promise<AppointmentReview> => {
+    const response = await apiRequest<unknown>(
+      `/api/v1/patients/me/appointments/${appointmentId}/review`,
+      {
+        method: "PATCH",
+        body: payload,
+        auth: true,
+      },
+    );
+
+    return normalizeAppointmentReview(response);
+  },
+
+  cancelAppointment: async (appointmentId: string): Promise<Appointment> => {
+    const normalizedId = appointmentId.trim();
+    if (!/^\d+$/.test(normalizedId)) {
+      throw new Error("A valid appointment id is required.");
+    }
+
+    const response = await apiRequest<unknown>(
+      `/api/v1/patients/me/appointments/${normalizedId}/cancel`,
+      {
+        method: "PATCH",
+        auth: true,
+      },
+    );
+
+    return normalizeAppointment(response);
+  },
+
+  rescheduleAppointment: async (
+    appointmentId: string,
+    payload: RescheduleAppointmentPayload,
+  ): Promise<Appointment> => {
+    const normalizedId = appointmentId.trim();
+    if (!/^\d+$/.test(normalizedId)) {
+      throw new Error("A valid appointment id is required.");
+    }
+
+    if (import.meta.env.DEV) {
+      console.log("[rescheduleAppointment]", {
+        appointmentId: normalizedId,
+        scheduledAt: payload.scheduledAt,
+        url: `/api/v1/patients/me/appointments/${normalizedId}/reschedule`,
+      });
+    }
+
+    const response = await apiRequest<unknown>(
+      `/api/v1/patients/me/appointments/${normalizedId}/reschedule`,
+      {
+        method: "POST",
+        body: payload,
+        auth: true,
+      },
+    );
+
+    return normalizeAppointment(response);
+  },
+
+  getDoctorAvailableSlots: async (
+    doctorId: string,
+    startDate: string,
+    endDate: string,
+  ): Promise<AvailableSlotsResponse> => {
+    const response = await patientBookingService.getDoctorAvailableSlots(doctorId, {
+      startDate,
+      endDate,
+    });
+
+    return {
+      doctorId: response.doctorId,
+      timezone: response.timezone,
+      slotDurationMinutes: response.slotDurationMinutes,
+      range: response.range,
+      slots: response.slots,
+    };
   },
 
   getPatientPrescriptions: async (

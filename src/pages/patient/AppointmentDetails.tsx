@@ -1,17 +1,24 @@
 import { ArrowLeft, Calendar, Clock, MapPin, User, Video } from "lucide-react";
-import { Link, useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useParams, useSearchParams } from "react-router-dom";
+import { CancelAppointmentDialog } from "@/components/appointments/CancelAppointmentDialog";
+import { RescheduleAppointmentModal } from "@/components/appointments/RescheduleAppointmentModal";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import AppointmentTimeline from "@/components/patient/AppointmentTimeline";
+import { AppointmentReviewDisplay } from "@/components/reviews/AppointmentReviewDisplay";
+import { ReviewModal } from "@/components/reviews/ReviewModal";
 import { patientNavItems } from "@/components/settings/AccountSettingsContent";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { usePatientAppointmentDetailsQuery } from "@/hooks/usePatientProfile";
+import { usePatientAppointmentDetailsQuery, useCancelAppointmentMutation } from "@/hooks/usePatientProfile";
 import { useAuth } from "@/hooks/useAuth";
+import { canCancelOrRescheduleAppointment } from "@/lib/appointmentActions";
 import { getDisplayName } from "@/lib/auth";
 import { formatDisplayDateTime } from "@/lib/date-time";
+import { shouldAutoOpenReviewModal } from "@/lib/reviewNotifications";
 import {
   getAppointmentStatusClassName,
   getAppointmentStatusLabel,
@@ -80,8 +87,14 @@ const DetailRow = ({ label, value }: { label: string; value?: string | null }) =
 
 const PatientAppointmentDetails = () => {
   const { appointmentId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const query = usePatientAppointmentDetailsQuery(appointmentId, Boolean(user));
+  const cancelMutation = useCancelAppointmentMutation(appointmentId ?? "");
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [reviewModalMode, setReviewModalMode] = useState<"create" | "edit">("create");
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [rescheduleModalOpen, setRescheduleModalOpen] = useState(false);
   const userName = getDisplayName(user ?? {});
   const prescriptions = query.data?.prescriptions ?? [];
   const prescriptionSummary = query.data?.prescription ?? null;
@@ -90,6 +103,52 @@ const PatientAppointmentDetails = () => {
   const hasOutcomePrescriptions = prescriptions.length > 0 || prescriptionSummary?.exists === true;
   const hasOutcomes = hasOutcomePrescriptions;
   const outcomeExpectation = getOutcomeExpectation(query.data?.status);
+
+  useEffect(() => {
+    setReviewModalOpen(false);
+    setReviewModalMode("create");
+    setCancelDialogOpen(false);
+    setRescheduleModalOpen(false);
+  }, [appointmentId]);
+
+  useEffect(() => {
+    if (!query.data || !shouldAutoOpenReviewModal(searchParams)) return;
+    const isEdit = searchParams.get("editReview") === "true";
+    if (isEdit && query.data.review?.canEdit) {
+      setReviewModalMode("edit");
+      setReviewModalOpen(true);
+    } else if (query.data.review?.submitted === false) {
+      setReviewModalMode("create");
+      setReviewModalOpen(true);
+    }
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("openReview");
+    nextParams.delete("editReview");
+    setSearchParams(nextParams, { replace: true });
+  }, [query.data, searchParams, setSearchParams]);
+
+  const openCreateReview = () => {
+    setReviewModalMode("create");
+    setReviewModalOpen(true);
+  };
+
+  const openEditReview = () => {
+    setReviewModalMode("edit");
+    setReviewModalOpen(true);
+  };
+
+  const canManageAppointment = query.data
+    ? canCancelOrRescheduleAppointment(query.data.status)
+    : false;
+
+  const handleConfirmCancel = () => {
+    cancelMutation.mutate(undefined, {
+      onSuccess: () => {
+        setCancelDialogOpen(false);
+        void query.refetch();
+      },
+    });
+  };
 
   return (
     <DashboardLayout
@@ -162,6 +221,24 @@ const PatientAppointmentDetails = () => {
               <DetailRow label="Doctor Specialty" value={query.data.doctorSpecialty} />
               <DetailRow label="Reason" value={query.data.reason} />
               <DetailRow label="Notes" value={query.data.notes} />
+              {canManageAppointment ? (
+                <div className="flex flex-wrap gap-2 pt-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setRescheduleModalOpen(true)}
+                    disabled={cancelMutation.isPending}
+                  >
+                    Reschedule
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => setCancelDialogOpen(true)}
+                    disabled={cancelMutation.isPending}
+                  >
+                    Cancel Appointment
+                  </Button>
+                </div>
+              ) : null}
               {query.data.joinUrl ? (
                 <Button asChild variant="outline">
                   <a href={query.data.joinUrl} target="_blank" rel="noreferrer">
@@ -173,6 +250,14 @@ const PatientAppointmentDetails = () => {
           </Card>
 
           <div className="space-y-6">
+            {query.data ? (
+              <AppointmentReviewDisplay
+                appointment={query.data}
+                onRateVisit={openCreateReview}
+                onEditReview={openEditReview}
+              />
+            ) : null}
+
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Appointment Summary</CardTitle>
@@ -293,6 +378,34 @@ const PatientAppointmentDetails = () => {
             </Card>
           </div>
         </div>
+      ) : null}
+
+      {appointmentId ? (
+        <ReviewModal
+          appointmentId={appointmentId}
+          open={reviewModalOpen}
+          onOpenChange={setReviewModalOpen}
+          mode={reviewModalMode}
+          onSuccess={() => void query.refetch()}
+        />
+      ) : null}
+
+      {query.data && canManageAppointment ? (
+        <>
+          <CancelAppointmentDialog
+            open={cancelDialogOpen}
+            onOpenChange={setCancelDialogOpen}
+            onConfirm={handleConfirmCancel}
+            isPending={cancelMutation.isPending}
+          />
+          <RescheduleAppointmentModal
+            appointmentId={appointmentId}
+            appointment={query.data}
+            open={rescheduleModalOpen}
+            onOpenChange={setRescheduleModalOpen}
+            onSuccess={() => void query.refetch()}
+          />
+        </>
       ) : null}
     </DashboardLayout>
   );

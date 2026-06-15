@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { formatDistanceToNowStrict } from "date-fns";
 import { Bell, CheckCheck, Laptop, RefreshCcw, Shield, Smartphone } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
   useMarkAllNotificationsAsReadMutation,
@@ -20,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDisplayDateTime } from "@/lib/date-time";
+import { buildReviewNotificationPath } from "@/lib/reviewNotifications";
 
 const NOTIFICATION_PAGE_SIZE = 6;
 
@@ -77,6 +79,7 @@ const SessionsSkeleton = () => (
 
 const NotificationsPanel = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
@@ -114,6 +117,20 @@ const NotificationsPanel = () => {
       onSuccess: (response) => toast.success(response.message),
       onError: (error: Error) => toast.error(error.message),
     });
+  };
+
+  const handleOpenNotification = (notification: NotificationItem) => {
+    if (!notification.actionUrl) return;
+
+    const destination = buildReviewNotificationPath(notification.actionUrl, notification.title);
+    if (!destination) return;
+
+    if (destination.startsWith("http")) {
+      window.open(destination, "_blank", "noreferrer");
+      return;
+    }
+
+    navigate(destination);
   };
 
   return (
@@ -229,14 +246,14 @@ const NotificationsPanel = () => {
                       </p>
                     ) : null}
                     {notification.actionUrl ? (
-                      <a
-                        href={notification.actionUrl}
-                        target={notification.actionUrl.startsWith("http") ? "_blank" : undefined}
-                        rel={notification.actionUrl.startsWith("http") ? "noreferrer" : undefined}
-                        className="inline-flex text-sm font-medium text-primary underline-offset-4 hover:underline"
+                      <Button
+                        type="button"
+                        variant="link"
+                        className="h-auto p-0 text-sm font-medium"
+                        onClick={() => handleOpenNotification(notification)}
                       >
                         Open related item
-                      </a>
+                      </Button>
                     ) : null}
                   </div>
 

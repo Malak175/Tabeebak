@@ -45,11 +45,71 @@ export interface LabResultFilterParams extends BaseListFilterParams {
   abnormalOnly?: boolean;
 }
 
+export interface AppointmentReviewSummary {
+  submitted: boolean;
+  id?: string | number | null;
+  canEdit?: boolean;
+  editableUntil?: string | null;
+  rating?: number | null;
+  comment?: string | null;
+  createdAt?: string | null;
+}
+
+export interface AppointmentReview extends AppointmentReviewSummary {
+  id?: string | null;
+  appointmentId?: string | null;
+  rating: number;
+}
+
+export interface SubmitAppointmentReviewPayload {
+  rating: number;
+  comment?: string | null;
+}
+
+export type AppointmentStatus =
+  | "SCHEDULED"
+  | "CONFIRMED"
+  | "IN_PROGRESS"
+  | "COMPLETED"
+  | "CANCELLED"
+  | "NO_SHOW"
+  | string;
+
+export interface AppointmentDoctor {
+  id: string;
+  fullName: string;
+  specialty?: string | null;
+  avatarUrl?: string | null;
+}
+
+export interface AvailableSlot {
+  startAt: string;
+  endAt?: string | null;
+  date?: string | null;
+  time?: string | null;
+}
+
+export interface AvailableSlotsResponse {
+  doctorId: string;
+  timezone?: string | null;
+  slotDurationMinutes?: number | null;
+  range: {
+    startDate: string;
+    endDate: string;
+  };
+  slots: AvailableSlot[];
+}
+
+export interface RescheduleAppointmentPayload {
+  scheduledAt: string;
+}
+
 export interface Appointment {
   id: string;
   appointmentNumber?: string | null;
   reference?: string | null;
   doctorId?: string | null;
+  doctor?: AppointmentDoctor | null;
   doctorName: string;
   doctorSpecialty?: string | null;
   doctorAvatarUrl?: string | null;
@@ -69,6 +129,7 @@ export interface Appointment {
   requestReference?: string | null;
   requestStatus?: string | null;
   requestReason?: string | null;
+  review?: AppointmentReviewSummary | null;
   prescription?: {
     exists: boolean;
     latestId?: string | null;

@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { Calendar, Clock, MapPin, Plus, Search, User, Video } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import AppointmentTimeline from "@/components/patient/AppointmentTimeline";
+import { AppointmentReviewDisplay } from "@/components/reviews/AppointmentReviewDisplay";
 import { patientBookingNavItems } from "@/components/patient/patientNavigation";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -27,6 +28,7 @@ import {
   getAppointmentStatusOption,
   normalizeAppointmentStatus,
 } from "@/lib/appointmentStatus";
+import type { Appointment } from "@/types/patient-records.types";
 
 const formatDateTime = (value?: string | null) => formatDisplayDateTime(value);
 
@@ -41,17 +43,21 @@ const AppointmentCard = ({
   type,
   location,
   joinUrl,
-}: {
-  id: string;
-  doctorName: string;
-  doctorSpecialty?: string | null;
-  scheduledAt?: string | null;
-  status: string;
-  mode?: string | null;
-  type?: string | null;
-  location?: string | null;
-  joinUrl?: string | null;
-}) => {
+  review,
+}: Pick<
+  Appointment,
+  | "id"
+  | "doctorName"
+  | "doctorSpecialty"
+  | "scheduledAt"
+  | "status"
+  | "mode"
+  | "type"
+  | "location"
+  | "joinUrl"
+  | "review"
+>) => {
+  const navigate = useNavigate();
   const hasId = Boolean(id);
   const statusOption = getAppointmentStatusOption(status);
   const StatusIcon = statusOption?.icon;
@@ -88,6 +94,20 @@ const AppointmentCard = ({
             </span>
           </div>
           <AppointmentTimeline status={status} />
+          <AppointmentReviewDisplay
+            appointment={{ status, review }}
+            compact
+            onRateVisit={
+              hasId
+                ? () => navigate(`/patient/appointments/${id}?openReview=true`)
+                : undefined
+            }
+            onEditReview={
+              hasId
+                ? () => navigate(`/patient/appointments/${id}?openReview=true&editReview=true`)
+                : undefined
+            }
+          />
         </div>
         <div className="flex flex-wrap gap-2">
           {joinUrl ? (

@@ -12,6 +12,7 @@ import {
   LabAvailableSlotsParams,
   DoctorDetail,
   DoctorDirectoryItem,
+  DoctorPublicReview,
   DoctorRequestDetail,
   DoctorRequestListParams,
   DoctorRequestSummary,
@@ -176,9 +177,11 @@ const pickStringArray = (record: Record<string, unknown>, keys: string[]) => {
   return [];
 };
 
-const pickRecord = (record: Record<string, unknown>, keys: string[]) => {
+const pickRecord = (record: Record<string, unknown> | unknown, keys: string[]) => {
+  const source = asRecord(record);
+
   for (const key of keys) {
-    const value = record[key];
+    const value = source[key];
     if (value && typeof value === "object" && !Array.isArray(value)) {
       return asRecord(value);
     }
@@ -609,6 +612,25 @@ const normalizeDoctorItem = (payload: unknown): DoctorDirectoryItem => {
   };
 };
 
+const normalizeDoctorPublicReview = (payload: unknown): DoctorPublicReview => {
+  const raw = unwrapPayload(payload);
+  const patient = mergeRecords(pickRecord(raw, ["patient", "reviewer", "author"]));
+
+  return {
+    id: pickNullableString(raw, ["id", "_id", "reviewId", "review_id"]),
+    patientName:
+      pickString(raw, ["patientName", "patient_name"]) ??
+      pickString(patient, ["displayName", "name", "fullName", "full_name"]) ??
+      "Patient",
+    patientAvatarUrl:
+      pickNullableString(raw, ["patientAvatarUrl", "patient_avatar_url"]) ??
+      pickNullableString(patient, ["avatarUrl", "avatar", "profileImageUrl"]),
+    rating: pickNumber(raw, ["rating", "stars", "score"]) ?? 0,
+    comment: pickNullableString(raw, ["comment", "review", "message", "feedback"]),
+    createdAt: pickNullableString(raw, ["createdAt", "created_at", "reviewedAt", "date"]),
+  };
+};
+
 const normalizeDoctorDetail = (payload: unknown): DoctorDetail => {
   const raw = unwrapPayload(payload);
   const professional = mergeRecords(
@@ -637,6 +659,9 @@ const normalizeDoctorDetail = (payload: unknown): DoctorDetail => {
     servicesOffered: pickStringArray(raw, ["servicesOffered", "services_offered", "services"]).length
       ? pickStringArray(raw, ["servicesOffered", "services_offered", "services"])
       : pickStringArray(professional, ["servicesOffered", "services_offered", "services"]),
+    recentReviews: getListEnvelope(raw.recentReviews ?? raw.recent_reviews).items.map(
+      normalizeDoctorPublicReview,
+    ),
   };
 };
 
